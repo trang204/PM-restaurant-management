@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ecfccb"/>
+      <stop offset="1" stop-color="#bbf7d0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="750" fill="url(#bg)"/>
+  <g transform="translate(0,5)">
+    <rect x="250" y="300" width="700" height="250" rx="125" fill="#ffffff" opacity="0.92"/>
+    <rect x="285" y="325" width="630" height="200" rx="100" fill="#f1f5f9"/>
+    <g opacity="0.95">
+      <circle cx="430" cy="430" r="44" fill="#ef4444" opacity="0.85"/>
+      <circle cx="520" cy="410" r="40" fill="#fde68a" opacity="0.9"/>
+      <circle cx="600" cy="455" r="44" fill="#22c55e" opacity="0.75"/>
+      <circle cx="690" cy="410" r="42" fill="#60a5fa" opacity="0.8"/>
+      <circle cx="780" cy="445" r="40" fill="#fb7185" opacity="0.75"/>
+    </g>
+    <path d="M310 420c120-90 460-90 580 0" fill="none" stroke="#94a3b8" stroke-width="10" stroke-linecap="round" opacity="0.55"/>
+  </g>
+  <text x="60" y="680" font-family="system-ui,Segoe UI,Roboto,sans-serif" font-size="46" fill="#0f172a" opacity="0.72">Gœi cu—n</text>
+</svg>

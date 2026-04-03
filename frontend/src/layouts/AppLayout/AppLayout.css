@@ -1,0 +1,89 @@
+ .appShell {
+  min-height: 100svh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.appHeader {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in oklab, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.appHeader__inner {
+  width: min(1126px, 100%);
+  margin: 0 auto;
+  padding: 12px 18px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.brand {
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-decoration: none;
+  color: var(--text-h);
+}
+
+.nav {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.nav__link {
+  text-decoration: none;
+  color: color-mix(in oklab, var(--text) 90%, var(--text-h));
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.nav__link:hover {
+  background: color-mix(in oklab, var(--accent-bg) 55%, transparent);
+  border-color: color-mix(in oklab, var(--accent-border) 65%, var(--border));
+}
+
+.nav__cta {
+  color: var(--text-h);
+  background: color-mix(in oklab, var(--accent-bg) 70%, transparent);
+}
+
+.appFooter {
+  border-top: 1px solid var(--border);
+}
+
+.appFooter__inner {
+  width: min(1126px, 100%);
+  margin: 0 auto;
+  padding: 14px 18px;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: color-mix(in oklab, var(--text) 90%, var(--text-h));
+}
+
+.appFooter__link {
+  text-decoration: none;
+  color: var(--text-h);
+}
+
+@media (max-width: 560px) {
+  .appHeader__inner {
+    grid-template-columns: 1fr;
+  }
+  .nav {
+    justify-content: flex-start;
+  }
+}
+

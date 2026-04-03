@@ -1,0 +1,244 @@
+/* Clean modern UI - no Tailwind. Uses CSS Grid + hover effects + responsive. */
+
+.menuPage {
+  width: min(1126px, 100%);
+  margin: 0 auto;
+  padding: 28px 18px 56px;
+  box-sizing: border-box;
+}
+
+.menuHero {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 18px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--accent-bg) 60%, transparent),
+      transparent 55%
+    ),
+    color-mix(in oklab, var(--bg) 92%, var(--accent-bg));
+  box-shadow: var(--shadow);
+}
+
+.menuHero__content {
+  text-align: left;
+}
+
+.menuHero__eyebrow {
+  margin: 0 0 10px;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--text) 75%, var(--accent));
+}
+
+.menuHero__title {
+  margin: 0 0 10px;
+  font-size: clamp(28px, 3.2vw, 46px);
+  line-height: 1.05;
+}
+
+.menuHero__subtitle {
+  margin: 0;
+  max-width: 60ch;
+  color: color-mix(in oklab, var(--text) 90%, var(--text-h));
+}
+
+.menuHero__meta {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  align-content: start;
+}
+
+.menuPill {
+  display: grid;
+  gap: 2px;
+  padding: 12px 12px;
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--bg) 86%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.menuPill__label {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--text) 75%, var(--accent));
+}
+
+.menuPill__value {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.menuSection {
+  margin-top: 20px;
+}
+
+.menuSection__header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+  padding: 0 2px;
+  margin-bottom: 14px;
+}
+
+.menuSection__title {
+  margin: 0;
+  text-align: left;
+  font-size: 22px;
+}
+
+.menuSection__hint {
+  margin: 0;
+  font-size: 14px;
+  color: color-mix(in oklab, var(--text) 88%, var(--text-h));
+  text-align: right;
+}
+
+/* CSS Grid layout for menu items */
+.menuGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.menuCard {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--bg) 92%, transparent);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  cursor: pointer;
+  outline: none;
+}
+
+.menuCard:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 50%, transparent);
+  border-color: color-mix(in oklab, var(--accent-border) 80%, var(--border));
+}
+
+.menuCard:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
+  border-color: color-mix(in oklab, var(--accent-border) 70%, var(--border));
+}
+
+.menuCard__media {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: radial-gradient(
+      1200px 300px at 20% 10%,
+      color-mix(in oklab, var(--accent-bg) 80%, transparent),
+      transparent 40%
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--bg) 85%, transparent),
+      color-mix(in oklab, var(--accent-bg) 55%, transparent)
+    );
+  border-bottom: 1px solid var(--border);
+}
+
+.menuCard__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transform: scale(1.02);
+  transition: transform 220ms ease, filter 220ms ease;
+  filter: saturate(1.05) contrast(1.02);
+}
+
+.menuCard:hover .menuCard__img {
+  transform: scale(1.07);
+}
+
+.menuBadge {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: var(--text-h);
+  background: color-mix(in oklab, var(--bg) 88%, transparent);
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.menuCard__body {
+  padding: 12px 12px 14px;
+  text-align: left;
+  display: grid;
+  gap: 8px;
+}
+
+.menuCard__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.menuCard__name {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.25;
+  color: var(--text-h);
+}
+
+.menuCard__price {
+  margin: 0;
+  font-weight: 700;
+  color: color-mix(in oklab, var(--accent) 92%, var(--text-h));
+  white-space: nowrap;
+}
+
+.menuCard__desc {
+  margin: 0;
+  font-size: 14px;
+  color: color-mix(in oklab, var(--text) 92%, var(--text-h));
+  line-height: 1.35;
+}
+
+.menuFooter {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.menuFooter__text {
+  margin: 0;
+  font-size: 14px;
+  color: color-mix(in oklab, var(--text) 88%, var(--text-h));
+  text-align: left;
+}
+
+@media (max-width: 820px) {
+  .menuHero {
+    grid-template-columns: 1fr;
+  }
+
+  .menuSection__header {
+    grid-template-columns: 1fr;
+  }
+
+  .menuSection__hint {
+    text-align: left;
+  }
+}
+

@@ -1,0 +1,63 @@
+.adminShell {
+  width: min(1126px, 100%);
+  margin: 0 auto;
+  padding: 16px 18px 42px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 16px;
+}
+
+.adminSidebar {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+  height: fit-content;
+  position: sticky;
+  top: 72px;
+  background: color-mix(in oklab, var(--bg) 92%, transparent);
+}
+
+.adminBrand {
+  display: inline-block;
+  text-decoration: none;
+  font-weight: 800;
+  color: var(--text-h);
+  margin-bottom: 10px;
+}
+
+.adminNav {
+  display: grid;
+  gap: 6px;
+}
+
+.adminNav__link {
+  text-decoration: none;
+  padding: 10px 10px;
+  border-radius: 12px;
+  color: color-mix(in oklab, var(--text) 90%, var(--text-h));
+  border: 1px solid transparent;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.adminNav__link:hover {
+  background: color-mix(in oklab, var(--accent-bg) 55%, transparent);
+  border-color: color-mix(in oklab, var(--accent-border) 65%, var(--border));
+}
+
+.adminMain {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  background: color-mix(in oklab, var(--bg) 94%, transparent);
+}
+
+@media (max-width: 900px) {
+  .adminShell {
+    grid-template-columns: 1fr;
+  }
+  .adminSidebar {
+    position: static;
+  }
+}
+

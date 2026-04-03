@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ecfeff"/>
+      <stop offset="1" stop-color="#bae6fd"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="750" fill="url(#bg)"/>
+  <g transform="translate(0,10)">
+    <rect x="250" y="265" width="700" height="360" rx="28" fill="#ffffff" opacity="0.95"/>
+    <rect x="290" y="305" width="620" height="280" rx="22" fill="#e0f2fe"/>
+    <g opacity="0.95">
+      <circle cx="420" cy="430" r="86" fill="#fef3c7"/>
+      <path d="M360 420c70-60 130-30 170 10" fill="none" stroke="#a16207" stroke-width="18" stroke-linecap="round" opacity="0.6"/>
+      <circle cx="780" cy="425" r="92" fill="#fee2e2"/>
+      <path d="M720 410c40-25 90-25 125 15" fill="none" stroke="#991b1b" stroke-width="18" stroke-linecap="round" opacity="0.55"/>
+      <rect x="520" y="360" width="120" height="150" rx="18" fill="#bbf7d0"/>
+      <path d="M532 388h95" stroke="#16a34a" stroke-width="10" stroke-linecap="round" opacity="0.65"/>
+      <path d="M532 420h95" stroke="#16a34a" stroke-width="10" stroke-linecap="round" opacity="0.65"/>
+      <path d="M532 452h95" stroke="#16a34a" stroke-width="10" stroke-linecap="round" opacity="0.65"/>
+    </g>
+  </g>
+  <text x="60" y="680" font-family="system-ui,Segoe UI,Roboto,sans-serif" font-size="46" fill="#0f172a" opacity="0.72">Bún ch£</text>
+</svg>

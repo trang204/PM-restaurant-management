@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff1f2"/>
+      <stop offset="1" stop-color="#fecdd3"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="750" fill="url(#bg)"/>
+  <g transform="translate(0,0)">
+    <rect x="430" y="210" width="340" height="380" rx="54" fill="#ffffff" opacity="0.94"/>
+    <rect x="458" y="252" width="284" height="300" rx="40" fill="#fde68a" opacity="0.9"/>
+    <path d="M458 365h284" stroke="#f59e0b" stroke-width="10" opacity="0.4"/>
+    <g opacity="0.9">
+      <circle cx="520" cy="525" r="18" fill="#111827"/>
+      <circle cx="570" cy="535" r="18" fill="#111827"/>
+      <circle cx="625" cy="525" r="18" fill="#111827"/>
+      <circle cx="680" cy="540" r="18" fill="#111827"/>
+    </g>
+    <rect x="588" y="150" width="24" height="120" rx="12" fill="#60a5fa"/>
+    <path d="M592 160c-40-35-65-35-98-15" fill="none" stroke="#60a5fa" stroke-width="10" stroke-linecap="round" opacity="0.65"/>
+  </g>
+  <text x="60" y="680" font-family="system-ui,Segoe UI,Roboto,sans-serif" font-size="46" fill="#111827" opacity="0.7">Trà sïa</text>
+</svg>
