@@ -35,6 +35,14 @@
   overflow: hidden;
 }
 
+.booking-mgmt__empty {
+  margin: 0;
+  padding: 20px 16px 24px;
+  font-size: 0.92rem;
+  color: var(--bm-muted);
+  text-align: center;
+}
+
 .booking-mgmt__table {
   width: 100%;
   border-collapse: collapse;

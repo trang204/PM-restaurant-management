@@ -1,6 +1,7 @@
 import { ok } from '../../utils/response.js'
 import { badRequest, notFound } from '../../utils/httpError.js'
 import { query } from '../../config/db.js'
+import { mapBookingForAdmin } from '../../utils/bookingMapper.js'
 
 export async function list(req, res, next) {
   try {
@@ -8,18 +9,19 @@ export async function list(req, res, next) {
       `
       SELECT
         b.*,
-        u.name AS user_name,
-        u.email AS user_email,
-        COALESCE(array_agg(t.name) FILTER (WHERE t.id IS NOT NULL), '{}') AS tables
+        MAX(u.name) AS user_name,
+        MAX(u.email) AS user_email,
+        MAX(u.phone) AS user_phone,
+        COALESCE(array_agg(DISTINCT t.name) FILTER (WHERE t.id IS NOT NULL), '{}') AS tables
       FROM bookings b
       LEFT JOIN users u ON u.id = b.user_id
       LEFT JOIN booking_tables bt ON bt.booking_id = b.id
       LEFT JOIN tables t ON t.id = bt.table_id
-      GROUP BY b.id, u.name, u.email
+      GROUP BY b.id
       ORDER BY b.created_at DESC
     `,
     )
-    return ok(res, r.rows)
+    return ok(res, r.rows.map((row) => mapBookingForAdmin(row)).filter(Boolean))
   } catch (e) {
     return next(e)
   }
@@ -34,20 +36,22 @@ export async function detail(req, res, next) {
       `
       SELECT
         b.*,
-        u.name AS user_name,
-        u.email AS user_email,
-        u.phone AS user_phone,
-        COALESCE(array_agg(bt.table_id) FILTER (WHERE bt.table_id IS NOT NULL), '{}') AS table_ids
+        MAX(u.name) AS user_name,
+        MAX(u.email) AS user_email,
+        MAX(u.phone) AS user_phone,
+        COALESCE(array_agg(DISTINCT bt.table_id) FILTER (WHERE bt.table_id IS NOT NULL), '{}') AS table_ids,
+        COALESCE(array_agg(DISTINCT t2.name) FILTER (WHERE t2.id IS NOT NULL), '{}') AS tables
       FROM bookings b
       LEFT JOIN users u ON u.id = b.user_id
       LEFT JOIN booking_tables bt ON bt.booking_id = b.id
+      LEFT JOIN tables t2 ON t2.id = bt.table_id
       WHERE b.id = $1
-      GROUP BY b.id, u.name, u.email, u.phone
+      GROUP BY b.id
     `,
       [id],
     )
     if (!r.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
-    return ok(res, r.rows[0])
+    return ok(res, mapBookingForAdmin(r.rows[0]))
   } catch (e) {
     return next(e)
   }

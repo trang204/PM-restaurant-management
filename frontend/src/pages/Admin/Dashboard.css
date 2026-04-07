@@ -80,6 +80,10 @@
   align-items: start;
 }
 
+.dashboard__grid--single {
+  grid-template-columns: 1fr;
+}
+
 .dash-section-title {
   margin: 0 0 12px;
   font-size: 1.1rem;

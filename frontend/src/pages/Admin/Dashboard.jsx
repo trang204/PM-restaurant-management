@@ -49,22 +49,12 @@ export default function Dashboard() {
   const totalVnd = revenue?.total != null ? Number(revenue.total).toLocaleString('vi-VN') : '0'
   const recent = bookings.slice(0, 8)
 
-  const chartBars = [
-    { label: 'T2', h: 42 },
-    { label: 'T3', h: 58 },
-    { label: 'T4', h: 48 },
-    { label: 'T5', h: 72 },
-    { label: 'T6', h: 88 },
-    { label: 'T7', h: 95 },
-    { label: 'CN', h: 76 },
-  ]
-
   return (
     <div className="dashboard">
       <header className="dashboard__header">
         <div>
           <h1 className="dashboard__title">Dashboard</h1>
-          <p className="dashboard__subtitle">Dữ liệu từ API admin (GET /admin/...).</p>
+          <p className="dashboard__subtitle">Tổng quan đơn đặt bàn, doanh thu và hệ thống.</p>
         </div>
       </header>
 
@@ -75,50 +65,38 @@ export default function Dashboard() {
         <article className="dash-stat-card">
           <p className="dash-stat-card__label">Bookings</p>
           <p className="dash-stat-card__value">{bookings.length}</p>
-          <p className="dash-stat-card__hint">Tổng đơn trong bộ nhớ</p>
+          <p className="dash-stat-card__hint">Tổng số đơn đặt bàn</p>
         </article>
         <article className="dash-stat-card">
           <p className="dash-stat-card__label">Revenue (báo cáo)</p>
           <p className="dash-stat-card__value">₫ {totalVnd}</p>
-          <p className="dash-stat-card__hint">GET /admin/reports/revenue</p>
+          <p className="dash-stat-card__hint">Theo báo cáo hệ thống</p>
         </article>
         <article className="dash-stat-card">
           <p className="dash-stat-card__label">Tables</p>
           <p className="dash-stat-card__value">{tables.length}</p>
-          <p className="dash-stat-card__hint">GET /tables</p>
+          <p className="dash-stat-card__hint">Số bàn trong nhà hàng</p>
         </article>
         <article className="dash-stat-card">
           <p className="dash-stat-card__label">Users</p>
           <p className="dash-stat-card__value">{users.length}</p>
-          <p className="dash-stat-card__hint">GET /admin/users</p>
+          <p className="dash-stat-card__hint">Tài khoản đã đăng ký</p>
         </article>
       </section>
 
-      <div className="dashboard__grid">
-        <section className="dash-chart" aria-label="Revenue chart">
-          <h2 className="dash-section-title">Biểu đồ (demo)</h2>
-          <p className="dash-chart__caption">7 ngày — minh hoạ giao diện</p>
-          <div className="dash-chart__plot">
-            {chartBars.map((b) => (
-              <div key={b.label} className="dash-chart__bar-wrap">
-                <div className="dash-chart__bar" style={{ height: `${b.h}%` }} title={`${b.label}: ${b.h}%`} />
-                <span className="dash-chart__x">{b.label}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
+      <div className="dashboard__grid dashboard__grid--single">
         <section className="dash-bookings" aria-label="Recent bookings">
           <h2 className="dash-section-title">Đơn gần đây</h2>
           <div className="dash-bookings__table-wrap">
             <table className="dash-bookings__table">
               <thead>
                 <tr>
-                  <th>ID</th>
+                  <th>Mã</th>
                   <th>Khách</th>
+                  <th>Email</th>
                   <th>Ngày</th>
                   <th>Giờ</th>
-                  <th>Khách</th>
+                  <th>Số khách</th>
                   <th>Trạng thái</th>
                 </tr>
               </thead>
@@ -127,6 +105,7 @@ export default function Dashboard() {
                   <tr key={r.id}>
                     <td>{r.id}</td>
                     <td>{r.fullName}</td>
+                    <td>{r.userEmail || '—'}</td>
                     <td>{r.date}</td>
                     <td>{r.time}</td>
                     <td>{r.guestCount}</td>

@@ -52,7 +52,7 @@ export default function BookingManagement() {
       <header className="booking-mgmt__header">
         <div>
           <h1 className="booking-mgmt__title">Đặt bàn</h1>
-          <p className="booking-mgmt__subtitle">GET /admin/reservations · xác nhận / hủy</p>
+          <p className="booking-mgmt__subtitle">Danh sách đơn từ cơ sở dữ liệu · xác nhận hoặc hủy đơn chờ.</p>
         </div>
       </header>
 
@@ -64,10 +64,12 @@ export default function BookingManagement() {
           <thead>
             <tr>
               <th>Khách</th>
-              <th>Điện thoại</th>
+              <th>Số điện thoại</th>
+              <th>Email (tài khoản)</th>
               <th>Ngày</th>
               <th>Giờ</th>
               <th>Số khách</th>
+              <th>Bàn</th>
               <th>Trạng thái</th>
               <th>Thao tác</th>
             </tr>
@@ -75,15 +77,19 @@ export default function BookingManagement() {
           <tbody>
             {rows.map((r) => (
               <tr key={r.id}>
-                <td data-label="Customer">{r.fullName}</td>
-                <td data-label="Phone">{r.phone}</td>
-                <td data-label="Date">{r.date}</td>
-                <td data-label="Time">{r.time}</td>
-                <td data-label="Guests">{r.guestCount}</td>
-                <td data-label="Status">
+                <td data-label="Khách">{r.fullName}</td>
+                <td data-label="SĐT">{r.phone}</td>
+                <td data-label="Email">{r.userEmail || '—'}</td>
+                <td data-label="Ngày">{r.date}</td>
+                <td data-label="Giờ">{r.time}</td>
+                <td data-label="Số khách">{r.guestCount}</td>
+                <td data-label="Bàn">
+                  {Array.isArray(r.tables) && r.tables.length ? r.tables.join(', ') : '—'}
+                </td>
+                <td data-label="Trạng thái">
                   <span className={badgeClass(r.status)}>{r.status}</span>
                 </td>
-                <td data-label="Actions">
+                <td data-label="Thao tác">
                   <div className="booking-mgmt__actions">
                     <button
                       type="button"
@@ -107,6 +113,9 @@ export default function BookingManagement() {
             ))}
           </tbody>
         </table>
+        {!loading && !err && rows.length === 0 ? (
+          <p className="booking-mgmt__empty">Chưa có đơn đặt bàn nào.</p>
+        ) : null}
       </div>
     </div>
   )
