@@ -32,7 +32,7 @@ export default function Register() {
         <div className="menuHero__content">
           <p className="menuHero__eyebrow">Tài khoản</p>
           <h1 className="menuHero__title">Đăng ký</h1>
-          <p className="menuHero__subtitle">Base UI. Backend hiện là demo-memory (chưa nối DB).</p>
+          <p className="menuHero__subtitle">Kết nối API · POST /api/auth/register</p>
         </div>
       </header>
 

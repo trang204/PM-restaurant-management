@@ -6,6 +6,7 @@ export async function getMe(req, res, next) {
       id: req.user?.sub,
       email: req.user?.email,
       role: req.user?.role,
+      fullName: req.user?.fullName,
     })
   } catch (e) {
     return next(e)

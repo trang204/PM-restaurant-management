@@ -1,0 +1,127 @@
+CREATE TABLE roles (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL
+);
+
+INSERT INTO roles (name) VALUES
+('ADMIN'),
+('STAFF'),
+('CUSTOMER');
+
+
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    phone VARCHAR(20),
+    role_id INT REFERENCES roles(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+CREATE TABLE settings (
+    id SERIAL PRIMARY KEY,
+    restaurant_name VARCHAR(150),
+    logo_url TEXT,
+    total_tables INT,
+    address TEXT,
+    phone VARCHAR(20),
+    email VARCHAR(100),
+    open_time TIME,
+    close_time TIME,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+CREATE TABLE tables (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    capacity INT NOT NULL,
+    status VARCHAR(20) DEFAULT 'AVAILABLE',
+    pos_x INT,
+    pos_y INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL
+);
+
+
+
+CREATE TABLE foods (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    description TEXT,
+    image_url TEXT,
+    category_id INT REFERENCES categories(id),
+    status VARCHAR(20) DEFAULT 'AVAILABLE',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+CREATE TABLE bookings (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id),
+    booking_date DATE NOT NULL,
+    booking_time TIME NOT NULL,
+    guests INT,
+    status VARCHAR(20) DEFAULT 'PENDING',
+    note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE booking_tables (
+    id SERIAL PRIMARY KEY,
+    booking_id INT REFERENCES bookings(id) ON DELETE CASCADE,
+    table_id INT REFERENCES tables(id)
+);
+
+
+
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    booking_id INT REFERENCES bookings(id),
+    status VARCHAR(20) DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+CREATE TABLE order_items (
+    id SERIAL PRIMARY KEY,
+    order_id INT REFERENCES orders(id) ON DELETE CASCADE,
+    food_id INT REFERENCES foods(id),
+    quantity INT NOT NULL,
+    price DECIMAL(10,2) NOT NULL
+);
+
+
+
+CREATE TABLE payments (
+    id SERIAL PRIMARY KEY,
+    order_id INT REFERENCES orders(id),
+    amount DECIMAL(10,2),
+    method VARCHAR(50), -- cash, bank, momo
+    status VARCHAR(20),
+    paid_at TIMESTAMP
+);
+
+
+
+CREATE TABLE notifications (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id),
+    message TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

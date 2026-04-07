@@ -81,4 +81,3 @@ export async function listCategories(req, res, next) {
     return next(e)
   }
 }
-

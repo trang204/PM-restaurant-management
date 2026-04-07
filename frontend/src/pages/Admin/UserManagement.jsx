@@ -1,72 +1,114 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { apiFetch } from '../../lib/api'
 import './UserManagement.css'
 
-const initialUsers = [
-  { id: '1', name: 'Nguyễn Văn A', email: 'a@example.com', phone: '0901 111 222', role: 'Staff' },
-  { id: '2', name: 'Trần Thị B', email: 'b@example.com', phone: '0902 333 444', role: 'Manager' },
-  { id: '3', name: 'Lê Văn C', email: 'c@example.com', phone: '0903 555 666', role: 'Admin' },
-  { id: '4', name: 'Phạm Thị D', email: 'd@example.com', phone: '0904 777 888', role: 'Staff' },
-]
-
-const roles = ['Staff', 'Manager', 'Admin']
+const roles = ['CUSTOMER', 'ADMIN']
 
 export default function UserManagement() {
-  const [users, setUsers] = useState(initialUsers)
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState(null)
 
-  function editRole(id) {
+  function load() {
+    setLoading(true)
+    apiFetch('/admin/users')
+      .then((d) => setUsers(Array.isArray(d) ? d : []))
+      .catch((e) => setErr(e.message))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function editRole(id) {
     const user = users.find((u) => u.id === id)
     if (!user) return
-    const choice = window.prompt(`Role for ${user.name} (${roles.join(', ')})`, user.role)
+    const choice = window.prompt(`Role (${roles.join(', ')})`, user.role)
     if (choice === null) return
     const trimmed = choice.trim()
     if (!roles.includes(trimmed)) {
-      window.alert('Invalid role.')
+      window.alert('Role không hợp lệ.')
       return
     }
-    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role: trimmed } : u)))
+    try {
+      await apiFetch(`/admin/users/${id}/role`, {
+        method: 'PATCH',
+        body: JSON.stringify({ role: trimmed }),
+      })
+      load()
+    } catch (e) {
+      window.alert(e.message)
+    }
   }
 
-  function deleteUser(id) {
-    if (!window.confirm('Delete this user?')) return
-    setUsers((prev) => prev.filter((u) => u.id !== id))
+  async function deleteUser(id) {
+    if (!window.confirm('Xóa người dùng này?')) return
+    try {
+      await apiFetch(`/admin/users/${id}`, { method: 'DELETE' })
+      load()
+    } catch (e) {
+      window.alert(e.message)
+    }
+  }
+
+  async function addUser() {
+    const email = window.prompt('Email')
+    if (!email) return
+    const password = window.prompt('Mật khẩu')
+    if (!password) return
+    const fullName = window.prompt('Họ tên', '') || ''
+    try {
+      await apiFetch('/admin/users', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, fullName, role: 'CUSTOMER' }),
+      })
+      load()
+    } catch (e) {
+      window.alert(e.message)
+    }
   }
 
   return (
     <div className="user-mgmt">
       <header className="user-mgmt__header">
         <div>
-          <h1 className="user-mgmt__title">Users</h1>
-          <p className="user-mgmt__subtitle">Team accounts and access roles.</p>
+          <h1 className="user-mgmt__title">Người dùng</h1>
+          <p className="user-mgmt__subtitle">GET/POST/PATCH/DELETE /api/admin/users</p>
         </div>
+        <button type="button" className="user-mgmt__add" onClick={addUser}>
+          Thêm người dùng
+        </button>
       </header>
+
+      {loading ? <p>Đang tải...</p> : null}
+      {err ? <p style={{ color: 'crimson' }}>{err}</p> : null}
 
       <div className="user-mgmt__table-wrap">
         <table className="user-mgmt__table">
           <thead>
             <tr>
-              <th>Name</th>
+              <th>Họ tên</th>
               <th>Email</th>
-              <th>Phone</th>
               <th>Role</th>
-              <th>Actions</th>
+              <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
               <tr key={u.id}>
-                <td data-label="Name">{u.name}</td>
+                <td data-label="Name">{u.fullName || '—'}</td>
                 <td data-label="Email">{u.email}</td>
-                <td data-label="Phone">{u.phone}</td>
                 <td data-label="Role">
                   <span className="user-mgmt__role">{u.role}</span>
                 </td>
                 <td data-label="Actions">
                   <div className="user-mgmt__actions">
                     <button type="button" className="user-mgmt__btn user-mgmt__btn--secondary" onClick={() => editRole(u.id)}>
-                      Edit role
+                      Đổi role
                     </button>
                     <button type="button" className="user-mgmt__btn user-mgmt__btn--danger" onClick={() => deleteUser(u.id)}>
-                      Delete
+                      Xóa
                     </button>
                   </div>
                 </td>

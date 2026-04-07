@@ -53,6 +53,24 @@ export async function detail(req, res, next) {
   }
 }
 
+export async function cancelReservation(req, res, next) {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
+
+    const cur = await query('SELECT id, status FROM bookings WHERE id = $1', [id])
+    if (!cur.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
+    if (['COMPLETED', 'CANCELLED'].includes(cur.rows[0].status)) {
+      throw badRequest('Không thể hủy đơn ở trạng thái này')
+    }
+
+    const updated = await query(`UPDATE bookings SET status = 'CANCELLED' WHERE id = $1 RETURNING *`, [id])
+    return ok(res, updated.rows[0])
+  } catch (e) {
+    return next(e)
+  }
+}
+
 export async function assignTable(req, res, next) {
   try {
     const { tableId } = req.body || {}
@@ -65,7 +83,6 @@ export async function assignTable(req, res, next) {
     const cur = await query('SELECT id, booking_date, booking_time, status FROM bookings WHERE id = $1', [bookingId])
     if (!cur.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
 
-    // Prevent double booking
     const conflicts = await query(
       `
       SELECT 1
@@ -109,7 +126,6 @@ export async function confirm(req, res, next) {
 
 export async function checkIn(req, res, next) {
   try {
-    // Schema không có CHECKED_IN, mình dùng OCCUPIED cho bàn được gán (nếu có)
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
 
@@ -133,14 +149,12 @@ export async function confirmOnlinePayment(req, res, next) {
 
     await query('BEGIN')
 
-    // Ensure order exists
     let order = await query('SELECT * FROM orders WHERE booking_id = $1 ORDER BY id DESC LIMIT 1', [bookingId])
     if (!order.rows.length) {
       order = await query('INSERT INTO orders (booking_id, status) VALUES ($1, $2) RETURNING *', [bookingId, 'DONE'])
     }
     const orderId = order.rows[0].id
 
-    // Ensure payment exists
     let pay = await query('SELECT * FROM payments WHERE order_id = $1 ORDER BY id DESC LIMIT 1', [orderId])
     if (!pay.rows.length) {
       pay = await query(
@@ -173,7 +187,6 @@ export async function cashierPay(req, res, next) {
 
     await query('BEGIN')
 
-    // Ensure order exists
     let order = await query('SELECT * FROM orders WHERE booking_id = $1 ORDER BY id DESC LIMIT 1', [bookingId])
     if (!order.rows.length) {
       order = await query('INSERT INTO orders (booking_id, status) VALUES ($1, $2) RETURNING *', [bookingId, 'DONE'])
@@ -182,7 +195,6 @@ export async function cashierPay(req, res, next) {
     }
     const orderId = order.rows[0].id
 
-    // Create payment as cash and mark paid
     const pay = await query(
       `INSERT INTO payments (order_id, amount, method, status, paid_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
       [orderId, 0, 'cash', 'PAID'],
@@ -191,7 +203,6 @@ export async function cashierPay(req, res, next) {
     const b = await query(`UPDATE bookings SET status = 'COMPLETED' WHERE id = $1 RETURNING *`, [bookingId])
     if (!b.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
 
-    // Release table if any
     const bt = await query('SELECT table_id FROM booking_tables WHERE booking_id = $1', [bookingId])
     if (bt.rows.length) {
       await query(`UPDATE tables SET status = 'AVAILABLE' WHERE id = $1`, [bt.rows[0].table_id])
@@ -205,4 +216,3 @@ export async function cashierPay(req, res, next) {
     return next(e)
   }
 }
-

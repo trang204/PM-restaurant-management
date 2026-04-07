@@ -1,13 +1,13 @@
 import { Router } from 'express'
-import { requireAuth } from '../../middleware/requireAuth.js'
+import { requireAuth, optionalAuth } from '../../middleware/requireAuth.js'
 import * as reservations from '../../controllers/reservations.controller.js'
 
 const router = Router()
 
 // Customer
 router.get('/', requireAuth, reservations.listMyReservations)
-router.post('/', reservations.createReservation) // allow guest; can enforce auth later
-router.get('/:id', requireAuth, reservations.getReservationDetail)
+router.post('/', optionalAuth, reservations.createReservation)
+router.get('/:id', optionalAuth, reservations.getReservationDetail)
 router.post('/:id/cancel', requireAuth, reservations.cancelReservation)
 
 // Hold table 15 minutes (optional flow)

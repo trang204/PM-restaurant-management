@@ -1,90 +1,103 @@
+import { useEffect, useState } from 'react'
+import { apiFetch } from '../../lib/api'
 import './Dashboard.css'
 
-const stats = [
-  { label: 'Total bookings', value: '1,248', hint: '+12% vs last month' },
-  { label: 'Revenue', value: '₫ 892M', hint: 'This month' },
-  { label: 'Total tables', value: '42', hint: '12 in use now' },
-  { label: 'Total users', value: '3,401', hint: 'Registered' },
-]
-
-const recentBookings = [
-  {
-    id: 'BK-1024',
-    customer: 'Trần Anh',
-    date: '2026-04-08',
-    time: '19:00',
-    guests: 4,
-    status: 'Confirmed',
-  },
-  {
-    id: 'BK-1023',
-    customer: 'Lê Mai',
-    date: '2026-04-08',
-    time: '18:30',
-    guests: 2,
-    status: 'Pending',
-  },
-  {
-    id: 'BK-1022',
-    customer: 'Phạm Hùng',
-    date: '2026-04-07',
-    time: '20:00',
-    guests: 6,
-    status: 'Completed',
-  },
-  {
-    id: 'BK-1021',
-    customer: 'Hoàng Yến',
-    date: '2026-04-07',
-    time: '12:00',
-    guests: 3,
-    status: 'Cancelled',
-  },
-]
-
-const chartBars = [
-  { label: 'T2', h: 42 },
-  { label: 'T3', h: 58 },
-  { label: 'T4', h: 48 },
-  { label: 'T5', h: 72 },
-  { label: 'T6', h: 88 },
-  { label: 'T7', h: 95 },
-  { label: 'CN', h: 76 },
-]
-
 function statusClass(status) {
-  const s = status.toLowerCase()
+  const s = String(status || '').toLowerCase()
   if (s === 'confirmed') return 'dash-bookings__badge dash-bookings__badge--blue'
   if (s === 'pending') return 'dash-bookings__badge dash-bookings__badge--yellow'
-  if (s === 'completed') return 'dash-bookings__badge dash-bookings__badge--green'
+  if (s === 'completed' || s === 'paid') return 'dash-bookings__badge dash-bookings__badge--green'
   if (s === 'cancelled') return 'dash-bookings__badge dash-bookings__badge--red'
   return 'dash-bookings__badge'
 }
 
 export default function Dashboard() {
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState(null)
+  const [revenue, setRevenue] = useState(null)
+  const [bookings, setBookings] = useState([])
+  const [tables, setTables] = useState([])
+  const [users, setUsers] = useState([])
+
+  useEffect(() => {
+    let c = false
+    setLoading(true)
+    Promise.all([
+      apiFetch('/admin/reports/revenue'),
+      apiFetch('/admin/reservations'),
+      apiFetch('/tables'),
+      apiFetch('/admin/users'),
+    ])
+      .then(([rev, res, tbl, usr]) => {
+        if (c) return
+        setRevenue(rev)
+        setBookings(Array.isArray(res) ? res : [])
+        setTables(Array.isArray(tbl) ? tbl : [])
+        setUsers(Array.isArray(usr) ? usr : [])
+      })
+      .catch((e) => {
+        if (!c) setErr(e.message)
+      })
+      .finally(() => {
+        if (!c) setLoading(false)
+      })
+    return () => {
+      c = true
+    }
+  }, [])
+
+  const totalVnd = revenue?.total != null ? Number(revenue.total).toLocaleString('vi-VN') : '0'
+  const recent = bookings.slice(0, 8)
+
+  const chartBars = [
+    { label: 'T2', h: 42 },
+    { label: 'T3', h: 58 },
+    { label: 'T4', h: 48 },
+    { label: 'T5', h: 72 },
+    { label: 'T6', h: 88 },
+    { label: 'T7', h: 95 },
+    { label: 'CN', h: 76 },
+  ]
+
   return (
     <div className="dashboard">
       <header className="dashboard__header">
         <div>
           <h1 className="dashboard__title">Dashboard</h1>
-          <p className="dashboard__subtitle">Overview of bookings, revenue, and operations.</p>
+          <p className="dashboard__subtitle">Dữ liệu từ API admin (GET /admin/...).</p>
         </div>
       </header>
 
+      {loading ? <p>Đang tải...</p> : null}
+      {err ? <p style={{ color: 'crimson' }}>{err}</p> : null}
+
       <section className="dashboard__stats" aria-label="Statistics">
-        {stats.map((s) => (
-          <article key={s.label} className="dash-stat-card">
-            <p className="dash-stat-card__label">{s.label}</p>
-            <p className="dash-stat-card__value">{s.value}</p>
-            <p className="dash-stat-card__hint">{s.hint}</p>
-          </article>
-        ))}
+        <article className="dash-stat-card">
+          <p className="dash-stat-card__label">Bookings</p>
+          <p className="dash-stat-card__value">{bookings.length}</p>
+          <p className="dash-stat-card__hint">Tổng đơn trong bộ nhớ</p>
+        </article>
+        <article className="dash-stat-card">
+          <p className="dash-stat-card__label">Revenue (báo cáo)</p>
+          <p className="dash-stat-card__value">₫ {totalVnd}</p>
+          <p className="dash-stat-card__hint">GET /admin/reports/revenue</p>
+        </article>
+        <article className="dash-stat-card">
+          <p className="dash-stat-card__label">Tables</p>
+          <p className="dash-stat-card__value">{tables.length}</p>
+          <p className="dash-stat-card__hint">GET /tables</p>
+        </article>
+        <article className="dash-stat-card">
+          <p className="dash-stat-card__label">Users</p>
+          <p className="dash-stat-card__value">{users.length}</p>
+          <p className="dash-stat-card__hint">GET /admin/users</p>
+        </article>
       </section>
 
       <div className="dashboard__grid">
         <section className="dash-chart" aria-label="Revenue chart">
-          <h2 className="dash-section-title">Revenue (mock)</h2>
-          <p className="dash-chart__caption">Last 7 days — demo visualization</p>
+          <h2 className="dash-section-title">Biểu đồ (demo)</h2>
+          <p className="dash-chart__caption">7 ngày — minh hoạ giao diện</p>
           <div className="dash-chart__plot">
             {chartBars.map((b) => (
               <div key={b.label} className="dash-chart__bar-wrap">
@@ -96,27 +109,27 @@ export default function Dashboard() {
         </section>
 
         <section className="dash-bookings" aria-label="Recent bookings">
-          <h2 className="dash-section-title">Recent bookings</h2>
+          <h2 className="dash-section-title">Đơn gần đây</h2>
           <div className="dash-bookings__table-wrap">
             <table className="dash-bookings__table">
               <thead>
                 <tr>
                   <th>ID</th>
-                  <th>Customer</th>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Guests</th>
-                  <th>Status</th>
+                  <th>Khách</th>
+                  <th>Ngày</th>
+                  <th>Giờ</th>
+                  <th>Khách</th>
+                  <th>Trạng thái</th>
                 </tr>
               </thead>
               <tbody>
-                {recentBookings.map((r) => (
+                {recent.map((r) => (
                   <tr key={r.id}>
                     <td>{r.id}</td>
-                    <td>{r.customer}</td>
+                    <td>{r.fullName}</td>
                     <td>{r.date}</td>
                     <td>{r.time}</td>
-                    <td>{r.guests}</td>
+                    <td>{r.guestCount}</td>
                     <td>
                       <span className={statusClass(r.status)}>{r.status}</span>
                     </td>

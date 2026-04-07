@@ -1,7 +1,7 @@
+import bcrypt from 'bcrypt'
 import { ok, created } from '../../utils/response.js'
 import { badRequest, notFound } from '../../utils/httpError.js'
 import { query } from '../../config/db.js'
-import bcrypt from 'bcrypt'
 
 export async function list(req, res, next) {
   try {
@@ -90,3 +90,15 @@ export async function updateRole(req, res, next) {
   }
 }
 
+export async function remove(req, res, next) {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
+
+    const r = await query('DELETE FROM users WHERE id = $1 RETURNING id', [id])
+    if (!r.rows.length) throw notFound('Không tìm thấy người dùng')
+    return ok(res, { id: r.rows[0].id, deleted: true })
+  } catch (e) {
+    return next(e)
+  }
+}

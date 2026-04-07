@@ -8,7 +8,12 @@ function signToken(user) {
   const secret = process.env.JWT_SECRET || 'dev_secret'
   const expiresIn = process.env.JWT_EXPIRES_IN || '7d'
   return jwt.sign(
-    { sub: user.id, email: user.email, role: user.role },
+    {
+      sub: String(user.id),
+      email: user.email,
+      role: user.role,
+      fullName: user.name || '',
+    },
     secret,
     { expiresIn },
   )
@@ -104,7 +109,6 @@ export async function login(req, res, next) {
 
 export async function logout(req, res, next) {
   try {
-    // JWT stateless: FE chỉ cần xoá token
     return ok(res, { message: 'Logged out' })
   } catch (e) {
     return next(e)
@@ -115,7 +119,6 @@ export async function forgotPassword(req, res, next) {
   try {
     const { email } = req.body || {}
     if (!email) throw badRequest('email là bắt buộc')
-    // Base: trả về ok để FE dựng flow
     return ok(res, { message: 'Nếu email tồn tại, hệ thống đã gửi hướng dẫn đặt lại mật khẩu.' })
   } catch (e) {
     return next(e)
@@ -124,10 +127,8 @@ export async function forgotPassword(req, res, next) {
 
 export async function resetPassword(req, res, next) {
   try {
-    // Base: chưa triển khai token reset
     return ok(res, { message: 'Reset password (base) chưa kích hoạt.' })
   } catch (e) {
     return next(e)
   }
 }
-
