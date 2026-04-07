@@ -2,6 +2,47 @@ import { ok, created } from '../utils/response.js'
 import { badRequest, notFound } from '../utils/httpError.js'
 import { query } from '../config/db.js'
 
+function pickDate(v) {
+  if (v == null || v === '') return ''
+  if (v instanceof Date) return v.toISOString().slice(0, 10)
+  const s = String(v)
+  return s.length >= 10 ? s.slice(0, 10) : s
+}
+
+function pickTime(v) {
+  if (v == null || v === '') return ''
+  if (v instanceof Date) {
+    const h = v.getUTCHours()
+    const m = v.getUTCMinutes()
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  }
+  const s = String(v)
+  const m = s.match(/^(\d{1,2}):(\d{2})/)
+  if (m) return `${m[1].padStart(2, '0')}:${m[2]}`
+  return s.length >= 5 ? s.slice(0, 5) : s
+}
+
+/** Chuẩn hóa payload cho client (camelCase + tên/SĐT từ guest hoặc user). */
+function mapBookingForClient(row) {
+  if (!row) return null
+  const name = (row.guest_name || row.user_name || '').trim()
+  const phone = (row.guest_phone || row.user_phone || '').trim()
+  const tableIds = Array.isArray(row.table_ids) ? row.table_ids : []
+  const firstTableId = tableIds.length ? String(tableIds[0]) : null
+  return {
+    id: String(row.id),
+    fullName: name || 'Khách',
+    phone: phone || '—',
+    date: pickDate(row.booking_date),
+    time: pickTime(row.booking_time),
+    guestCount: Number(row.guests) || 0,
+    status: row.status,
+    assignedTableId: firstTableId,
+    note: row.note ?? null,
+    tables: Array.isArray(row.tables) ? row.tables : undefined,
+  }
+}
+
 function toInt(v) {
   const n = Number(v)
   return Number.isFinite(n) ? n : null
@@ -17,7 +58,7 @@ function normalizeDate(v) {
 
 export async function createReservation(req, res, next) {
   try {
-    const { date, time, guestCount, note, tableId, tableIds } = req.body || {}
+    const { date, time, guestCount, note, tableId, tableIds, fullName, phone } = req.body || {}
     const booking_date = normalizeDate(date)
     const booking_time = normalizeTime(time)
     const guests = toInt(guestCount)
@@ -57,13 +98,16 @@ export async function createReservation(req, res, next) {
       }
     }
 
+    const guestName = fullName != null && String(fullName).trim() ? String(fullName).trim() : null
+    const guestPhone = phone != null && String(phone).trim() ? String(phone).trim() : null
+
     const inserted = await query(
       `
-      INSERT INTO bookings (user_id, booking_date, booking_time, guests, status, note)
-      VALUES ($1, $2, $3, $4, 'PENDING', $5)
-      RETURNING id, user_id, booking_date, booking_time, guests, status, note, created_at
+      INSERT INTO bookings (user_id, booking_date, booking_time, guests, status, note, guest_name, guest_phone)
+      VALUES ($1, $2, $3, $4, 'PENDING', $5, $6, $7)
+      RETURNING id, user_id, booking_date, booking_time, guests, status, note, guest_name, guest_phone, created_at
     `,
-      [userId, booking_date, booking_time, guests, note ? String(note) : null],
+      [userId, booking_date, booking_time, guests, note ? String(note) : null, guestName, guestPhone],
     )
 
     const booking = inserted.rows[0]
@@ -94,8 +138,11 @@ export async function listMyReservations(req, res, next) {
       `
       SELECT
         b.*,
+        MAX(u.name) AS user_name,
+        MAX(u.phone) AS user_phone,
         COALESCE(array_agg(t.name) FILTER (WHERE t.id IS NOT NULL), '{}') AS tables
       FROM bookings b
+      LEFT JOIN users u ON u.id = b.user_id
       LEFT JOIN booking_tables bt ON bt.booking_id = b.id
       LEFT JOIN tables t ON t.id = bt.table_id
       WHERE b.user_id = $1
@@ -105,7 +152,7 @@ export async function listMyReservations(req, res, next) {
       [userId],
     )
 
-    return ok(res, r.rows)
+    return ok(res, r.rows.map(mapBookingForClient))
   } catch (e) {
     return next(e)
   }
@@ -120,8 +167,11 @@ export async function getReservationDetail(req, res, next) {
       `
       SELECT
         b.*,
+        MAX(u.name) AS user_name,
+        MAX(u.phone) AS user_phone,
         COALESCE(array_agg(bt.table_id) FILTER (WHERE bt.table_id IS NOT NULL), '{}') AS table_ids
       FROM bookings b
+      LEFT JOIN users u ON u.id = b.user_id
       LEFT JOIN booking_tables bt ON bt.booking_id = b.id
       WHERE b.id = $1
       GROUP BY b.id
@@ -136,7 +186,7 @@ export async function getReservationDetail(req, res, next) {
       throw notFound('Không tìm thấy đơn đặt bàn')
     }
 
-    return ok(res, booking)
+    return ok(res, mapBookingForClient(booking))
   } catch (e) {
     return next(e)
   }
@@ -203,15 +253,18 @@ export async function holdTable(req, res, next) {
       `
       SELECT
         b.*,
+        MAX(u.name) AS user_name,
+        MAX(u.phone) AS user_phone,
         COALESCE(array_agg(bt.table_id) FILTER (WHERE bt.table_id IS NOT NULL), '{}') AS table_ids
       FROM bookings b
+      LEFT JOIN users u ON u.id = b.user_id
       LEFT JOIN booking_tables bt ON bt.booking_id = b.id
       WHERE b.id = $1
       GROUP BY b.id
     `,
       [id],
     )
-    return ok(res, detail.rows[0])
+    return ok(res, mapBookingForClient(detail.rows[0]))
   } catch (e) {
     await query('ROLLBACK').catch(() => {})
     return next(e)

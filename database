@@ -76,8 +76,15 @@ CREATE TABLE bookings (
     guests INT,
     status VARCHAR(20) DEFAULT 'PENDING',
     note TEXT,
+    guest_name VARCHAR(100),
+    guest_phone VARCHAR(20),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+
+-- DB đã tồn tại: chạy một lần để thêm cột liên hệ khi đặt bàn không qua user
+-- ALTER TABLE bookings ADD COLUMN IF NOT EXISTS guest_name VARCHAR(100);
+-- ALTER TABLE bookings ADD COLUMN IF NOT EXISTS guest_phone VARCHAR(20);
 
 
 CREATE TABLE booking_tables (

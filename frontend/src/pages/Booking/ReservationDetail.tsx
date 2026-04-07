@@ -1,23 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { apiFetch } from '../../lib/api'
-
-type Detail = {
-  id: string
-  fullName: string
-  phone: string
-  date: string
-  time: string
-  guestCount: number
-  status: string
-  assignedTableId?: string | null
-  preorderItems?: unknown[]
-}
+import { normalizeReservation, type ReservationRow } from '../../lib/reservation'
 
 export default function ReservationDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [data, setData] = useState<Detail | null>(null)
+  const [data, setData] = useState<ReservationRow | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [cancelling, setCancelling] = useState(false)
@@ -26,9 +15,9 @@ export default function ReservationDetail() {
     if (!id) return
     let c = false
     setLoading(true)
-    apiFetch<Detail>(`/reservations/${id}`)
+    apiFetch<unknown>(`/reservations/${id}`)
       .then((d) => {
-        if (!c) setData(d)
+        if (!c) setData(normalizeReservation(d))
       })
       .catch((e) => {
         if (!c) setError((e as Error).message)
@@ -53,8 +42,8 @@ export default function ReservationDetail() {
     setCancelling(true)
     try {
       await apiFetch(`/reservations/${id}/cancel`, { method: 'POST', body: '{}' })
-      const d = await apiFetch<Detail>(`/reservations/${id}`)
-      setData(d)
+      const d = await apiFetch<unknown>(`/reservations/${id}`)
+      setData(normalizeReservation(d))
     } catch (e) {
       window.alert((e as Error).message)
     } finally {
@@ -80,6 +69,9 @@ export default function ReservationDetail() {
         </p>
         {loading ? <p>Đang tải...</p> : null}
         {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
+        {!loading && !error && !data ? (
+          <p style={{ color: 'crimson' }}>Không tải được chi tiết đơn (dữ liệu không hợp lệ).</p>
+        ) : null}
         {data ? (
           <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 16, maxWidth: 560 }}>
             <p>
@@ -90,6 +82,7 @@ export default function ReservationDetail() {
             </p>
             <p>Trạng thái: {data.status}</p>
             {data.assignedTableId ? <p>Bàn: {data.assignedTableId}</p> : null}
+            {data.note ? <p>Ghi chú: {data.note}</p> : null}
             <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button
                 type="button"

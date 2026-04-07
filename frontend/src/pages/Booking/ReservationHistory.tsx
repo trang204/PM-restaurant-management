@@ -1,19 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch } from '../../lib/api'
-
-type Row = {
-  id: string
-  fullName: string
-  phone: string
-  date: string
-  time: string
-  guestCount: number
-  status: string
-}
+import { normalizeReservation, type ReservationRow } from '../../lib/reservation'
 
 export default function ReservationHistory() {
-  const [rows, setRows] = useState<Row[]>([])
+  const [rows, setRows] = useState<ReservationRow[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -24,8 +15,15 @@ export default function ReservationHistory() {
       setError('Đăng nhập để xem lịch sử đặt bàn của bạn.')
       return
     }
-    apiFetch<Row[]>('/reservations')
-      .then((d) => setRows(Array.isArray(d) ? d : []))
+    apiFetch<unknown[]>('/reservations')
+      .then((d) => {
+        const arr = Array.isArray(d) ? d : []
+        setRows(
+          arr
+            .map((raw) => normalizeReservation(raw))
+            .filter((x): x is ReservationRow => x != null),
+        )
+      })
       .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false))
   }, [])
