@@ -59,6 +59,9 @@ export default function AppLayout() {
               </>
             ) : (
               <>
+                <NavLink to="/register" className="nav__link">
+                  Đăng ký
+                </NavLink>
                 <NavLink to="/login" className="nav__link nav__cta">
                   Đăng nhập
                 </NavLink>

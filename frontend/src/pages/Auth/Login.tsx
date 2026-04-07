@@ -1,9 +1,12 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { apiFetch, setToken } from '../../lib/api'
+import PasswordField from '../../components/PasswordField'
+import './AuthPages.css'
 
 export default function Login() {
-  const [email, setEmail] = useState('admin@luxeat.local')
-  const [password, setPassword] = useState('admin123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -30,33 +33,65 @@ export default function Login() {
   }
 
   return (
-    <main className="menuPage">
-      <section className="menuHero">
-        <div className="menuHero__content">
-          <p className="menuHero__eyebrow">Tài khoản</p>
-          <h1 className="menuHero__title">Đăng nhập</h1>
-          <p className="menuHero__subtitle">Kết nối API · POST /api/auth/login</p>
-        </div>
-      </section>
+    <main className="authPage">
+      <div className="authPage__aside">
+        <p className="authPage__eyebrow">Luxeat</p>
+        <h1 className="authPage__title">Chào mừng trở lại</h1>
+        <p className="authPage__lead">
+          Đăng nhập để xem lịch sử đặt bàn, cập nhật thông tin và tiếp tục trải nghiệm ẩm thực.
+        </p>
+      </div>
 
-      <section className="menuSection">
-        <form onSubmit={onSubmit} style={{ maxWidth: 520, textAlign: 'left' }}>
-          <label>
-            Email
-            <input value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: '100%', padding: 10, borderRadius: 12, border: '1px solid var(--border)', marginTop: 6 }} />
-          </label>
-          <div style={{ height: 10 }} />
-          <label>
-            Mật khẩu
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: '100%', padding: 10, borderRadius: 12, border: '1px solid var(--border)', marginTop: 6 }} />
-          </label>
-          {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
-          <button className="nav__link nav__cta" type="submit" disabled={loading} style={{ marginTop: 12 }}>
-            {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+      <div className="authCard">
+        <div className="authCard__head">
+          <h2 className="authCard__title">Đăng nhập</h2>
+          <p className="authCard__subtitle">Nhập email và mật khẩu tài khoản của bạn.</p>
+        </div>
+
+        <form className="authForm" onSubmit={onSubmit} noValidate>
+          <div className="authField">
+            <label htmlFor="login-email" className="authField__label">
+              Email
+            </label>
+            <input
+              id="login-email"
+              className="authField__input"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="tenban@email.com"
+              disabled={loading}
+            />
+          </div>
+
+          <PasswordField
+            label="Mật khẩu"
+            value={password}
+            onChange={setPassword}
+            autoComplete="current-password"
+            required
+            disabled={loading}
+            placeholder="••••••••"
+          />
+
+          {error ? <p className="authError">{error}</p> : null}
+
+          <button className="authSubmit" type="submit" disabled={loading}>
+            {loading ? 'Đang đăng nhập…' : 'Đăng nhập'}
           </button>
         </form>
-      </section>
+
+        <div className="authFooter">
+          <p>
+            Chưa có tài khoản? <Link to="/register">Đăng ký ngay</Link>
+          </p>
+          <p style={{ marginTop: 10 }}>
+            <Link to="/forgot-password">Quên mật khẩu?</Link>
+          </p>
+        </div>
+      </div>
     </main>
   )
 }
-

@@ -1,23 +1,48 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { apiFetch, setToken } from '../../lib/api'
+import PasswordField from '../../components/PasswordField'
+import './AuthPages.css'
 
 export default function Register() {
-  const [fullName, setFullName] = useState('Demo User')
-  const [email, setEmail] = useState('demo@luxeat.local')
-  const [password, setPassword] = useState('123456')
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+
+    if (password !== confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp.')
+      return
+    }
+    if (password.length < 6) {
+      setError('Mật khẩu nên có ít nhất 6 ký tự.')
+      return
+    }
+
     setLoading(true)
     try {
-      const data = await apiFetch<{ token: string }>('/auth/register', {
+      const data = await apiFetch<{ token: string; user?: { role?: string } }>('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ fullName, email, password }),
+        body: JSON.stringify({
+          name: fullName.trim(),
+          fullName: fullName.trim(),
+          email: email.trim(),
+          password,
+          phone: phone.trim() || undefined,
+        }),
       })
       setToken(data.token)
+      if (data.user?.role === 'ADMIN') {
+        window.location.href = '/admin'
+        return
+      }
       window.location.href = '/'
     } catch (err) {
       setError((err as Error).message)
@@ -27,38 +52,107 @@ export default function Register() {
   }
 
   return (
-    <main className="menuPage">
-      <header className="menuHero">
-        <div className="menuHero__content">
-          <p className="menuHero__eyebrow">Tài khoản</p>
-          <h1 className="menuHero__title">Đăng ký</h1>
-          <p className="menuHero__subtitle">Kết nối API · POST /api/auth/register</p>
-        </div>
-      </header>
+    <main className="authPage">
+      <div className="authPage__aside">
+        <p className="authPage__eyebrow">Tài khoản mới</p>
+        <h1 className="authPage__title">Tạo tài khoản Luxeat</h1>
+        <p className="authPage__lead">
+          Một bước đăng ký — lưu lịch sử đặt bàn, nhận ưu đãi và quản lý thông tin cá nhân an toàn.
+        </p>
+      </div>
 
-      <section className="menuSection">
-        <form onSubmit={onSubmit} style={{ maxWidth: 520, textAlign: 'left' }}>
-          <label>
-            Họ tên
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} style={{ width: '100%', padding: 10, borderRadius: 12, border: '1px solid var(--border)', marginTop: 6 }} />
-          </label>
-          <div style={{ height: 10 }} />
-          <label>
-            Email
-            <input value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: '100%', padding: 10, borderRadius: 12, border: '1px solid var(--border)', marginTop: 6 }} />
-          </label>
-          <div style={{ height: 10 }} />
-          <label>
-            Mật khẩu
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: '100%', padding: 10, borderRadius: 12, border: '1px solid var(--border)', marginTop: 6 }} />
-          </label>
-          {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
-          <button className="nav__link nav__cta" type="submit" disabled={loading} style={{ marginTop: 12 }}>
-            {loading ? 'Đang tạo...' : 'Tạo tài khoản'}
+      <div className="authCard">
+        <div className="authCard__head">
+          <h2 className="authCard__title">Đăng ký</h2>
+          <p className="authCard__subtitle">Điền thông tin bên dưới. Bạn có thể bật/tắt hiển thị mật khẩu bằng biểu tượng mắt.</p>
+        </div>
+
+        <form className="authForm" onSubmit={onSubmit} noValidate>
+          <div className="authField">
+            <label htmlFor="reg-name" className="authField__label">
+              Họ và tên
+            </label>
+            <input
+              id="reg-name"
+              className="authField__input"
+              type="text"
+              autoComplete="name"
+              required
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Nguyễn Văn A"
+              disabled={loading}
+            />
+          </div>
+
+          <div className="authField">
+            <label htmlFor="reg-email" className="authField__label">
+              Email
+            </label>
+            <input
+              id="reg-email"
+              className="authField__input"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="tenban@email.com"
+              disabled={loading}
+            />
+          </div>
+
+          <div className="authField">
+            <label htmlFor="reg-phone" className="authField__label">
+              Số điện thoại <span className="authField__optional">(tuỳ chọn)</span>
+            </label>
+            <input
+              id="reg-phone"
+              className="authField__input"
+              type="tel"
+              autoComplete="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="0901 234 567"
+              disabled={loading}
+            />
+          </div>
+
+          <PasswordField
+            label="Mật khẩu"
+            value={password}
+            onChange={setPassword}
+            autoComplete="new-password"
+            required
+            disabled={loading}
+            placeholder="Tối thiểu 6 ký tự"
+          />
+
+          <PasswordField
+            label="Xác nhận mật khẩu"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            autoComplete="new-password"
+            required
+            disabled={loading}
+            placeholder="Nhập lại mật khẩu"
+          />
+
+          <p className="authHint">Mật khẩu có thể hiện hoặc ẩn bằng nút bên phải ô nhập.</p>
+
+          {error ? <p className="authError">{error}</p> : null}
+
+          <button className="authSubmit" type="submit" disabled={loading}>
+            {loading ? 'Đang tạo tài khoản…' : 'Đăng ký'}
           </button>
         </form>
-      </section>
+
+        <div className="authFooter">
+          <p>
+            Đã có tài khoản? <Link to="/login">Đăng nhập</Link>
+          </p>
+        </div>
+      </div>
     </main>
   )
 }
-
