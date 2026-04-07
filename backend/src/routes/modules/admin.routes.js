@@ -7,10 +7,14 @@ import * as adminMenu from '../../controllers/admin/menu.admin.controller.js'
 import * as adminCategories from '../../controllers/admin/categories.admin.controller.js'
 import * as adminUsers from '../../controllers/admin/users.admin.controller.js'
 import * as adminReports from '../../controllers/admin/reports.admin.controller.js'
+import * as adminDashboard from '../../controllers/admin/dashboard.admin.controller.js'
 
 const router = Router()
 
 router.use(requireAuth, requireRole('ADMIN'))
+
+// Dashboard
+router.get('/dashboard', adminDashboard.stats)
 
 // Reservations management
 router.get('/reservations', adminReservations.list)
