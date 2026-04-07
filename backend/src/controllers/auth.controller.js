@@ -3,13 +3,27 @@ import jwt from 'jsonwebtoken'
 import { badRequest } from '../utils/httpError.js'
 import { ok, created } from '../utils/response.js'
 
-// Base-only: chưa nối DB. Dùng dữ liệu giả để FE/flow chạy được.
-const demoUsers = new Map()
+/** Memory users — dùng chung với admin/users. */
+export const demoUsers = new Map()
+
+const _adminHash = bcrypt.hashSync('admin123', 10)
+demoUsers.set('admin@luxeat.local', {
+  id: 'admin_1',
+  email: 'admin@luxeat.local',
+  fullName: 'Quản trị viên',
+  passwordHash: _adminHash,
+  role: 'ADMIN',
+})
 
 function signToken(user) {
   const secret = process.env.JWT_SECRET || 'dev_secret'
   return jwt.sign(
-    { sub: user.id, email: user.email, role: user.role || 'CUSTOMER' },
+    {
+      sub: user.id,
+      email: user.email,
+      role: user.role || 'CUSTOMER',
+      fullName: user.fullName || '',
+    },
     secret,
     { expiresIn: '7d' },
   )

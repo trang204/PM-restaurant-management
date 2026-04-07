@@ -1,7 +1,30 @@
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { apiFetch, setToken } from '../../lib/api'
 import './AppLayout.css'
 
+type Me = { id?: string; email?: string; role?: string; fullName?: string }
+
 export default function AppLayout() {
+  const [me, setMe] = useState<Me | null>(null)
+
+  useEffect(() => {
+    const t = localStorage.getItem('luxeat_token')
+    if (!t) {
+      setMe(null)
+      return
+    }
+    apiFetch<Me>('/users/me')
+      .then(setMe)
+      .catch(() => setMe(null))
+  }, [])
+
+  function logout() {
+    setToken(null)
+    setMe(null)
+    window.location.href = '/'
+  }
+
   return (
     <div className="appShell">
       <header className="appHeader">
@@ -20,9 +43,27 @@ export default function AppLayout() {
             <NavLink to="/reservations" className="nav__link">
               Lịch sử
             </NavLink>
-            <NavLink to="/login" className="nav__link nav__cta">
-              Đăng nhập
-            </NavLink>
+            {me ? (
+              <>
+                <NavLink to="/profile" className="nav__link">
+                  {me.fullName || me.email}
+                </NavLink>
+                {me.role === 'ADMIN' ? (
+                  <NavLink to="/admin" className="nav__link">
+                    Admin
+                  </NavLink>
+                ) : null}
+                <button type="button" className="nav__link nav__cta" onClick={logout}>
+                  Đăng xuất
+                </button>
+              </>
+            ) : (
+              <>
+                <NavLink to="/login" className="nav__link nav__cta">
+                  Đăng nhập
+                </NavLink>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -48,4 +89,3 @@ export default function AppLayout() {
     </div>
   )
 }
-

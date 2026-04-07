@@ -20,6 +20,7 @@ router.post('/reservations/:id/confirm', adminReservations.confirm)
 router.post('/reservations/:id/check-in', adminReservations.checkIn)
 router.post('/reservations/:id/cashier-pay', adminReservations.cashierPay)
 router.post('/reservations/:id/confirm-online-payment', adminReservations.confirmOnlinePayment)
+router.post('/reservations/:id/cancel', adminReservations.cancelReservation)
 
 // Menu items
 router.get('/menu-items', adminMenu.list)
@@ -38,6 +39,7 @@ router.delete('/categories/:id', adminCategories.remove)
 router.get('/users', adminUsers.list)
 router.post('/users', adminUsers.create)
 router.patch('/users/:id/role', adminUsers.updateRole)
+router.delete('/users/:id', adminUsers.remove)
 
 // Reports
 router.get('/reports/revenue', adminReports.revenue)

@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { apiFetch, setToken } from '../../lib/api'
 
 export default function Login() {
-  const [email, setEmail] = useState('demo@luxeat.local')
-  const [password, setPassword] = useState('123456')
+  const [email, setEmail] = useState('admin@luxeat.local')
+  const [password, setPassword] = useState('admin123')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -12,11 +12,15 @@ export default function Login() {
     setError(null)
     setLoading(true)
     try {
-      const data = await apiFetch<{ token: string }>('/auth/login', {
+      const data = await apiFetch<{ token: string; user: { role?: string } }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       })
       setToken(data.token)
+      if (data.user?.role === 'ADMIN') {
+        window.location.href = '/admin'
+        return
+      }
       window.location.href = '/'
     } catch (err) {
       setError((err as Error).message)
@@ -31,7 +35,7 @@ export default function Login() {
         <div className="menuHero__content">
           <p className="menuHero__eyebrow">Tài khoản</p>
           <h1 className="menuHero__title">Đăng nhập</h1>
-          <p className="menuHero__subtitle">Base UI. Backend hiện là demo-memory (chưa nối DB).</p>
+          <p className="menuHero__subtitle">Kết nối API · POST /api/auth/login</p>
         </div>
       </section>
 

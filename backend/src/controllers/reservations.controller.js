@@ -1,7 +1,6 @@
 import { ok, created } from '../utils/response.js'
-import { badRequest, notFound } from '../utils/httpError.js'
-
-const reservations = []
+import { badRequest, notFound, unauthorized } from '../utils/httpError.js'
+import { reservations } from '../data/reservations.store.js'
 
 export async function createReservation(req, res, next) {
   try {
@@ -12,7 +11,7 @@ export async function createReservation(req, res, next) {
 
     const r = {
       id: `r_${Date.now()}`,
-      customerId: req.user?.sub || null,
+      customerId: req.user?.sub ?? null,
       fullName,
       phone,
       date,
@@ -42,9 +41,11 @@ export async function listMyReservations(req, res, next) {
 
 export async function getReservationDetail(req, res, next) {
   try {
-    const r = reservations.find((x) => x.id === req.params.id)
+    const r = reservations.find((x) => String(x.id) === String(req.params.id))
     if (!r) throw notFound('Không tìm thấy đơn đặt bàn')
-    if (r.customerId && r.customerId !== req.user?.sub) throw notFound('Không tìm thấy đơn đặt bàn')
+    if (r.customerId) {
+      if (!req.user || r.customerId !== req.user.sub) throw unauthorized('Vui lòng đăng nhập đúng tài khoản đặt bàn')
+    }
     return ok(res, r)
   } catch (e) {
     return next(e)

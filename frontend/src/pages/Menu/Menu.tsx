@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import './Menu.css'
 import phoUrl from '../../assets/menu/pho.svg?url'
 import bunchaUrl from '../../assets/menu/buncha.svg?url'
@@ -5,14 +6,24 @@ import comtamUrl from '../../assets/menu/comtam.svg?url'
 import goicuonUrl from '../../assets/menu/goicuon.svg?url'
 import trasuaUrl from '../../assets/menu/trasua.svg?url'
 import cheUrl from '../../assets/menu/che.svg?url'
+import { apiFetch } from '../../lib/api'
 
-type MenuItem = {
+type ApiMenuItem = {
   id: string
   name: string
-  priceVnd: number
-  imageSrc: string
-  category: string
-  description: string
+  price: number
+  categoryName?: string
+  imageUrl?: string
+  isActive?: boolean
+}
+
+const LOCAL_IMG: Record<string, string> = {
+  'pho-bo': phoUrl,
+  'bun-cha': bunchaUrl,
+  'com-tam': comtamUrl,
+  'goi-cuon': goicuonUrl,
+  'tra-sua': trasuaUrl,
+  'che-khuc-bach': cheUrl,
 }
 
 const vnd = new Intl.NumberFormat('vi-VN', {
@@ -21,58 +32,37 @@ const vnd = new Intl.NumberFormat('vi-VN', {
   maximumFractionDigits: 0,
 })
 
-const items: MenuItem[] = [
-  {
-    id: 'pho-bo',
-    name: 'Phở bò tái',
-    priceVnd: 55000,
-    imageSrc: phoUrl,
-    category: 'Món nước',
-    description: 'Nước dùng trong, thơm quế hồi; thịt bò mềm, hành lá tươi.',
-  },
-  {
-    id: 'bun-cha',
-    name: 'Bún chả Hà Nội',
-    priceVnd: 65000,
-    imageSrc: bunchaUrl,
-    category: 'Đặc sản',
-    description: 'Chả nướng than hoa, nước mắm chua ngọt, rau sống giòn mát.',
-  },
-  {
-    id: 'com-tam',
-    name: 'Cơm tấm sườn bì',
-    priceVnd: 59000,
-    imageSrc: comtamUrl,
-    category: 'Món cơm',
-    description: 'Sườn nướng mật ong, bì trứng; ăn kèm đồ chua và mỡ hành.',
-  },
-  {
-    id: 'goi-cuon',
-    name: 'Gỏi cuốn tôm thịt',
-    priceVnd: 45000,
-    imageSrc: goicuonUrl,
-    category: 'Khai vị',
-    description: 'Cuốn tươi mát với bún, rau, tôm; chấm sốt đậu phộng béo bùi.',
-  },
-  {
-    id: 'tra-sua',
-    name: 'Trà sữa trân châu',
-    priceVnd: 39000,
-    imageSrc: trasuaUrl,
-    category: 'Đồ uống',
-    description: 'Trà thơm dịu, sữa béo; trân châu dẻo dai, ít ngọt dễ uống.',
-  },
-  {
-    id: 'che-khuc-bach',
-    name: 'Chè khúc bạch',
-    priceVnd: 42000,
-    imageSrc: cheUrl,
-    category: 'Tráng miệng',
-    description: 'Khúc bạch mềm mịn, hạnh nhân rang; ăn cùng vải và nước nhãn.',
-  },
-]
+function resolveImageSrc(id: string, imageUrl?: string) {
+  if (LOCAL_IMG[id]) return LOCAL_IMG[id]
+  if (imageUrl && imageUrl.startsWith('http')) return imageUrl
+  return comtamUrl
+}
 
 export default function Menu() {
+  const [items, setItems] = useState<ApiMenuItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    apiFetch<ApiMenuItem[]>('/menu')
+      .then((data) => {
+        if (!cancelled) setItems(Array.isArray(data) ? data : [])
+      })
+      .catch((e) => {
+        if (!cancelled) setError((e as Error).message)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const visible = useMemo(() => items.filter((i) => i.isActive !== false), [items])
+
   return (
     <main className="menuPage">
       <header className="menuHero">
@@ -80,8 +70,7 @@ export default function Menu() {
           <p className="menuHero__eyebrow">Thực đơn hôm nay</p>
           <h1 className="menuHero__title">Món ngon — giá rõ ràng</h1>
           <p className="menuHero__subtitle">
-            Chọn món nhanh, giao diện gọn gàng, hiện đại. Thẻ món có hiệu ứng
-            hover và tự co giãn theo màn hình.
+            Dữ liệu lấy từ API <code>/api/menu</code>. Giá hiển thị theo VND.
           </p>
         </div>
         <div className="menuHero__meta" aria-label="Thông tin nhanh">
@@ -90,12 +79,8 @@ export default function Menu() {
             <span className="menuPill__value">08:00 – 22:00</span>
           </div>
           <div className="menuPill">
-            <span className="menuPill__label">Đánh giá</span>
-            <span className="menuPill__value">4.8/5</span>
-          </div>
-          <div className="menuPill">
-            <span className="menuPill__label">Món nổi bật</span>
-            <span className="menuPill__value">Phở • Bún chả</span>
+            <span className="menuPill__label">Cập nhật</span>
+            <span className="menuPill__value">Theo nhà hàng</span>
           </div>
         </div>
       </header>
@@ -106,37 +91,40 @@ export default function Menu() {
             Thực đơn
           </h2>
           <p className="menuSection__hint">
-            Giá hiển thị theo VND. Nhấn vào thẻ để xem nhanh.
+            {loading ? 'Đang tải...' : error ? `Lỗi: ${error}` : `${visible.length} món`}
           </p>
         </div>
 
         <div className="menuGrid" role="list">
-          {items.map((item) => (
+          {!loading && !error && visible.length === 0 ? (
+            <p>Chưa có món. Thêm món trong khu quản trị.</p>
+          ) : null}
+          {visible.map((item) => (
             <article
               className="menuCard"
               key={item.id}
               role="listitem"
               tabIndex={0}
-              aria-label={`${item.name}, giá ${vnd.format(item.priceVnd)}`}
+              aria-label={`${item.name}, giá ${vnd.format(item.price)}`}
             >
               <div className="menuCard__media">
                 <img
                   className="menuCard__img"
-                  src={item.imageSrc}
+                  src={resolveImageSrc(String(item.id), item.imageUrl)}
                   alt={item.name}
                   loading="lazy"
                 />
-                <span className="menuBadge" aria-label={`Danh mục ${item.category}`}>
-                  {item.category}
+                <span className="menuBadge" aria-label={`Danh mục ${item.categoryName || ''}`}>
+                  {item.categoryName || 'Món'}
                 </span>
               </div>
 
               <div className="menuCard__body">
                 <div className="menuCard__row">
                   <h3 className="menuCard__name">{item.name}</h3>
-                  <p className="menuCard__price">{vnd.format(item.priceVnd)}</p>
+                  <p className="menuCard__price">{vnd.format(item.price)}</p>
                 </div>
-                <p className="menuCard__desc">{item.description}</p>
+                <p className="menuCard__desc">Món từ thực đơn nhà hàng.</p>
               </div>
             </article>
           ))}
@@ -144,12 +132,8 @@ export default function Menu() {
       </section>
 
       <footer className="menuFooter">
-        <p className="menuFooter__text">
-          Gợi ý: bạn có thể thay danh sách món trong{' '}
-          <code>src/pages/Menu/Menu.tsx</code> để phù hợp nhà hàng của bạn.
-        </p>
+        <p className="menuFooter__text">Nguồn dữ liệu: backend REST · GET /api/menu</p>
       </footer>
     </main>
   )
 }
-

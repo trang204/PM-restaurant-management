@@ -10,7 +10,26 @@
 }
 
 .user-mgmt__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 22px;
+}
+
+.user-mgmt__add {
+  flex-shrink: 0;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--um-border);
+  background: var(--um-bg);
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--um-text);
+}
+
+.user-mgmt__add:hover {
+  border-color: var(--um-accent);
 }
 
 .user-mgmt__title {
