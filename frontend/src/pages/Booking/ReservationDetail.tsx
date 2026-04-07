@@ -68,9 +68,9 @@ export default function ReservationDetail() {
           <Link to="/reservations">← Lịch sử</Link>
         </p>
         {loading ? <p>Đang tải...</p> : null}
-        {error ? <p style={{ color: 'crimson' }}>{error}</p> : null}
+        {error ? <p style={{ color: 'white' }}>{error}</p> : null}
         {!loading && !error && !data ? (
-          <p style={{ color: 'crimson' }}>Không tải được chi tiết đơn (dữ liệu không hợp lệ).</p>
+          <p style={{ color: 'white' }}>Không tải được chi tiết đơn (dữ liệu không hợp lệ).</p>
         ) : null}
         {data ? (
           <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 16, maxWidth: 560 }}>
@@ -90,7 +90,7 @@ export default function ReservationDetail() {
                 disabled={cancelling || data.status !== 'PENDING'}
                 onClick={cancel}
               >
-                {cancelling ? 'Đang hủy...' : 'Hủy đơn (chỉ khi PENDING)'}
+                {cancelling ? 'Đang hủy...' : 'Hủy đơn'}
               </button>
             </div>
           </div>
