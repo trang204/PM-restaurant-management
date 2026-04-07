@@ -1,38 +1,63 @@
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
-import { badRequest } from '../utils/httpError.js'
+import { badRequest, unauthorized } from '../utils/httpError.js'
 import { ok, created } from '../utils/response.js'
-
-// Base-only: chưa nối DB. Dùng dữ liệu giả để FE/flow chạy được.
-const demoUsers = new Map()
+import { query } from '../config/db.js'
 
 function signToken(user) {
   const secret = process.env.JWT_SECRET || 'dev_secret'
+  const expiresIn = process.env.JWT_EXPIRES_IN || '7d'
   return jwt.sign(
-    { sub: user.id, email: user.email, role: user.role || 'CUSTOMER' },
+    { sub: user.id, email: user.email, role: user.role },
     secret,
-    { expiresIn: '7d' },
+    { expiresIn },
   )
+}
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase()
 }
 
 export async function register(req, res, next) {
   try {
-    const { email, password, fullName } = req.body || {}
-    if (!email || !password) throw badRequest('email và password là bắt buộc')
-    if (demoUsers.has(email)) throw badRequest('Email đã tồn tại')
+    const { name, fullName, email, password, phone } = req.body || {}
+    const emailNorm = normalizeEmail(email)
+    if (!emailNorm || !password) throw badRequest('email và password là bắt buộc')
+
+    const exists = await query('SELECT id FROM users WHERE email = $1', [emailNorm])
+    if (exists.rows.length) throw badRequest('Email đã tồn tại')
+
+    const roleRes = await query('SELECT id FROM roles WHERE name = $1', ['CUSTOMER'])
+    const roleId = roleRes.rows[0]?.id || null
+    if (!roleId) throw badRequest('Thiếu role CUSTOMER trong bảng roles')
 
     const passwordHash = await bcrypt.hash(String(password), 10)
+    const userName = String(name || fullName || '').trim()
+    if (!userName) throw badRequest('name là bắt buộc')
+
+    const inserted = await query(
+      `
+      INSERT INTO users (name, email, password, phone, role_id)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, name, email, phone, role_id, created_at
+    `,
+      [userName, emailNorm, passwordHash, phone ? String(phone) : null, roleId],
+    )
+
+    const roleNameRes = await query('SELECT name FROM roles WHERE id = $1', [roleId])
+    const roleName = roleNameRes.rows[0]?.name || 'CUSTOMER'
+
     const user = {
-      id: `u_${Date.now()}`,
-      email: String(email),
-      fullName: String(fullName || ''),
-      passwordHash,
-      role: 'CUSTOMER',
+      id: inserted.rows[0].id,
+      name: inserted.rows[0].name,
+      email: inserted.rows[0].email,
+      phone: inserted.rows[0].phone,
+      role: roleName,
+      createdAt: inserted.rows[0].created_at,
     }
-    demoUsers.set(user.email, user)
 
     const token = signToken(user)
-    return created(res, { user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role }, token })
+    return created(res, { user, token })
   } catch (e) {
     return next(e)
   }
@@ -41,16 +66,37 @@ export async function register(req, res, next) {
 export async function login(req, res, next) {
   try {
     const { email, password } = req.body || {}
-    if (!email || !password) throw badRequest('email và password là bắt buộc')
+    const emailNorm = normalizeEmail(email)
+    if (!emailNorm || !password) throw badRequest('email và password là bắt buộc')
 
-    const user = demoUsers.get(String(email))
-    if (!user) throw badRequest('Sai email hoặc mật khẩu')
+    const { rows } = await query(
+      `
+      SELECT
+        u.id, u.name, u.email, u.phone, u.password,
+        r.name AS role
+      FROM users u
+      LEFT JOIN roles r ON r.id = u.role_id
+      WHERE u.email = $1
+    `,
+      [emailNorm],
+    )
 
-    const okPass = await bcrypt.compare(String(password), user.passwordHash)
-    if (!okPass) throw badRequest('Sai email hoặc mật khẩu')
+    const row = rows[0]
+    if (!row) throw unauthorized('Sai email hoặc mật khẩu')
+
+    const okPass = await bcrypt.compare(String(password), String(row.password))
+    if (!okPass) throw unauthorized('Sai email hoặc mật khẩu')
+
+    const user = {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      phone: row.phone,
+      role: row.role || 'CUSTOMER',
+    }
 
     const token = signToken(user)
-    return ok(res, { user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role }, token })
+    return ok(res, { user, token })
   } catch (e) {
     return next(e)
   }

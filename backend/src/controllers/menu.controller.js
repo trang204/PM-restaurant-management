@@ -1,48 +1,43 @@
 import { ok } from '../utils/response.js'
-import { notFound } from '../utils/httpError.js'
-
-const categories = [
-  { id: 'cat_water', name: 'Món nước', isActive: true },
-  { id: 'cat_rice', name: 'Món cơm', isActive: true },
-  { id: 'cat_drink', name: 'Đồ uống', isActive: true },
-  { id: 'cat_dessert', name: 'Tráng miệng', isActive: true },
-]
-
-const items = [
-  {
-    id: 'pho-bo',
-    name: 'Phở bò tái',
-    categoryId: 'cat_water',
-    categoryName: 'Món nước',
-    price: 55000,
-    imageUrl: '/images/menu/pho.svg',
-    isActive: true,
-  },
-  {
-    id: 'bun-cha',
-    name: 'Bún chả Hà Nội',
-    categoryId: 'cat_water',
-    categoryName: 'Món nước',
-    price: 65000,
-    imageUrl: '/images/menu/buncha.svg',
-    isActive: true,
-  },
-]
+import { badRequest, notFound } from '../utils/httpError.js'
+import { query } from '../config/db.js'
 
 export async function listMenuItems(req, res, next) {
   try {
     const search = String(req.query.search || '').trim().toLowerCase()
-    const categoryId = String(req.query.categoryId || '').trim()
-    const activeOnly = String(req.query.active ?? 'true') !== 'false'
+    const categoryId = req.query.categoryId ? Number(req.query.categoryId) : null
+    if (req.query.categoryId && !Number.isFinite(categoryId)) throw badRequest('categoryId không hợp lệ')
 
-    const filtered = items.filter((i) => {
-      if (activeOnly && !i.isActive) return false
-      if (categoryId && i.categoryId !== categoryId) return false
-      if (search && !i.name.toLowerCase().includes(search)) return false
-      return true
-    })
+    const params = []
+    const where = []
+    if (search) {
+      params.push(`%${search}%`)
+      where.push(`LOWER(f.name) LIKE $${params.length}`)
+    }
+    if (categoryId) {
+      params.push(categoryId)
+      where.push(`f.category_id = $${params.length}`)
+    }
 
-    return ok(res, filtered)
+    const sql = `
+      SELECT
+        f.id,
+        f.name,
+        f.price,
+        f.description,
+        f.image_url,
+        f.status,
+        f.category_id,
+        c.name AS category_name,
+        f.created_at
+      FROM foods f
+      LEFT JOIN categories c ON c.id = f.category_id
+      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+      ORDER BY f.created_at DESC
+    `
+
+    const r = await query(sql, params)
+    return ok(res, r.rows)
   } catch (e) {
     return next(e)
   }
@@ -50,9 +45,29 @@ export async function listMenuItems(req, res, next) {
 
 export async function getMenuItem(req, res, next) {
   try {
-    const item = items.find((i) => i.id === req.params.id)
-    if (!item) throw notFound('Không tìm thấy món')
-    return ok(res, item)
+    const id = Number(req.params.id)
+    if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
+
+    const r = await query(
+      `
+      SELECT
+        f.id,
+        f.name,
+        f.price,
+        f.description,
+        f.image_url,
+        f.status,
+        f.category_id,
+        c.name AS category_name,
+        f.created_at
+      FROM foods f
+      LEFT JOIN categories c ON c.id = f.category_id
+      WHERE f.id = $1
+    `,
+      [id],
+    )
+    if (!r.rows.length) throw notFound('Không tìm thấy món')
+    return ok(res, r.rows[0])
   } catch (e) {
     return next(e)
   }
@@ -60,7 +75,8 @@ export async function getMenuItem(req, res, next) {
 
 export async function listCategories(req, res, next) {
   try {
-    return ok(res, categories.filter((c) => c.isActive))
+    const r = await query('SELECT id, name FROM categories ORDER BY name ASC')
+    return ok(res, r.rows)
   } catch (e) {
     return next(e)
   }
