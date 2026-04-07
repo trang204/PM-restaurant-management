@@ -1,66 +1,96 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { apiFetch } from '../../lib/api'
 import './TableManagement.css'
 
-const initialTables = [
-  { id: '1', name: 'T1 — Window', capacity: 4, status: 'Available' },
-  { id: '2', name: 'T2 — Garden', capacity: 2, status: 'Reserved' },
-  { id: '3', name: 'T3 — VIP', capacity: 8, status: 'In Use' },
-  { id: '4', name: 'T4', capacity: 4, status: 'Available' },
-  { id: '5', name: 'T5 — Bar', capacity: 2, status: 'In Use' },
-  { id: '6', name: 'T6', capacity: 6, status: 'Reserved' },
-]
-
 function statusMeta(status) {
-  const s = status.toLowerCase()
-  if (s === 'available') return { className: 'table-card__status table-card__status--green', label: 'Available' }
-  if (s === 'reserved') return { className: 'table-card__status table-card__status--yellow', label: 'Reserved' }
-  if (s.includes('use')) return { className: 'table-card__status table-card__status--red', label: 'In Use' }
+  const s = String(status || '').toUpperCase()
+  if (s === 'AVAILABLE') return { className: 'table-card__status table-card__status--green', label: 'Available' }
+  if (s === 'RESERVED') return { className: 'table-card__status table-card__status--yellow', label: 'Reserved' }
+  if (s === 'IN_USE' || s === 'IN USE') return { className: 'table-card__status table-card__status--red', label: 'In Use' }
   return { className: 'table-card__status', label: status }
 }
 
 export default function TableManagement() {
-  const [tables, setTables] = useState(initialTables)
+  const [tables, setTables] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState(null)
 
-  function addTable() {
-    const n = tables.length + 1
-    setTables((prev) => [
-      ...prev,
-      {
-        id: String(Date.now()),
-        name: `T${n}`,
-        capacity: 4,
-        status: 'Available',
-      },
-    ])
+  function load() {
+    setLoading(true)
+    apiFetch('/tables')
+      .then((d) => setTables(Array.isArray(d) ? d : []))
+      .catch((e) => setErr(e.message))
+      .finally(() => setLoading(false))
   }
 
-  function editTable(id) {
-    const name = window.prompt('Table name', tables.find((t) => t.id === id)?.name ?? '')
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function addTable() {
+    const n = tables.length + 1
+    try {
+      await apiFetch('/tables', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: `Bàn ${n}`,
+          capacity: 4,
+          zone: 'A',
+          status: 'AVAILABLE',
+        }),
+      })
+      load()
+    } catch (e) {
+      window.alert(e.message)
+    }
+  }
+
+  async function editTable(id) {
+    const t = tables.find((x) => x.id === id)
+    if (!t) return
+    const name = window.prompt('Tên bàn', t.name ?? '')
     if (name === null) return
-    const cap = window.prompt('Capacity', String(tables.find((t) => t.id === id)?.capacity ?? 4))
+    const cap = window.prompt('Sức chứa', String(t.capacity ?? 4))
     if (cap === null) return
     const capNum = Number.parseInt(cap, 10)
-    setTables((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, name: name.trim() || t.name, capacity: Number.isFinite(capNum) ? capNum : t.capacity } : t)),
-    )
+    try {
+      await apiFetch(`/tables/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: name.trim() || t.name,
+          capacity: Number.isFinite(capNum) ? capNum : t.capacity,
+        }),
+      })
+      load()
+    } catch (e) {
+      window.alert(e.message)
+    }
   }
 
-  function deleteTable(id) {
-    if (!window.confirm('Delete this table?')) return
-    setTables((prev) => prev.filter((t) => t.id !== id))
+  async function deleteTable(id) {
+    if (!window.confirm('Xóa bàn này?')) return
+    try {
+      await apiFetch(`/tables/${id}`, { method: 'DELETE' })
+      load()
+    } catch (e) {
+      window.alert(e.message)
+    }
   }
 
   return (
     <div className="table-mgmt">
       <header className="table-mgmt__header">
         <div>
-          <h1 className="table-mgmt__title">Tables</h1>
-          <p className="table-mgmt__subtitle">Manage floor layout and table status.</p>
+          <h1 className="table-mgmt__title">Bàn</h1>
+          <p className="table-mgmt__subtitle">GET/POST/PATCH/DELETE /api/tables (cần quyền admin cho thao tác ghi)</p>
         </div>
         <button type="button" className="table-mgmt__add" onClick={addTable}>
-          Add Table
+          Thêm bàn
         </button>
       </header>
+
+      {loading ? <p>Đang tải...</p> : null}
+      {err ? <p style={{ color: 'crimson' }}>{err}</p> : null}
 
       <div className="table-mgmt__grid">
         {tables.map((t) => {
@@ -72,14 +102,14 @@ export default function TableManagement() {
                 <span className={st.className}>{st.label}</span>
               </div>
               <p className="table-card__capacity">
-                Capacity: <strong>{t.capacity}</strong> guests
+                Sức chứa: <strong>{t.capacity}</strong> khách
               </p>
               <div className="table-card__actions">
                 <button type="button" className="table-card__btn table-card__btn--secondary" onClick={() => editTable(t.id)}>
-                  Edit
+                  Sửa
                 </button>
                 <button type="button" className="table-card__btn table-card__btn--danger" onClick={() => deleteTable(t.id)}>
-                  Delete
+                  Xóa
                 </button>
               </div>
             </article>

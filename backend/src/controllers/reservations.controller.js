@@ -2,8 +2,6 @@ import { ok, created } from '../utils/response.js'
 import { badRequest, notFound } from '../utils/httpError.js'
 import { query } from '../config/db.js'
 
-const ALLOWED_STATUS = new Set(['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED'])
-
 function toInt(v) {
   const n = Number(v)
   return Number.isFinite(n) ? n : null
@@ -169,8 +167,6 @@ export async function cancelReservation(req, res, next) {
 
 export async function holdTable(req, res, next) {
   try {
-    // Với DB: giữ bàn = gán table_id cho booking (booking_tables),
-    // vẫn phải tránh double booking theo giờ.
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
 
@@ -247,8 +243,6 @@ export async function createOnlinePaymentIntent(req, res, next) {
 
 export async function markOnlinePaidByCustomer(req, res, next) {
   try {
-    // Base flow: đánh dấu khách đã chuyển khoản.
-    // Với DB: vẫn giữ nguyên booking CONFIRMED; admin sẽ confirm payment để hoàn tất.
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
 
@@ -265,4 +259,3 @@ export async function markOnlinePaidByCustomer(req, res, next) {
     return next(e)
   }
 }
-

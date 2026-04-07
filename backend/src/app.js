@@ -10,7 +10,7 @@ import { errorHandler } from './middleware/errorHandler.js'
 import routes from './routes/index.js'
 import { ok } from './utils/response.js'
 
-dotenv.config()
+dotenv.config({ quiet: true })
 
 export function createServer() {
   const app = express()

@@ -135,4 +135,3 @@ export async function toggleActive(req, res, next) {
     return next(e)
   }
 }
-

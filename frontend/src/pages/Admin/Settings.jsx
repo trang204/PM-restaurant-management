@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './Settings.css'
+
+const KEY = 'luxeat_settings_v1'
 
 export default function Settings() {
   const [form, setForm] = useState({
@@ -18,6 +20,18 @@ export default function Settings() {
       ),
   )
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (parsed.form) setForm((f) => ({ ...f, ...parsed.form }))
+      if (parsed.logoPreview) setLogoPreview(parsed.logoPreview)
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
   function onChange(e) {
     const { name, value } = e.target
     setForm((f) => ({ ...f, [name]: value }))
@@ -31,24 +45,29 @@ export default function Settings() {
 
   function onSubmit(e) {
     e.preventDefault()
-    window.alert('Settings saved (demo).')
+    try {
+      localStorage.setItem(KEY, JSON.stringify({ form, logoPreview }))
+    } catch {
+      /* ignore */
+    }
+    window.alert('Đã lưu cục bộ (trình duyệt). Backend chưa có API settings.')
   }
 
   return (
     <div className="settings-page">
       <header className="settings-page__header">
-        <h1 className="settings-page__title">Settings</h1>
-        <p className="settings-page__subtitle">Restaurant profile and operating hours.</p>
+        <h1 className="settings-page__title">Cài đặt</h1>
+        <p className="settings-page__subtitle">Lưu local (localStorage). Có thể nối API sau.</p>
       </header>
 
       <form className="settings-card" onSubmit={onSubmit}>
         <div className="settings-card__grid">
           <label className="settings-field">
-            <span>Restaurant name</span>
+            <span>Tên nhà hàng</span>
             <input name="restaurantName" value={form.restaurantName} onChange={onChange} required />
           </label>
           <label className="settings-field">
-            <span>Phone</span>
+            <span>Điện thoại</span>
             <input name="phone" value={form.phone} onChange={onChange} required />
           </label>
           <label className="settings-field">
@@ -56,19 +75,19 @@ export default function Settings() {
             <input name="email" type="email" value={form.email} onChange={onChange} required />
           </label>
           <label className="settings-field settings-field--full">
-            <span>Address</span>
+            <span>Địa chỉ</span>
             <input name="address" value={form.address} onChange={onChange} required />
           </label>
           <label className="settings-field">
-            <span>Open time</span>
+            <span>Mở cửa</span>
             <input name="openTime" type="time" value={form.openTime} onChange={onChange} required />
           </label>
           <label className="settings-field">
-            <span>Close time</span>
+            <span>Đóng cửa</span>
             <input name="closeTime" type="time" value={form.closeTime} onChange={onChange} required />
           </label>
           <label className="settings-field">
-            <span>Total tables</span>
+            <span>Tổng số bàn (tham khảo)</span>
             <input name="totalTables" value={form.totalTables} onChange={onChange} inputMode="numeric" required />
           </label>
           <div className="settings-logo settings-field--full">
@@ -76,7 +95,7 @@ export default function Settings() {
             <div className="settings-logo__row">
               <label className="settings-logo__upload">
                 <input type="file" accept="image/*" onChange={onLogoChange} />
-                <span>Choose file</span>
+                <span>Chọn file</span>
               </label>
               <div className="settings-logo__preview">
                 <img src={logoPreview} alt="Logo preview" />
@@ -86,7 +105,7 @@ export default function Settings() {
         </div>
         <div className="settings-card__footer">
           <button type="submit" className="settings-save">
-            Save
+            Lưu
           </button>
         </div>
       </form>

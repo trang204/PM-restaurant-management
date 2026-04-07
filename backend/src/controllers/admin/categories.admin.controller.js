@@ -47,4 +47,3 @@ export async function remove(req, res, next) {
     return next(e)
   }
 }
-

@@ -17,7 +17,7 @@ export default function Profile() {
         <div className="menuHero__content">
           <p className="menuHero__eyebrow">Tài khoản</p>
           <h1 className="menuHero__title">Thông tin cá nhân</h1>
-          <p className="menuHero__subtitle">Base: lấy thông tin từ token (backend demo).</p>
+          <p className="menuHero__subtitle">GET /api/users/me</p>
         </div>
       </header>
 

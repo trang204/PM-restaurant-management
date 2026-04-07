@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { apiFetch, setToken } from '../../lib/api'
 import './AdminLayout.css'
 
 /** Cấu trúc menu cây: link đơn hoặc nhóm có con */
@@ -43,6 +44,7 @@ export default function AdminLayout() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [openGroups, setOpenGroups] = useState(() => new Set(['van-hanh', 'thuc-don', 'he-thong']))
+  const [me, setMe] = useState(null)
 
   useEffect(() => {
     setOpenGroups((prev) => {
@@ -51,6 +53,20 @@ export default function AdminLayout() {
       return n
     })
   }, [pathname])
+
+  useEffect(() => {
+    const token = localStorage.getItem('luxeat_token')
+    if (!token) {
+      navigate('/login')
+      return
+    }
+    apiFetch('/users/me')
+      .then((u) => {
+        setMe(u)
+        if (u.role !== 'ADMIN') navigate('/')
+      })
+      .catch(() => navigate('/login'))
+  }, [navigate])
 
   function toggleGroup(id) {
     setOpenGroups((prev) => {
@@ -62,6 +78,8 @@ export default function AdminLayout() {
   }
 
   function handleLogout() {
+    setToken(null)
+    setMe(null)
     navigate('/login')
   }
 
@@ -129,7 +147,7 @@ export default function AdminLayout() {
         </nav>
 
         <div className="admin-sidebar__footer">
-          <span className="admin-sidebar__version">v1.0</span>
+          <span className="admin-sidebar__version">API</span>
         </div>
       </aside>
 
@@ -137,9 +155,9 @@ export default function AdminLayout() {
         <header className="admin-topbar">
           <div className="admin-topbar__spacer" />
           <div className="admin-topbar__actions">
-            <span className="admin-topbar__name">Nguyễn Minh Admin</span>
+            <span className="admin-topbar__name">{me?.fullName || me?.email || '...'}</span>
             <div className="admin-topbar__avatar" title="Admin" aria-hidden>
-              NA
+              {(me?.email || 'A').slice(0, 2).toUpperCase()}
             </div>
             <button type="button" className="admin-topbar__logout" onClick={handleLogout}>
               Đăng xuất

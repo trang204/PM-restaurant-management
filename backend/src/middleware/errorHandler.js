@@ -19,4 +19,3 @@ export function errorHandler(err, req, res, next) {
     message: 'Internal server error',
   })
 }
-

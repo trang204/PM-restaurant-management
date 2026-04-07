@@ -10,6 +10,18 @@ export type ApiResponse<T> =
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
 
+/** Origin API (không có /api) — dùng cho ảnh tĩnh nếu backend phục vụ. */
+export function getApiOrigin(): string {
+  const raw = String(API_BASE).replace(/\/$/, '')
+  return raw.replace(/\/api$/, '') || 'http://localhost:5000'
+}
+
+export function mediaUrl(path: string | undefined | null): string {
+  if (!path) return ''
+  if (path.startsWith('http')) return path
+  return `${getApiOrigin()}${path.startsWith('/') ? '' : '/'}${path}`
+}
+
 function getToken() {
   return localStorage.getItem('luxeat_token')
 }
@@ -21,13 +33,17 @@ export function setToken(token: string | null) {
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken()
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string> | undefined),
+  }
+  if (!(init?.body instanceof FormData)) {
+    headers['Content-Type'] = headers['Content-Type'] || 'application/json'
+  }
+  if (token) headers.Authorization = `Bearer ${token}`
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init?.headers || {}),
-    },
+    headers,
   })
 
   const json = (await res.json().catch(() => null)) as ApiResponse<T> | null
@@ -35,4 +51,3 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   if (json.success) return json.data
   throw new Error(json.error?.message || 'API error')
 }
-
