@@ -1,0 +1,155 @@
+.user-mgmt {
+  --um-border: #e6e2d9;
+  --um-bg: #ffffff;
+  --um-shadow: 0 4px 20px rgba(26, 29, 36, 0.07);
+  --um-radius: 14px;
+  --um-text: #2d2a26;
+  --um-muted: #7a756d;
+  --um-accent: #c4a574;
+  --um-transition: 0.2s ease;
+}
+
+.user-mgmt__header {
+  margin-bottom: 22px;
+}
+
+.user-mgmt__title {
+  margin: 0 0 6px;
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--um-text);
+}
+
+.user-mgmt__subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--um-muted);
+}
+
+.user-mgmt__table-wrap {
+  background: var(--um-bg);
+  border: 1px solid var(--um-border);
+  border-radius: var(--um-radius);
+  box-shadow: var(--um-shadow);
+  overflow: hidden;
+}
+
+.user-mgmt__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.user-mgmt__table th,
+.user-mgmt__table td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid #efe9df;
+}
+
+.user-mgmt__table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--um-muted);
+  background: #faf8f5;
+  white-space: nowrap;
+}
+
+.user-mgmt__table tbody tr {
+  transition: background var(--um-transition);
+}
+
+.user-mgmt__table tbody tr:hover {
+  background: #fdfcfa;
+}
+
+.user-mgmt__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.user-mgmt__role {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: rgba(196, 165, 116, 0.15);
+  color: #6b5a3e;
+}
+
+.user-mgmt__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.user-mgmt__btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition:
+    background var(--um-transition),
+    border-color var(--um-transition);
+}
+
+.user-mgmt__btn--secondary {
+  border: 1px solid var(--um-border);
+  background: #faf8f5;
+  color: var(--um-text);
+}
+
+.user-mgmt__btn--secondary:hover {
+  background: #f0ebe3;
+}
+
+.user-mgmt__btn--danger {
+  background: #fff5f5;
+  color: #c62828;
+  border-color: #ffcdd2;
+}
+
+.user-mgmt__btn--danger:hover {
+  background: #ffebee;
+}
+
+@media (max-width: 900px) {
+  .user-mgmt__table thead {
+    display: none;
+  }
+
+  .user-mgmt__table tr {
+    display: block;
+    border-bottom: 1px solid #efe9df;
+    padding: 14px 16px;
+  }
+
+  .user-mgmt__table tr:last-child {
+    border-bottom: none;
+  }
+
+  .user-mgmt__table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border: none;
+  }
+
+  .user-mgmt__table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--um-muted);
+    font-size: 0.78rem;
+    flex-shrink: 0;
+  }
+
+  .user-mgmt__actions {
+    justify-content: flex-end;
+    width: 100%;
+  }
+}

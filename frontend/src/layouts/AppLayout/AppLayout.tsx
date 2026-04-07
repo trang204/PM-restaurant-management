@@ -7,7 +7,8 @@ export default function AppLayout() {
       <header className="appHeader">
         <div className="appHeader__inner">
           <NavLink to="/" className="brand">
-            Luxeat
+            <span className="brand__mark" aria-hidden />
+            <span className="brand__text">Luxeat</span>
           </NavLink>
           <nav className="nav">
             <NavLink to="/menu" className="nav__link">
@@ -30,10 +31,18 @@ export default function AppLayout() {
 
       <footer className="appFooter">
         <div className="appFooter__inner">
-          <span>© {new Date().getFullYear()} Luxeat</span>
-          <NavLink to="/admin" className="appFooter__link">
-            Admin
-          </NavLink>
+          <span>© {new Date().getFullYear()} Luxeat · Ẩm thực và đặt bàn</span>
+          <div className="appFooter__links">
+            <NavLink to="/menu" className="appFooter__link appFooter__link--muted">
+              Thực đơn
+            </NavLink>
+            <NavLink to="/book" className="appFooter__link appFooter__link--muted">
+              Đặt bàn
+            </NavLink>
+            <NavLink to="/admin" className="appFooter__link">
+              Khu quản trị
+            </NavLink>
+          </div>
         </div>
       </footer>
     </div>

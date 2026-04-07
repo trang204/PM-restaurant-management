@@ -1,0 +1,239 @@
+.dashboard {
+  --dash-card: #ffffff;
+  --dash-border: #e6e2d9;
+  --dash-shadow: 0 4px 20px rgba(26, 29, 36, 0.07);
+  --dash-radius: 14px;
+  --dash-accent: #c4a574;
+  --dash-text: #2d2a26;
+  --dash-muted: #7a756d;
+  --dash-transition: 0.2s ease;
+}
+
+.dashboard__header {
+  margin-bottom: 24px;
+}
+
+.dashboard__title {
+  margin: 0 0 6px;
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--dash-text);
+}
+
+.dashboard__subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--dash-muted);
+}
+
+.dashboard__stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.dash-stat-card {
+  background: var(--dash-card);
+  border: 1px solid var(--dash-border);
+  border-radius: var(--dash-radius);
+  padding: 20px 20px 18px;
+  box-shadow: var(--dash-shadow);
+  transition:
+    transform var(--dash-transition),
+    box-shadow var(--dash-transition);
+}
+
+.dash-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(26, 29, 36, 0.1);
+}
+
+.dash-stat-card__label {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dash-muted);
+}
+
+.dash-stat-card__value {
+  margin: 0 0 6px;
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: var(--dash-text);
+  letter-spacing: -0.02em;
+}
+
+.dash-stat-card__hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #9a948a;
+}
+
+.dashboard__grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.dash-section-title {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--dash-text);
+}
+
+.dash-chart {
+  background: var(--dash-card);
+  border: 1px solid var(--dash-border);
+  border-radius: var(--dash-radius);
+  padding: 22px;
+  box-shadow: var(--dash-shadow);
+  transition: box-shadow var(--dash-transition);
+}
+
+.dash-chart:hover {
+  box-shadow: 0 8px 28px rgba(26, 29, 36, 0.09);
+}
+
+.dash-chart__caption {
+  margin: 0 0 20px;
+  font-size: 0.85rem;
+  color: var(--dash-muted);
+}
+
+.dash-chart__plot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 180px;
+  padding-top: 8px;
+}
+
+.dash-chart__bar-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dash-chart__bar {
+  width: 100%;
+  max-width: 48px;
+  border-radius: 8px 8px 4px 4px;
+  background: linear-gradient(180deg, var(--dash-accent) 0%, #a89878 100%);
+  min-height: 8px;
+  transition: opacity var(--dash-transition);
+}
+
+.dash-chart__bar-wrap:hover .dash-chart__bar {
+  opacity: 0.92;
+}
+
+.dash-chart__x {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--dash-muted);
+}
+
+.dash-bookings {
+  background: var(--dash-card);
+  border: 1px solid var(--dash-border);
+  border-radius: var(--dash-radius);
+  padding: 22px;
+  box-shadow: var(--dash-shadow);
+}
+
+.dash-bookings__table-wrap {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #efe9df;
+}
+
+.dash-bookings__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.dash-bookings__table th,
+.dash-bookings__table td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid #efe9df;
+}
+
+.dash-bookings__table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dash-muted);
+  background: #faf8f5;
+}
+
+.dash-bookings__table tbody tr {
+  transition: background var(--dash-transition);
+}
+
+.dash-bookings__table tbody tr:hover {
+  background: #fdfcfa;
+}
+
+.dash-bookings__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.dash-bookings__badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.dash-bookings__badge--yellow {
+  background: #fff8e6;
+  color: #b8860b;
+}
+
+.dash-bookings__badge--blue {
+  background: #e8f0ff;
+  color: #2563eb;
+}
+
+.dash-bookings__badge--green {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.dash-bookings__badge--red {
+  background: #ffebee;
+  color: #c62828;
+}
+
+@media (max-width: 1100px) {
+  .dashboard__stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .dashboard__stats {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-chart__plot {
+    min-height: 140px;
+  }
+}

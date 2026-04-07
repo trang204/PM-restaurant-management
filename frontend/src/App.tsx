@@ -9,14 +9,13 @@ import Profile from './pages/Profile/Profile'
 import BookTable from './pages/Booking/BookTable'
 import ReservationHistory from './pages/Booking/ReservationHistory'
 import ReservationDetail from './pages/Booking/ReservationDetail'
-import AdminLayout from './layouts/AdminLayout/AdminLayout'
-import AdminDashboard from './pages/Admin/Dashboard'
-import AdminReservations from './pages/Admin/Reservations'
-import AdminMenuItems from './pages/Admin/MenuItems'
-import AdminCategories from './pages/Admin/Categories'
-import AdminTables from './pages/Admin/Tables'
-import AdminUsers from './pages/Admin/Users'
-import AdminReports from './pages/Admin/Reports'
+import AdminLayout from './layouts/AdminLayout/AdminLayout.jsx'
+import Dashboard from './pages/Admin/Dashboard.jsx'
+import BookingManagement from './pages/Admin/BookingManagement.jsx'
+import TableManagement from './pages/Admin/TableManagement.jsx'
+import MenuManagement from './pages/Admin/MenuManagement.jsx'
+import UserManagement from './pages/Admin/UserManagement.jsx'
+import Settings from './pages/Admin/Settings.jsx'
 
 export default function App() {
   return (
@@ -34,13 +33,12 @@ export default function App() {
       </Route>
 
       <Route path="/admin" element={<AdminLayout />}>
-        <Route index element={<AdminDashboard />} />
-        <Route path="reservations" element={<AdminReservations />} />
-        <Route path="menu-items" element={<AdminMenuItems />} />
-        <Route path="categories" element={<AdminCategories />} />
-        <Route path="tables" element={<AdminTables />} />
-        <Route path="users" element={<AdminUsers />} />
-        <Route path="reports" element={<AdminReports />} />
+        <Route index element={<Dashboard />} />
+        <Route path="bookings" element={<BookingManagement />} />
+        <Route path="tables" element={<TableManagement />} />
+        <Route path="menu" element={<MenuManagement />} />
+        <Route path="users" element={<UserManagement />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

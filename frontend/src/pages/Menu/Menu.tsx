@@ -1,4 +1,10 @@
 import './Menu.css'
+import phoUrl from '../../assets/menu/pho.svg?url'
+import bunchaUrl from '../../assets/menu/buncha.svg?url'
+import comtamUrl from '../../assets/menu/comtam.svg?url'
+import goicuonUrl from '../../assets/menu/goicuon.svg?url'
+import trasuaUrl from '../../assets/menu/trasua.svg?url'
+import cheUrl from '../../assets/menu/che.svg?url'
 
 type MenuItem = {
   id: string
@@ -20,7 +26,7 @@ const items: MenuItem[] = [
     id: 'pho-bo',
     name: 'Phở bò tái',
     priceVnd: 55000,
-    imageSrc: new URL('../../assets/menu/pho.svg', import.meta.url).toString(),
+    imageSrc: phoUrl,
     category: 'Món nước',
     description: 'Nước dùng trong, thơm quế hồi; thịt bò mềm, hành lá tươi.',
   },
@@ -28,7 +34,7 @@ const items: MenuItem[] = [
     id: 'bun-cha',
     name: 'Bún chả Hà Nội',
     priceVnd: 65000,
-    imageSrc: new URL('../../assets/menu/buncha.svg', import.meta.url).toString(),
+    imageSrc: bunchaUrl,
     category: 'Đặc sản',
     description: 'Chả nướng than hoa, nước mắm chua ngọt, rau sống giòn mát.',
   },
@@ -36,7 +42,7 @@ const items: MenuItem[] = [
     id: 'com-tam',
     name: 'Cơm tấm sườn bì',
     priceVnd: 59000,
-    imageSrc: new URL('../../assets/menu/comtam.svg', import.meta.url).toString(),
+    imageSrc: comtamUrl,
     category: 'Món cơm',
     description: 'Sườn nướng mật ong, bì trứng; ăn kèm đồ chua và mỡ hành.',
   },
@@ -44,7 +50,7 @@ const items: MenuItem[] = [
     id: 'goi-cuon',
     name: 'Gỏi cuốn tôm thịt',
     priceVnd: 45000,
-    imageSrc: new URL('../../assets/menu/goicuon.svg', import.meta.url).toString(),
+    imageSrc: goicuonUrl,
     category: 'Khai vị',
     description: 'Cuốn tươi mát với bún, rau, tôm; chấm sốt đậu phộng béo bùi.',
   },
@@ -52,7 +58,7 @@ const items: MenuItem[] = [
     id: 'tra-sua',
     name: 'Trà sữa trân châu',
     priceVnd: 39000,
-    imageSrc: new URL('../../assets/menu/trasua.svg', import.meta.url).toString(),
+    imageSrc: trasuaUrl,
     category: 'Đồ uống',
     description: 'Trà thơm dịu, sữa béo; trân châu dẻo dai, ít ngọt dễ uống.',
   },
@@ -60,7 +66,7 @@ const items: MenuItem[] = [
     id: 'che-khuc-bach',
     name: 'Chè khúc bạch',
     priceVnd: 42000,
-    imageSrc: new URL('../../assets/menu/che.svg', import.meta.url).toString(),
+    imageSrc: cheUrl,
     category: 'Tráng miệng',
     description: 'Khúc bạch mềm mịn, hạnh nhân rang; ăn cùng vải và nước nhãn.',
   },
