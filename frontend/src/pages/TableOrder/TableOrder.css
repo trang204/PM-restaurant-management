@@ -660,6 +660,69 @@
   color: var(--to-muted);
 }
 
+.tableOrder__payBox {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--to-border);
+}
+
+.tableOrder__payRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.tableOrder__radio {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 700;
+  color: var(--to-text);
+}
+
+.tableOrder__radio input {
+  accent-color: var(--to-accent-mid);
+}
+
+.tableOrder__payInfo {
+  border-radius: 14px;
+  border: 1px solid var(--to-border);
+  background: var(--to-surface2);
+  padding: 12px 12px;
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.tableOrder__qrBox {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(45, 106, 79, 0.35);
+}
+
+.tableOrder__qrTitle {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--to-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.tableOrder__qrCode {
+  display: block;
+  word-break: break-word;
+  white-space: pre-wrap;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(45, 106, 79, 0.16);
+  color: var(--to-text);
+}
+
 .tableOrder__mobileBar {
   display: none;
 }

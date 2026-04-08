@@ -29,6 +29,22 @@ type Ctx = {
   orderUrl: string
 }
 
+type PaymentRow = {
+  id: number
+  order_id: number
+  amount: string | number
+  method: string | null
+  status: string | null
+  paid_at?: string | null
+}
+
+type PaymentCtx = {
+  orderId: number
+  total: number
+  payment: PaymentRow | null
+  qrContent?: string | null
+}
+
 const STATUS_VI: Record<string, string> = {
   PENDING: 'Đang chờ bếp',
   SERVING: 'Đang phục vụ',
@@ -51,6 +67,10 @@ export default function TableOrder() {
   const [cat, setCat] = useState<string>('all')
   const [cartOpen, setCartOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [paying, setPaying] = useState(false)
+  const [payMethod, setPayMethod] = useState<'cash' | 'bank_transfer'>('cash')
+  const [paymentCtx, setPaymentCtx] = useState<PaymentCtx | null>(null)
 
   const load = useCallback(() => {
     if (!token) return
@@ -116,6 +136,21 @@ export default function TableOrder() {
 
   const totalQty = useMemo(() => ctx?.items.reduce((s, i) => s + Number(i.quantity), 0) ?? 0, [ctx?.items])
 
+  const loadPayment = useCallback(async () => {
+    if (!token) return
+    try {
+      const d = await publicApiFetch<PaymentCtx>(`/table-session/${encodeURIComponent(token)}/payment`)
+      setPaymentCtx(d)
+    } catch {
+      setPaymentCtx(null)
+    }
+  }, [token])
+
+  useEffect(() => {
+    if (!ctx) return
+    loadPayment()
+  }, [ctx?.order?.id])
+
   async function addToCart(foodId: number, qty = 1) {
     if (!token) return
     setAdding(foodId)
@@ -126,6 +161,7 @@ export default function TableOrder() {
         body: JSON.stringify({ food_id: foodId, quantity: qty }),
       })
       await load()
+      await loadPayment()
       showToast('Đã thêm vào đơn')
     } catch (e) {
       setErr((e as Error).message)
@@ -145,6 +181,7 @@ export default function TableOrder() {
         body: JSON.stringify({ quantity }),
       })
       await load()
+      await loadPayment()
     } catch (e) {
       setErr((e as Error).message)
     } finally {
@@ -161,6 +198,7 @@ export default function TableOrder() {
         method: 'DELETE',
       })
       await load()
+      await loadPayment()
       showToast('Đã xóa món')
     } catch (e) {
       setErr((e as Error).message)
@@ -180,6 +218,50 @@ export default function TableOrder() {
 
   const statusKey = ctx ? String(ctx.order.status || '').toUpperCase() : ''
   const statusLabel = STATUS_VI[statusKey] || ctx?.order.status || '—'
+
+  async function submit() {
+    if (!token || !ctx) return
+    if (!ctx.items.length) {
+      showToast('Bạn chưa chọn món')
+      return
+    }
+    setSubmitting(true)
+    setErr(null)
+    try {
+      await publicApiFetch(`/table-session/${encodeURIComponent(token)}/submit`, { method: 'POST', body: '{}' })
+      await load()
+      await loadPayment()
+      showToast('Đã xác nhận đặt món')
+      setCartOpen(true)
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function createPay() {
+    if (!token || !ctx) return
+    if (!ctx.items.length) {
+      showToast('Bạn chưa chọn món')
+      return
+    }
+    setPaying(true)
+    setErr(null)
+    try {
+      const d = await publicApiFetch<PaymentCtx>(`/table-session/${encodeURIComponent(token)}/payment`, {
+        method: 'POST',
+        body: JSON.stringify({ method: payMethod }),
+      })
+      setPaymentCtx(d)
+      showToast('Đã tạo yêu cầu thanh toán')
+      setCartOpen(true)
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setPaying(false)
+    }
+  }
 
   return (
     <div className="tableOrder">
@@ -436,7 +518,55 @@ export default function TableOrder() {
                   <span>Tạm tính</span>
                   <strong>{formatPrice(total)}</strong>
                 </div>
-                <p className="tableOrder__legal">Thanh toán tại quầy. Giữ trang này để cập nhật đơn.</p>
+                <div className="tableOrder__payBox">
+                  <div className="tableOrder__payRow">
+                    <button
+                      type="button"
+                      className="tableOrder__btn tableOrder__btn--accent"
+                      disabled={!canOrder || submitting || ctx.items.length === 0}
+                      onClick={submit}
+                    >
+                      {submitting ? 'Đang xác nhận…' : 'Xác nhận đặt món'}
+                    </button>
+                    <button
+                      type="button"
+                      className="tableOrder__btn tableOrder__btn--ghost"
+                      disabled={paying || ctx.items.length === 0}
+                      onClick={createPay}
+                    >
+                      {paying ? 'Đang tạo…' : 'Thanh toán'}
+                    </button>
+                  </div>
+                  <div className="tableOrder__payRow">
+                    <label className="tableOrder__radio">
+                      <input type="radio" checked={payMethod === 'cash'} onChange={() => setPayMethod('cash')} /> Tiền mặt
+                    </label>
+                    <label className="tableOrder__radio">
+                      <input
+                        type="radio"
+                        checked={payMethod === 'bank_transfer'}
+                        onChange={() => setPayMethod('bank_transfer')}
+                      />{' '}
+                      Chuyển khoản
+                    </label>
+                  </div>
+
+                  {paymentCtx?.payment ? (
+                    <div className="tableOrder__payInfo">
+                      <div>Trạng thái: <strong>{paymentCtx.payment.status || 'UNPAID'}</strong></div>
+                      <div>Phương thức: <strong>{paymentCtx.payment.method || '—'}</strong></div>
+                      <div>Số tiền: <strong>{formatPrice(Number(paymentCtx.total || total))}</strong></div>
+                      {paymentCtx.qrContent ? (
+                        <div className="tableOrder__qrBox">
+                          <div className="tableOrder__qrTitle">Mã thanh toán (tạm)</div>
+                          <code className="tableOrder__qrCode">{paymentCtx.qrContent}</code>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="tableOrder__legal">Giữ trang này để thêm món. Nhân viên sẽ xác nhận & thanh toán.</p>
+                  )}
+                </div>
               </div>
             </aside>
           </div>
