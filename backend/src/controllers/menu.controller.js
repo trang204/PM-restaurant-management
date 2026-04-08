@@ -10,6 +10,8 @@ export async function listMenuItems(req, res, next) {
 
     const params = []
     const where = []
+    // Public menu: chỉ hiển thị món đang hoạt động
+    where.push(`COALESCE(f.status, 'AVAILABLE') = 'AVAILABLE'`)
     if (search) {
       params.push(`%${search}%`)
       where.push(`LOWER(f.name) LIKE $${params.length}`)
@@ -26,14 +28,13 @@ export async function listMenuItems(req, res, next) {
         f.price,
         f.description,
         f.image_url,
-        f.status,
         f.category_id,
         c.name AS category_name,
         f.created_at
       FROM foods f
       LEFT JOIN categories c ON c.id = f.category_id
       ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-      ORDER BY f.created_at DESC
+      ORDER BY c.name NULLS LAST, f.name ASC, f.created_at DESC
     `
 
     const r = await query(sql, params)
