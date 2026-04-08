@@ -6,15 +6,20 @@ function badgeClass(status) {
   const s = String(status || '').toLowerCase()
   if (s === 'pending') return 'book-badge book-badge--yellow'
   if (s === 'confirmed') return 'book-badge book-badge--blue'
+  if (s === 'checked_in') return 'book-badge book-badge--green'
   if (s === 'completed' || s === 'paid') return 'book-badge book-badge--green'
   if (s === 'cancelled') return 'book-badge book-badge--red'
   return 'book-badge'
 }
 
-export default function BookingManagement() {
+/** @param {{ staffMode?: boolean }} props */
+export default function BookingManagement({ staffMode = false }) {
   const [rows, setRows] = useState([])
+  const [tables, setTables] = useState([])
+  const [assignPick, setAssignPick] = useState({})
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
+  const [qrModal, setQrModal] = useState(null)
 
   function load() {
     setLoading(true)
@@ -28,9 +33,61 @@ export default function BookingManagement() {
     load()
   }, [])
 
+  useEffect(() => {
+    apiFetch('/tables')
+      .then((d) => setTables(Array.isArray(d) ? d : []))
+      .catch(() => setTables([]))
+  }, [])
+
   async function confirm(id) {
     try {
-      await apiFetch(`/admin/reservations/${id}/confirm`, { method: 'POST', body: '{}' })
+      const res = await apiFetch(`/admin/reservations/${id}/confirm`, { method: 'POST', body: '{}' })
+      load()
+      if (res?.tableSession?.qrSvg && res?.tableSession?.orderUrl) {
+        setQrModal({
+          title: 'Khách có thể gọi món',
+          svg: res.tableSession.qrSvg,
+          url: res.tableSession.orderUrl,
+          note: res.tableSessionNote,
+        })
+      } else if (res?.tableSessionNote) {
+        window.alert(res.tableSessionNote)
+      }
+    } catch (e) {
+      window.alert(e.message)
+    }
+  }
+
+  async function checkIn(id) {
+    try {
+      const res = await apiFetch(`/admin/reservations/${id}/check-in`, { method: 'POST', body: '{}' })
+      load()
+      if (res?.tableSession?.qrSvg && res?.tableSession?.orderUrl) {
+        setQrModal({
+          title: 'Check-in — QR gọi món',
+          svg: res.tableSession.qrSvg,
+          url: res.tableSession.orderUrl,
+          note: res.tableSessionNote,
+        })
+      } else if (res?.tableSessionNote) {
+        window.alert(res.tableSessionNote)
+      }
+    } catch (e) {
+      window.alert(e.message)
+    }
+  }
+
+  async function assignTable(bookingId) {
+    const tid = assignPick[bookingId]
+    if (!tid) {
+      window.alert('Chọn bàn trước.')
+      return
+    }
+    try {
+      await apiFetch(`/admin/reservations/${bookingId}/assign-table`, {
+        method: 'POST',
+        body: JSON.stringify({ tableId: Number(tid) }),
+      })
       load()
     } catch (e) {
       window.alert(e.message)
@@ -47,17 +104,58 @@ export default function BookingManagement() {
     }
   }
 
+  function copyUrl(url) {
+    navigator.clipboard.writeText(url).then(
+      () => window.alert('Đã copy link.'),
+      () => window.prompt('Copy link:', url),
+    )
+  }
+
   return (
     <div className="booking-mgmt">
       <header className="booking-mgmt__header">
         <div>
-          <h1 className="booking-mgmt__title">Đặt bàn</h1>
-          <p className="booking-mgmt__subtitle">Danh sách đơn từ cơ sở dữ liệu · xác nhận hoặc hủy đơn chờ.</p>
+          <h1 className="booking-mgmt__title">
+            {staffMode ? 'Tiếp đón & check-in' : 'Đặt bàn'}
+          </h1>
+          <p className="booking-mgmt__subtitle">
+            {staffMode
+              ? 'Gán bàn cho khách → Xác nhận đơn → Check-in khi khách đến → QR/link để khách gọi món tại bàn.'
+              : 'Xác nhận đơn chờ → tạo link & QR gọi món tại bàn (cần đã gán bàn). Check-in khi khách đến.'}
+          </p>
         </div>
       </header>
 
       {loading ? <p>Đang tải...</p> : null}
       {err ? <p style={{ color: 'crimson' }}>{err}</p> : null}
+
+      {qrModal ? (
+        <div className="booking-mgmt__modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="qr-title">
+          <div className="booking-mgmt__modal">
+            <h2 id="qr-title" className="booking-mgmt__modal-title">
+              {qrModal.title}
+            </h2>
+            {qrModal.note ? <p className="booking-mgmt__modal-note">{qrModal.note}</p> : null}
+            <div
+              className="booking-mgmt__qr-svg"
+              dangerouslySetInnerHTML={{ __html: qrModal.svg }}
+            />
+            <p className="booking-mgmt__modal-url">
+              <a href={qrModal.url} target="_blank" rel="noreferrer">
+                Mở trang gọi món
+              </a>
+            </p>
+            <div className="booking-mgmt__modal-actions">
+              <button type="button" className="booking-mgmt__btn booking-mgmt__btn--primary" onClick={() => copyUrl(qrModal.url)}>
+                Copy link
+              </button>
+              <button type="button" className="booking-mgmt__btn booking-mgmt__btn--ghost" onClick={() => setQrModal(null)}>
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="booking-mgmt__table-wrap">
         <table className="booking-mgmt__table">
@@ -70,6 +168,7 @@ export default function BookingManagement() {
               <th>Giờ</th>
               <th>Số khách</th>
               <th>Bàn</th>
+              <th>Gán bàn</th>
               <th>Trạng thái</th>
               <th>Thao tác</th>
             </tr>
@@ -86,6 +185,30 @@ export default function BookingManagement() {
                 <td data-label="Bàn">
                   {Array.isArray(r.tables) && r.tables.length ? r.tables.join(', ') : '—'}
                 </td>
+                <td data-label="Gán bàn">
+                  <div className="booking-mgmt__assign">
+                    <select
+                      value={assignPick[r.id] ?? ''}
+                      onChange={(e) => setAssignPick((p) => ({ ...p, [r.id]: e.target.value }))}
+                      aria-label="Chọn bàn"
+                    >
+                      <option value="">— Chọn —</option>
+                      {tables.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name || `Bàn ${t.id}`}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="booking-mgmt__btn booking-mgmt__btn--ghost booking-mgmt__btn--sm"
+                      disabled={r.status === 'CANCELLED' || r.status === 'COMPLETED'}
+                      onClick={() => assignTable(r.id)}
+                    >
+                      Gán
+                    </button>
+                  </div>
+                </td>
                 <td data-label="Trạng thái">
                   <span className={badgeClass(r.status)}>{r.status}</span>
                 </td>
@@ -98,6 +221,14 @@ export default function BookingManagement() {
                       onClick={() => confirm(r.id)}
                     >
                       Xác nhận
+                    </button>
+                    <button
+                      type="button"
+                      className="booking-mgmt__btn booking-mgmt__btn--secondary"
+                      disabled={r.status === 'CANCELLED' || r.status === 'COMPLETED'}
+                      onClick={() => checkIn(r.id)}
+                    >
+                      Check-in
                     </button>
                     <button
                       type="button"

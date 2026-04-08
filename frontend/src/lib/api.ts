@@ -51,3 +51,18 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   if (json.success) return json.data
   throw new Error(json.error?.message || 'API error')
 }
+
+/** Gọi API không cần đăng nhập (settings công khai, gọi món theo mã bàn). */
+export async function publicApiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string> | undefined),
+  }
+  if (!(init?.body instanceof FormData)) {
+    headers['Content-Type'] = headers['Content-Type'] || 'application/json'
+  }
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers })
+  const json = (await res.json().catch(() => null)) as ApiResponse<T> | null
+  if (!json) throw new Error('Invalid API response')
+  if (json.success) return json.data
+  throw new Error(json.error?.message || 'API error')
+}

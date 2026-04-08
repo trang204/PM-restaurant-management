@@ -1,9 +1,32 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { apiFetch } from '../../lib/api'
+import { apiFetch, mediaUrl } from '../../lib/api'
+import './BookTable.css'
 
 type Table = { id: string; name: string; capacity: number; status: string; zone?: string }
-type MenuRow = { id: string; name: string; price: number; categoryName?: string }
+type MenuRow = {
+  id: string
+  name: string
+  price: number
+  categoryName?: string
+  category_name?: string
+  image_url?: string
+}
+
+function menuCategory(m: MenuRow) {
+  return m.categoryName || m.category_name || 'Món ăn'
+}
+
+function isTableSelectable(t: Table) {
+  const s = String(t.status || '').toUpperCase()
+  return s === 'AVAILABLE' || s === ''
+}
+
+const vnd = new Intl.NumberFormat('vi-VN', {
+  style: 'currency',
+  currency: 'VND',
+  maximumFractionDigits: 0,
+})
 
 export default function BookTable() {
   const navigate = useNavigate()
@@ -33,11 +56,32 @@ export default function BookTable() {
     }
   }, [])
 
+  const menuByCategory = useMemo(() => {
+    const map = new Map<string, MenuRow[]>()
+    for (const m of menu) {
+      const k = menuCategory(m)
+      if (!map.has(k)) map.set(k, [])
+      map.get(k)!.push(m)
+    }
+    return map
+  }, [menu])
+
   const preorderItems = useMemo(() => {
     return Object.entries(qtyByMenuId)
       .filter(([, q]) => q > 0)
       .map(([menuItemId, quantity]) => ({ menuItemId, quantity }))
   }, [qtyByMenuId])
+
+  const preorderTotal = useMemo(() => {
+    let sum = 0
+    for (const m of menu) {
+      const q = qtyByMenuId[m.id] ?? 0
+      if (q > 0) sum += Number(m.price) * q
+    }
+    return sum
+  }, [menu, qtyByMenuId])
+
+  const selectedTable = tables.find((t) => t.id === selectedTableId)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -80,125 +124,274 @@ export default function BookTable() {
     setQtyByMenuId((prev) => ({ ...prev, [id]: Math.max(0, q) }))
   }
 
+  function bumpGuest(delta: number) {
+    setGuestCount((g) => Math.max(1, Math.min(20, g + delta)))
+  }
+
+  const preorderSummaryText = useMemo(() => {
+    if (!preorderItems.length) return 'Chưa chọn món'
+    const lines: string[] = []
+    for (const { menuItemId, quantity } of preorderItems) {
+      const m = menu.find((x) => x.id === menuItemId)
+      if (m) lines.push(`${m.name} ×${quantity}`)
+    }
+    return lines.join('\n')
+  }, [preorderItems, menu])
+
   return (
-    <main className="menuPage">
-      <header className="menuHero">
-        <div className="menuHero__content">
-          <p className="menuHero__eyebrow">Đặt bàn</p>
-          <h1 className="menuHero__title">Đặt bàn trực tuyến</h1>
-          <p className="menuHero__subtitle">Gửi đơn qua API · có thể chọn bàn và gọi món trước (tuỳ chọn).</p>
+    <main className="bookPage">
+      <header className="bookHero">
+        <div className="bookHero__copy">
+          <p className="bookHero__eyebrow">Đặt chỗ</p>
+          <h1 className="bookHero__title">Trải nghiệm đặt bàn tinh chỉnh</h1>
+          <p className="bookHero__lead">
+            Chọn thời gian, ưu tiên bàn yêu thích và gợi ý món trước — nhà hàng sẽ xác nhận và chuẩn bị cho buổi
+            gặp của bạn.
+          </p>
+          <div className="bookHero__chips">
+            <span className="bookHero__chip">Xác nhận nhanh</span>
+            <span className="bookHero__chip">Giữ bàn theo giờ</span>
+            <span className="bookHero__chip">Gọi món trước tuỳ chọn</span>
+          </div>
+        </div>
+        <div className="bookHero__panel" aria-hidden="false">
+          <div className="bookHero__stat">
+            <span className="bookHero__stat-label">Bàn đang mở</span>
+            <span className="bookHero__stat-val">{tables.filter(isTableSelectable).length}</span>
+          </div>
+          <div className="bookHero__stat">
+            <span className="bookHero__stat-label">Món trên thực đơn</span>
+            <span className="bookHero__stat-val">{menu.length}</span>
+          </div>
+          <div className="bookHero__stat">
+            <span className="bookHero__stat-label">Khung giờ đặt</span>
+            <span className="bookHero__stat-val" style={{ fontSize: '1.05rem' }}>
+              Hôm nay trở đi
+            </span>
+          </div>
         </div>
       </header>
 
-      <section className="menuSection" style={{ textAlign: 'left', maxWidth: 720, margin: '0 auto' }}>
-        <form onSubmit={onSubmit}>
-          <h2 className="menuSection__title" style={{ fontSize: '1.1rem' }}>
-            Thông tin liên hệ
-          </h2>
-          <label style={{ display: 'block', marginBottom: 10 }}>
-            Họ tên *
-            <input
-              required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              style={{ width: '100%', padding: 10, borderRadius: 12, border: '1px solid var(--border)', marginTop: 6 }}
-            />
-          </label>
-          <label style={{ display: 'block', marginBottom: 10 }}>
-            Điện thoại *
-            <input
-              required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              style={{ width: '100%', padding: 10, borderRadius: 12, border: '1px solid var(--border)', marginTop: 6 }}
-            />
-          </label>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <label>
-              Ngày *
-              <input
-                type="date"
-                required
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                style={{ width: '100%', padding: 10, borderRadius: 12, border: '1px solid var(--border)', marginTop: 6 }}
-              />
-            </label>
-            <label>
-              Giờ *
-              <input
-                type="time"
-                required
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                style={{ width: '100%', padding: 10, borderRadius: 12, border: '1px solid var(--border)', marginTop: 6 }}
-              />
-            </label>
-          </div>
-          <label style={{ display: 'block', marginTop: 10 }}>
-            Số khách *
-            <input
-              type="number"
-              min={1}
-              required
-              value={guestCount}
-              onChange={(e) => setGuestCount(Number(e.target.value))}
-              style={{ width: '100%', padding: 10, borderRadius: 12, border: '1px solid var(--border)', marginTop: 6 }}
-            />
-          </label>
-
-          <h2 className="menuSection__title" style={{ fontSize: '1.1rem', marginTop: 24 }}>
-            Chọn bàn (tuỳ chọn)
-          </h2>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            <button
-              type="button"
-              className="nav__link"
-              style={{ opacity: selectedTableId === null ? 1 : 0.7 }}
-              onClick={() => setSelectedTableId(null)}
-            >
-              Không chọn
-            </button>
-            {tables.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className="nav__link nav__cta"
-                style={{ opacity: selectedTableId === t.id ? 1 : 0.75 }}
-                onClick={() => setSelectedTableId(t.id)}
-              >
-                {t.name} · {t.capacity} chỗ · {t.status}
-              </button>
-            ))}
-          </div>
-
-          <h2 className="menuSection__title" style={{ fontSize: '1.1rem', marginTop: 24 }}>
-            Gọi món trước (tuỳ chọn)
-          </h2>
-          <div style={{ display: 'grid', gap: 8 }}>
-            {menu.slice(0, 12).map((m) => (
-              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'space-between' }}>
-                <span>
-                  {m.name}{' '}
-                  <small style={{ opacity: 0.75 }}>({m.price.toLocaleString('vi-VN')} ₫)</small>
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  value={qtyByMenuId[m.id] ?? 0}
-                  onChange={(e) => setQty(m.id, Number(e.target.value))}
-                  style={{ width: 72, padding: 8, borderRadius: 8, border: '1px solid var(--border)' }}
-                />
+      <div className="bookLayout">
+        <form id="book-form" className="bookMain" onSubmit={onSubmit}>
+          <section className="bookCard">
+            <div className="bookCard__head">
+              <span className="bookStep">1</span>
+              <div className="bookCard__titles">
+                <h2>Thông tin liên hệ</h2>
+                <p>Để nhà hàng liên lạc xác nhận hoặc hỗ trợ thay đổi lịch.</p>
               </div>
-            ))}
-          </div>
+            </div>
+            <div className="bookGrid2">
+              <label className="bookField">
+                <span>Họ và tên *</span>
+                <input
+                  required
+                  autoComplete="name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Nguyễn Văn A"
+                />
+              </label>
+              <label className="bookField">
+                <span>Số điện thoại *</span>
+                <input
+                  required
+                  type="tel"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="09xx xxx xxx"
+                />
+              </label>
+            </div>
+          </section>
 
-          {error ? <p style={{ color: 'crimson', marginTop: 12 }}>{error}</p> : null}
-          <button className="nav__link nav__cta" type="submit" disabled={loading} style={{ marginTop: 16 }}>
-            {loading ? 'Đang gửi...' : 'Xác nhận đặt bàn'}
-          </button>
+          <section className="bookCard">
+            <div className="bookCard__head">
+              <span className="bookStep">2</span>
+              <div className="bookCard__titles">
+                <h2>Thời gian &amp; số khách</h2>
+                <p>Chọn ngày giờ đến và số người để sắp xếp bàn hợp lý.</p>
+              </div>
+            </div>
+            <div className="bookGrid2">
+              <label className="bookField">
+                <span>Ngày *</span>
+                <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+              </label>
+              <label className="bookField">
+                <span>Giờ *</span>
+                <input type="time" required value={time} onChange={(e) => setTime(e.target.value)} />
+              </label>
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <label className="bookField bookField--guest">
+                <span>Số khách *</span>
+                <div className="bookQty" style={{ maxWidth: 160 }}>
+                  <button type="button" onClick={() => bumpGuest(-1)} aria-label="Giảm">
+                    −
+                  </button>
+                  <span>{guestCount}</span>
+                  <button type="button" onClick={() => bumpGuest(1)} aria-label="Tăng">
+                    +
+                  </button>
+                </div>
+              </label>
+            </div>
+          </section>
+
+          <section className="bookCard">
+            <div className="bookCard__head">
+              <span className="bookStep">3</span>
+              <div className="bookCard__titles">
+                <h2>Chọn bàn ưu tiên</h2>
+                <p>Tuỳ chọn — có thể để nhà hàng bố trí nếu bạn chưa chọn.</p>
+              </div>
+            </div>
+            <div className="bookTables">
+              <button
+                type="button"
+                className={`bookTableBtn${selectedTableId === null ? ' bookTableBtn--active' : ''}`}
+                onClick={() => setSelectedTableId(null)}
+              >
+                <span className="bookTableBtn__name">Tự động</span>
+                <span className="bookTableBtn__meta">Nhà hàng chọn bàn phù hợp</span>
+                <span className="bookTableBtn__badge">Gợi ý</span>
+              </button>
+              {tables.map((t) => {
+                const ok = isTableSelectable(t)
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    disabled={!ok}
+                    className={`bookTableBtn${selectedTableId === t.id ? ' bookTableBtn--active' : ''}`}
+                    onClick={() => ok && setSelectedTableId(t.id)}
+                  >
+                    <span className="bookTableBtn__name">{t.name || `Bàn ${t.id}`}</span>
+                    <span className="bookTableBtn__meta">{t.capacity} chỗ ngồi</span>
+                    <span className="bookTableBtn__badge">{ok ? 'Còn trống' : t.status}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+
+          <section className="bookCard bookCard--preorder">
+            <div className="bookCard__head">
+              <span className="bookStep">4</span>
+              <div className="bookCard__titles">
+                <h2>Gọi món trước</h2>
+                <p>Tuỳ chọn — đặt số lượng sơ bộ, bếp sẽ ghi nhận khi bạn đến.</p>
+              </div>
+            </div>
+            <div className="bookPreorder">
+              {menu.length === 0 ? (
+                <p style={{ margin: 0, color: 'var(--book-muted)', fontSize: '0.9rem' }}>Đang tải thực đơn…</p>
+              ) : (
+                Array.from(menuByCategory.entries()).map(([cat, items]) => (
+                  <div key={cat}>
+                    <h3 className="bookPreorder__group-title">{cat}</h3>
+                    {items.map((m) => {
+                      const q = qtyByMenuId[m.id] ?? 0
+                      const img = m.image_url ? mediaUrl(m.image_url) : ''
+                      return (
+                        <div key={m.id} className="bookPreorder__row">
+                          {img ? (
+                            <div
+                              style={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: 10,
+                                background: `url(${img}) center/cover`,
+                                flexShrink: 0,
+                                border: '1px solid var(--book-border)',
+                              }}
+                              aria-hidden
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: 10,
+                                background: 'linear-gradient(145deg, #e8f2ec, #f4faf6)',
+                                flexShrink: 0,
+                                border: '1px solid var(--book-border)',
+                              }}
+                              aria-hidden
+                            />
+                          )}
+                          <div className="bookPreorder__info">
+                            <div className="bookPreorder__name">{m.name}</div>
+                            <div className="bookPreorder__price">{vnd.format(Number(m.price))}</div>
+                          </div>
+                          <div className="bookQty">
+                            <button type="button" onClick={() => setQty(m.id, q - 1)} aria-label="Bớt">
+                              −
+                            </button>
+                            <span>{q}</span>
+                            <button type="button" onClick={() => setQty(m.id, q + 1)} aria-label="Thêm">
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
+          {error ? <p className="bookError">{error}</p> : null}
+
+          <div className="bookMobileOnly">
+            <button className="bookSubmit" type="submit" disabled={loading}>
+              {loading ? 'Đang gửi…' : 'Gửi yêu cầu đặt bàn'}
+            </button>
+          </div>
         </form>
-      </section>
+
+        <aside className="bookAside">
+          <div className="bookCard bookSummary">
+            <h3 className="bookSummary__title">Tóm tắt đặt chỗ</h3>
+            <ul className="bookSummary__list">
+              <li>
+                <strong>Ngày:</strong> {date || '—'}
+              </li>
+              <li>
+                <strong>Giờ:</strong> {time || '—'}
+              </li>
+              <li>
+                <strong>Số khách:</strong> {guestCount}
+              </li>
+              <li>
+                <strong>Bàn:</strong>{' '}
+                {selectedTableId === null
+                  ? 'Tự động'
+                  : selectedTable
+                    ? `${selectedTable.name} (${selectedTable.capacity} chỗ)`
+                    : '—'}
+              </li>
+            </ul>
+            <div>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--book-muted)', marginBottom: 6 }}>
+                Món gợi ý trước
+              </div>
+              <pre className="bookSummary__pre">{preorderSummaryText}</pre>
+            </div>
+            <div className="bookSummary__total">
+              <span>Tạm tính món</span>
+              <strong>{vnd.format(preorderTotal)}</strong>
+            </div>
+            <button className="bookSubmit" type="submit" form="book-form" disabled={loading}>
+              {loading ? 'Đang gửi…' : 'Gửi yêu cầu đặt bàn'}
+            </button>
+          </div>
+        </aside>
+      </div>
     </main>
   )
 }

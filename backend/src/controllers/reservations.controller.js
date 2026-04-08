@@ -1,7 +1,8 @@
 import { ok, created } from '../utils/response.js'
 import { badRequest, notFound } from '../utils/httpError.js'
-import { query } from '../config/db.js'
+import { query, withTransaction } from '../config/db.js'
 import { mapBookingForClient } from '../utils/bookingMapper.js'
+import { closeSessionsForBooking, publicOrderUrl } from '../services/tableSession.service.js'
 
 function toInt(v) {
   const n = Number(v)
@@ -37,54 +38,50 @@ export async function createReservation(req, res, next) {
       .map((x) => Number(x))
       .filter((x) => Number.isFinite(x))
 
-    await query('BEGIN')
-
-    if (requestedTableIds.length) {
-      const conflicts = await query(
-        `
-        SELECT bt.table_id
-        FROM booking_tables bt
-        JOIN bookings b ON b.id = bt.booking_id
-        WHERE b.booking_date = $1
-          AND b.booking_time = $2
-          AND b.status IN ('PENDING', 'CONFIRMED')
-          AND bt.table_id = ANY($3::int[])
-      `,
-        [booking_date, booking_time, requestedTableIds],
-      )
-      if (conflicts.rows.length) {
-        await query('ROLLBACK')
-        throw badRequest('Bàn đã được đặt trong khung giờ này')
-      }
-    }
-
     const guestName = fullName != null && String(fullName).trim() ? String(fullName).trim() : null
     const guestPhone = phone != null && String(phone).trim() ? String(phone).trim() : null
 
-    const inserted = await query(
-      `
-      INSERT INTO bookings (user_id, booking_date, booking_time, guests, status, note, guest_name, guest_phone)
-      VALUES ($1, $2, $3, $4, 'PENDING', $5, $6, $7)
-      RETURNING id, user_id, booking_date, booking_time, guests, status, note, guest_name, guest_phone, created_at
-    `,
-      [userId, booking_date, booking_time, guests, note ? String(note) : null, guestName, guestPhone],
-    )
+    const booking = await withTransaction(async (client) => {
+      if (requestedTableIds.length) {
+        const conflicts = await client.query(
+          `
+          SELECT bt.table_id
+          FROM booking_tables bt
+          JOIN bookings b ON b.id = bt.booking_id
+          WHERE b.booking_date = $1
+            AND b.booking_time = $2
+            AND b.status IN ('PENDING', 'CONFIRMED', 'CHECKED_IN')
+            AND bt.table_id = ANY($3::int[])
+        `,
+          [booking_date, booking_time, requestedTableIds],
+        )
+        if (conflicts.rows.length) throw badRequest('Bàn đã được đặt trong khung giờ này')
+      }
 
-    const booking = inserted.rows[0]
-
-    if (requestedTableIds.length) {
-      const values = requestedTableIds.map((_, idx) => `($1, $${idx + 2})`).join(', ')
-      await query(
-        `INSERT INTO booking_tables (booking_id, table_id) VALUES ${values}`,
-        [booking.id, ...requestedTableIds],
+      const inserted = await client.query(
+        `
+        INSERT INTO bookings (user_id, booking_date, booking_time, guests, status, note, guest_name, guest_phone)
+        VALUES ($1, $2, $3, $4, 'PENDING', $5, $6, $7)
+        RETURNING id, user_id, booking_date, booking_time, guests, status, note, guest_name, guest_phone, created_at
+      `,
+        [userId, booking_date, booking_time, guests, note ? String(note) : null, guestName, guestPhone],
       )
-    }
 
-    await query('COMMIT')
+      const b = inserted.rows[0]
+
+      if (requestedTableIds.length) {
+        const values = requestedTableIds.map((_, idx) => `($1, $${idx + 2})`).join(', ')
+        await client.query(`INSERT INTO booking_tables (booking_id, table_id) VALUES ${values}`, [
+          b.id,
+          ...requestedTableIds,
+        ])
+      }
+
+      return b
+    })
 
     return created(res, booking)
   } catch (e) {
-    await query('ROLLBACK').catch(() => {})
     return next(e)
   }
 }
@@ -100,6 +97,7 @@ export async function listMyReservations(req, res, next) {
         b.*,
         MAX(u.name) AS user_name,
         MAX(u.phone) AS user_phone,
+        COALESCE(array_agg(bt.table_id) FILTER (WHERE bt.table_id IS NOT NULL), '{}') AS table_ids,
         COALESCE(array_agg(t.name) FILTER (WHERE t.id IS NOT NULL), '{}') AS tables
       FROM bookings b
       LEFT JOIN users u ON u.id = b.user_id
@@ -129,10 +127,12 @@ export async function getReservationDetail(req, res, next) {
         b.*,
         MAX(u.name) AS user_name,
         MAX(u.phone) AS user_phone,
-        COALESCE(array_agg(bt.table_id) FILTER (WHERE bt.table_id IS NOT NULL), '{}') AS table_ids
+        COALESCE(array_agg(bt.table_id) FILTER (WHERE bt.table_id IS NOT NULL), '{}') AS table_ids,
+        COALESCE(array_agg(t.name) FILTER (WHERE t.id IS NOT NULL), '{}') AS tables
       FROM bookings b
       LEFT JOIN users u ON u.id = b.user_id
       LEFT JOIN booking_tables bt ON bt.booking_id = b.id
+      LEFT JOIN tables t ON t.id = bt.table_id
       WHERE b.id = $1
       GROUP BY b.id
     `,
@@ -146,7 +146,23 @@ export async function getReservationDetail(req, res, next) {
       throw notFound('Không tìm thấy đơn đặt bàn')
     }
 
-    return ok(res, mapBookingForClient(booking))
+    const mapped = mapBookingForClient(booking)
+    if (
+      Number.isFinite(userId) &&
+      booking.user_id === userId &&
+      ['CONFIRMED', 'CHECKED_IN'].includes(booking.status)
+    ) {
+      const sess = await query(
+        `SELECT qr_token FROM table_sessions WHERE booking_id = $1 AND status = 'ACTIVE' LIMIT 1`,
+        [id],
+      )
+      if (sess.rows[0]?.qr_token) {
+        mapped.tableOrderToken = sess.rows[0].qr_token
+        mapped.tableOrderUrl = publicOrderUrl(sess.rows[0].qr_token)
+      }
+    }
+
+    return ok(res, mapped)
   } catch (e) {
     return next(e)
   }
@@ -165,6 +181,7 @@ export async function cancelReservation(req, res, next) {
     if (cur.rows[0].user_id !== userId) throw notFound('Không tìm thấy đơn đặt bàn')
     if (cur.rows[0].status !== 'PENDING') throw badRequest('Chỉ được hủy khi đơn đang chờ xác nhận')
 
+    await closeSessionsForBooking(id)
     const updated = await query(
       `UPDATE bookings SET status = 'CANCELLED' WHERE id = $1 RETURNING *`,
       [id],
@@ -195,7 +212,7 @@ export async function holdTable(req, res, next) {
       JOIN bookings b ON b.id = bt.booking_id
       WHERE b.booking_date = $1
         AND b.booking_time = $2
-        AND b.status IN ('PENDING', 'CONFIRMED')
+        AND b.status IN ('PENDING', 'CONFIRMED', 'CHECKED_IN')
         AND bt.table_id = $3
         AND b.id <> $4
       LIMIT 1
@@ -204,10 +221,10 @@ export async function holdTable(req, res, next) {
     )
     if (conflicts.rows.length) throw badRequest('Bàn đã được đặt trong khung giờ này')
 
-    await query('BEGIN')
-    await query('DELETE FROM booking_tables WHERE booking_id = $1', [id])
-    await query('INSERT INTO booking_tables (booking_id, table_id) VALUES ($1, $2)', [id, tId])
-    await query('COMMIT')
+    await withTransaction(async (client) => {
+      await client.query('DELETE FROM booking_tables WHERE booking_id = $1', [id])
+      await client.query('INSERT INTO booking_tables (booking_id, table_id) VALUES ($1, $2)', [id, tId])
+    })
 
     const detail = await query(
       `
@@ -215,10 +232,12 @@ export async function holdTable(req, res, next) {
         b.*,
         MAX(u.name) AS user_name,
         MAX(u.phone) AS user_phone,
-        COALESCE(array_agg(bt.table_id) FILTER (WHERE bt.table_id IS NOT NULL), '{}') AS table_ids
+        COALESCE(array_agg(bt.table_id) FILTER (WHERE bt.table_id IS NOT NULL), '{}') AS table_ids,
+        COALESCE(array_agg(t.name) FILTER (WHERE t.id IS NOT NULL), '{}') AS tables
       FROM bookings b
       LEFT JOIN users u ON u.id = b.user_id
       LEFT JOIN booking_tables bt ON bt.booking_id = b.id
+      LEFT JOIN tables t ON t.id = bt.table_id
       WHERE b.id = $1
       GROUP BY b.id
     `,
@@ -226,7 +245,6 @@ export async function holdTable(req, res, next) {
     )
     return ok(res, mapBookingForClient(detail.rows[0]))
   } catch (e) {
-    await query('ROLLBACK').catch(() => {})
     return next(e)
   }
 }
@@ -242,7 +260,8 @@ export async function createOnlinePaymentIntent(req, res, next) {
     const r = await query('SELECT * FROM bookings WHERE id = $1', [id])
     if (!r.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
     if (r.rows[0].user_id !== userId) throw notFound('Không tìm thấy đơn đặt bàn')
-    if (r.rows[0].status !== 'CONFIRMED') throw badRequest('Đơn phải ở trạng thái CONFIRMED để thanh toán online')
+    if (!['CONFIRMED', 'CHECKED_IN'].includes(r.rows[0].status))
+      throw badRequest('Đơn phải đã xác nhận hoặc đã check-in để thanh toán online')
 
     return ok(res, {
       reservationId: id,
@@ -265,7 +284,8 @@ export async function markOnlinePaidByCustomer(req, res, next) {
     const r = await query('SELECT id, user_id, status FROM bookings WHERE id = $1', [id])
     if (!r.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
     if (r.rows[0].user_id !== userId) throw notFound('Không tìm thấy đơn đặt bàn')
-    if (r.rows[0].status !== 'CONFIRMED') throw badRequest('Đơn phải ở trạng thái CONFIRMED')
+    if (!['CONFIRMED', 'CHECKED_IN'].includes(r.rows[0].status))
+      throw badRequest('Đơn phải đã xác nhận hoặc đã check-in')
 
     return ok(res, { reservationId: id, status: 'PAYMENT_PENDING' })
   } catch (e) {

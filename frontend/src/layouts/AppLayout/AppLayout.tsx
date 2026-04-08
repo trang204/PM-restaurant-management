@@ -50,7 +50,12 @@ export default function AppLayout() {
                 </NavLink>
                 {me.role === 'ADMIN' ? (
                   <NavLink to="/admin" className="nav__link">
-                    Admin
+                    Quản trị
+                  </NavLink>
+                ) : null}
+                {me.role === 'STAFF' ? (
+                  <NavLink to="/staff" className="nav__link nav__cta">
+                    Khu nhân viên
                   </NavLink>
                 ) : null}
                 <button type="button" className="nav__link nav__cta" onClick={logout}>
@@ -83,9 +88,16 @@ export default function AppLayout() {
             <NavLink to="/book" className="appFooter__link appFooter__link--muted">
               Đặt bàn
             </NavLink>
-            <NavLink to="/admin" className="appFooter__link">
-              Khu quản trị
-            </NavLink>
+            {me?.role === 'ADMIN' ? (
+              <NavLink to="/admin" className="appFooter__link">
+                Quản trị
+              </NavLink>
+            ) : null}
+            {me?.role === 'STAFF' ? (
+              <NavLink to="/staff" className="appFooter__link">
+                Nhân viên
+              </NavLink>
+            ) : null}
           </div>
         </div>
       </footer>

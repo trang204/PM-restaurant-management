@@ -21,6 +21,7 @@
   background: var(--admin-main-bg);
   color: #1b4332;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  /* #root dùng text-align: center — reset cho toàn bộ admin */
   text-align: left;
 }
 
@@ -30,12 +31,17 @@
   top: 0;
   bottom: 0;
   width: 280px;
+  max-width: 280px;
   z-index: 40;
   display: flex;
   flex-direction: column;
+  /* Tránh flex item (nav) nở theo min-content và tràn nền hover/active sang main */
+  overflow-x: hidden;
+  text-align: left;
   background: linear-gradient(180deg, #f1f8f4 0%, #e8f5e9 55%, #dff0e4 100%);
   border-right: 1px solid #b7d9c4;
   box-shadow: 4px 0 24px rgba(45, 106, 79, 0.08);
+  box-sizing: border-box;
 }
 
 .admin-sidebar__brand {
@@ -69,6 +75,7 @@
 
 .admin-sidebar__nav {
   flex: 1;
+  min-width: 0;
   padding: 12px 10px 16px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -86,20 +93,26 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .admin-tree__item {
   margin: 0;
   padding: 0;
   list-style: none;
+  min-width: 0;
 }
 
 .admin-tree__item--root {
   width: 100%;
+  max-width: 100%;
 }
 
 .admin-tree__link {
   display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
   padding: 10px 12px 10px 14px;
   border-radius: 10px;
   color: var(--admin-sidebar-muted);
@@ -129,7 +142,9 @@
 }
 
 .admin-tree__branch {
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -181,10 +196,14 @@
 
 .admin-tree__children {
   list-style: none;
-  margin: 4px 0 8px 0;
+  box-sizing: border-box;
+  /* margin-left + width 100% = tràn ngang; thu hẹp width theo lề */
+  width: calc(100% - 18px);
+  max-width: calc(100% - 18px);
+  min-width: 0;
+  margin: 4px 0 8px 18px;
   padding: 4px 0 4px 14px;
   border-left: 2px solid rgba(45, 106, 79, 0.22);
-  margin-left: 18px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -290,6 +309,7 @@
 @media (max-width: 1024px) {
   .admin-sidebar {
     width: 260px;
+    max-width: 260px;
   }
 
   .admin-body {

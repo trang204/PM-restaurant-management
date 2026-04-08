@@ -25,6 +25,7 @@ export function mapBookingForClient(row) {
   const phone = (row.guest_phone || row.user_phone || '').trim()
   const tableIds = Array.isArray(row.table_ids) ? row.table_ids : []
   const firstTableId = tableIds.length ? String(tableIds[0]) : null
+  const tableNames = Array.isArray(row.tables) ? row.tables.filter(Boolean) : []
   return {
     id: String(row.id),
     fullName: name || 'Khách',
@@ -35,7 +36,7 @@ export function mapBookingForClient(row) {
     status: row.status,
     assignedTableId: firstTableId,
     note: row.note ?? null,
-    tables: Array.isArray(row.tables) ? row.tables : undefined,
+    tables: tableNames.length ? tableNames : undefined,
   }
 }
 

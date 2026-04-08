@@ -81,8 +81,19 @@ export default function ReservationDetail() {
               {data.date} · {data.time} · {data.guestCount} khách
             </p>
             <p>Trạng thái: {data.status}</p>
-            {data.assignedTableId ? <p>Bàn: {data.assignedTableId}</p> : null}
+            {data.tables?.length ? (
+              <p>Bàn: {data.tables.join(', ')}</p>
+            ) : data.assignedTableId ? (
+              <p>Bàn (mã): {data.assignedTableId}</p>
+            ) : null}
             {data.note ? <p>Ghi chú: {data.note}</p> : null}
+            {data.tableOrderToken ? (
+              <p style={{ marginTop: 12 }}>
+                <Link to={`/order/table/${encodeURIComponent(data.tableOrderToken)}`}>
+                  Gọi món tại bàn (web)
+                </Link>
+              </p>
+            ) : null}
             <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button
                 type="button"

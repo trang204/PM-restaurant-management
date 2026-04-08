@@ -10,12 +10,15 @@ import BookTable from './pages/Booking/BookTable'
 import ReservationHistory from './pages/Booking/ReservationHistory'
 import ReservationDetail from './pages/Booking/ReservationDetail'
 import AdminLayout from './layouts/AdminLayout/AdminLayout.jsx'
+import StaffLayout from './layouts/StaffLayout/StaffLayout.jsx'
+import StaffDesk from './pages/Staff/StaffDesk.jsx'
 import Dashboard from './pages/Admin/Dashboard.jsx'
 import BookingManagement from './pages/Admin/BookingManagement.jsx'
 import TableManagement from './pages/Admin/TableManagement.jsx'
 import MenuManagement from './pages/Admin/MenuManagement.jsx'
 import UserManagement from './pages/Admin/UserManagement.jsx'
 import Settings from './pages/Admin/Settings.jsx'
+import TableOrder from './pages/TableOrder/TableOrder'
 
 export default function App() {
   return (
@@ -30,6 +33,7 @@ export default function App() {
         <Route path="/book" element={<BookTable />} />
         <Route path="/reservations" element={<ReservationHistory />} />
         <Route path="/reservations/:id" element={<ReservationDetail />} />
+        <Route path="/order/table/:token" element={<TableOrder />} />
       </Route>
 
       <Route path="/admin" element={<AdminLayout />}>
@@ -39,6 +43,10 @@ export default function App() {
         <Route path="menu" element={<MenuManagement />} />
         <Route path="users" element={<UserManagement />} />
         <Route path="settings" element={<Settings />} />
+      </Route>
+
+      <Route path="/staff" element={<StaffLayout />}>
+        <Route index element={<StaffDesk />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

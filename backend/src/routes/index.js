@@ -9,6 +9,7 @@ import adminRoutes from './modules/admin.routes.js'
 import orderRoutes from './modules/orders.routes.js'
 import paymentRoutes from './modules/payments.routes.js'
 import settingsRoutes from './modules/settings.routes.js'
+import tableSessionRoutes from './modules/tableSession.routes.js'
 
 const router = Router()
 
@@ -21,6 +22,7 @@ router.use('/admin', adminRoutes)
 router.use('/orders', orderRoutes)
 router.use('/payments', paymentRoutes)
 router.use('/settings', settingsRoutes)
+router.use('/table-session', tableSessionRoutes)
 
 export default router
 

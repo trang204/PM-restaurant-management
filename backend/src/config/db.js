@@ -27,3 +27,23 @@ pool.on('error', (err) => {
 export async function query(sql, params = []) {
   return pool.query(sql, params)
 }
+
+/**
+ * Một transaction thật trên cùng một client (tránh BEGIN/COMMIT lệch connection khi dùng pool.query).
+ * @param {(client: import('pg').PoolClient) => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+export async function withTransaction(fn) {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const result = await fn(client)
+    await client.query('COMMIT')
+    return result
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {})
+    throw e
+  } finally {
+    client.release()
+  }
+}

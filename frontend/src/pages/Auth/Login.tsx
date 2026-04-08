@@ -24,6 +24,10 @@ export default function Login() {
         window.location.href = '/admin'
         return
       }
+      if (data.user?.role === 'STAFF') {
+        window.location.href = '/staff'
+        return
+      }
       window.location.href = '/'
     } catch (err) {
       setError((err as Error).message)

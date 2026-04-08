@@ -1,0 +1,113 @@
+/* Giao diện tối giản — chỉ tiếp đón / check-in */
+.staff-app {
+  --staff-bg: #f0faf3;
+  --staff-card: #ffffff;
+  --staff-border: #b7d9c4;
+  --staff-text: #1b4332;
+  --staff-muted: #52796f;
+  --staff-accent: #2d6a4f;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--staff-bg);
+  color: var(--staff-text);
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.staff-app *,
+.staff-app *::before,
+.staff-app *::after {
+  box-sizing: border-box;
+}
+
+.staff-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 22px;
+  background: linear-gradient(180deg, #e8f5e9 0%, #dff0e4 100%);
+  border-bottom: 1px solid var(--staff-border);
+  box-shadow: 0 2px 12px rgba(45, 106, 79, 0.06);
+}
+
+.staff-topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--staff-text);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.staff-topbar__mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #40916c 0%, #2d6a4f 100%);
+}
+
+.staff-topbar__badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--staff-accent);
+  padding: 4px 10px;
+  background: rgba(45, 106, 79, 0.12);
+  border-radius: 999px;
+}
+
+.staff-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.staff-topbar__user {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--staff-muted);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.staff-topbar__logout {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--staff-border);
+  background: var(--staff-card);
+  color: var(--staff-text);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.staff-topbar__logout:hover {
+  background: #f1f8f4;
+}
+
+.staff-main {
+  flex: 1;
+  padding: 22px 20px 40px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+@media (max-width: 600px) {
+  .staff-topbar {
+    padding: 12px 14px;
+  }
+
+  .staff-main {
+    padding: 16px 12px 32px;
+  }
+}

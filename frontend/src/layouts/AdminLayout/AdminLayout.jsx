@@ -3,34 +3,33 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { apiFetch, setToken } from '../../lib/api'
 import './AdminLayout.css'
 
-/** Cấu trúc menu cây: link đơn hoặc nhóm có con */
-const tree = [
-  { type: 'link', to: '/admin', label: 'Tổng quan', end: true },
-  {
-    type: 'group',
-    id: 'van-hanh',
-    label: 'Vận hành',
-    children: [
-      { to: '/admin/bookings', label: 'Đặt bàn' },
-      { to: '/admin/tables', label: 'Bàn' },
-    ],
-  },
-  {
-    type: 'group',
-    id: 'thuc-don',
-    label: 'Thực đơn',
-    children: [{ to: '/admin/menu', label: 'Món ăn' }],
-  },
-  {
-    type: 'group',
-    id: 'he-thong',
-    label: 'Hệ thống',
-    children: [
-      { to: '/admin/users', label: 'Người dùng' },
-      { to: '/admin/settings', label: 'Cài đặt' },
-    ],
-  },
-]
+const adminTree = [
+    { type: 'link', to: '/admin', label: 'Tổng quan', end: true },
+    {
+      type: 'group',
+      id: 'van-hanh',
+      label: 'Vận hành',
+      children: [
+        { to: '/admin/bookings', label: 'Đặt bàn' },
+        { to: '/admin/tables', label: 'Bàn' },
+      ],
+    },
+    {
+      type: 'group',
+      id: 'thuc-don',
+      label: 'Thực đơn',
+      children: [{ to: '/admin/menu', label: 'Món ăn' }],
+    },
+    {
+      type: 'group',
+      id: 'he-thong',
+      label: 'Hệ thống',
+      children: [
+        { to: '/admin/users', label: 'Người dùng' },
+        { to: '/admin/settings', label: 'Cài đặt' },
+      ],
+    },
+  ]
 
 function pathOpensGroup(pathname) {
   const s = new Set()
@@ -63,7 +62,10 @@ export default function AdminLayout() {
     apiFetch('/users/me')
       .then((u) => {
         setMe(u)
-        if (u.role !== 'ADMIN') navigate('/')
+        if (u.role !== 'ADMIN') {
+          if (u.role === 'STAFF') navigate('/staff', { replace: true })
+          else navigate('/')
+        }
       })
       .catch(() => navigate('/login'))
   }, [navigate])
@@ -93,7 +95,7 @@ export default function AdminLayout() {
 
         <nav className="admin-sidebar__nav admin-tree" aria-label="Menu cây">
           <ul className="admin-tree__root">
-            {tree.map((node) => {
+            {adminTree.map((node) => {
               if (node.type === 'link') {
                 return (
                   <li key={node.to} className="admin-tree__item admin-tree__item--root">

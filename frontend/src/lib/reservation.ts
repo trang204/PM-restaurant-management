@@ -8,7 +8,12 @@ export type ReservationRow = {
   guestCount: number
   status: string
   assignedTableId?: string | null
+  /** Tên bàn (nếu API trả array_agg). */
+  tables?: string[]
   note?: string | null
+  /** Link gọi món tại bàn (khi đơn đã xác nhận và có phiên QR). */
+  tableOrderUrl?: string | null
+  tableOrderToken?: string | null
 }
 
 function formatDateRaw(v: unknown): string {
@@ -63,7 +68,7 @@ export function normalizeReservation(raw: unknown): ReservationRow | null {
       ? String(r.assignedTableId)
       : firstTableId(r.table_ids)
 
-  return {
+  const out: ReservationRow = {
     id: String(r.id),
     fullName: String(nameRaw).trim() || 'Khách',
     phone: String(phoneRaw).trim() || '—',
@@ -74,4 +79,10 @@ export function normalizeReservation(raw: unknown): ReservationRow | null {
     assignedTableId: assigned,
     note: r.note != null ? String(r.note) : null,
   }
+  if (typeof r.tableOrderUrl === 'string' && r.tableOrderUrl) out.tableOrderUrl = r.tableOrderUrl
+  if (typeof r.tableOrderToken === 'string' && r.tableOrderToken) out.tableOrderToken = r.tableOrderToken
+  if (Array.isArray(r.tables) && r.tables.length) {
+    out.tables = r.tables.filter((x): x is string => typeof x === 'string' && Boolean(x))
+  }
+  return out
 }

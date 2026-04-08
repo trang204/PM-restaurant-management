@@ -57,6 +57,12 @@ export default function ReservationHistory() {
               <strong>{r.fullName}</strong> · {r.phone}
               <br />
               {r.date} lúc {r.time} · {r.guestCount} khách · <span>{r.status}</span>
+              {r.tables?.length ? (
+                <>
+                  <br />
+                  Bàn: {r.tables.join(', ')}
+                </>
+              ) : null}
               <div style={{ marginTop: 8 }}>
                 <Link to={`/reservations/${r.id}`} className="nav__link">
                   Chi tiết

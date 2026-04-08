@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { publicApiFetch } from '../../lib/api'
 import './Home.css'
 
 const features = [
@@ -20,13 +22,23 @@ const features = [
 ]
 
 export default function Home() {
+  const [restaurantName, setRestaurantName] = useState<string | null>(null)
+
+  useEffect(() => {
+    publicApiFetch<{ restaurantName?: string | null }>('/settings/public')
+      .then((d) => setRestaurantName(d?.restaurantName || null))
+      .catch(() => setRestaurantName(null))
+  }, [])
+
+  const brand = restaurantName?.trim() || 'Luxeat'
+
   return (
     <main className="home">
       <section className="home-hero">
         <div className="home-hero__inner">
           <div className="home-hero__copy">
             <p className="home-hero__eyebrow">Ẩm thực tinh tế · Đặt bàn trực tuyến</p>
-            <h1 className="home-hero__title">Luxeat</h1>
+            <h1 className="home-hero__title">{brand}</h1>
             <p className="home-hero__lead">
               Trải nghiệm đặt bàn hiện đại: xem thực đơn mọi lúc, giữ chỗ chỉ vài bước, và quản lý lịch sử
               ngay trên trình duyệt.
@@ -56,7 +68,10 @@ export default function Home() {
           <h2 id="home-features-heading" className="home-section-title">
             Vì sao chọn Luxeat
           </h2>
-          <p className="home-section-desc">Giao diện gọn, thao tác nhanh — phù hợp cả khách lẻ lẫn nhóm bạn.</p>
+          <p className="home-section-desc">
+            Giao diện gọn, thao tác nhanh — phù hợp cả khách lẻ lẫn nhóm bạn.
+            {restaurantName ? ` Tại ${restaurantName}.` : ''}
+          </p>
         </div>
         <div className="home-features__grid">
           {features.map((f) => (

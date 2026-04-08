@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../../middleware/requireAuth.js'
 import { requireRole } from '../../middleware/requireRole.js'
+import { requireAnyRole } from '../../middleware/requireAnyRole.js'
 
 import * as adminReservations from '../../controllers/admin/reservations.admin.controller.js'
 import * as adminMenu from '../../controllers/admin/menu.admin.controller.js'
@@ -11,42 +12,36 @@ import * as adminDashboard from '../../controllers/admin/dashboard.admin.control
 
 const router = Router()
 
-router.use(requireAuth, requireRole('ADMIN'))
+const staff = [requireAuth, requireAnyRole('ADMIN', 'STAFF')]
+const adminOnly = [requireAuth, requireRole('ADMIN')]
 
-// Dashboard
-router.get('/dashboard', adminDashboard.stats)
+router.get('/dashboard', ...staff, adminDashboard.stats)
 
-// Reservations management
-router.get('/reservations', adminReservations.list)
-router.get('/reservations/:id', adminReservations.detail)
-router.post('/reservations/:id/assign-table', adminReservations.assignTable)
-router.post('/reservations/:id/confirm', adminReservations.confirm)
-router.post('/reservations/:id/check-in', adminReservations.checkIn)
-router.post('/reservations/:id/cashier-pay', adminReservations.cashierPay)
-router.post('/reservations/:id/confirm-online-payment', adminReservations.confirmOnlinePayment)
-router.post('/reservations/:id/cancel', adminReservations.cancelReservation)
+router.get('/reservations', ...staff, adminReservations.list)
+router.get('/reservations/:id', ...staff, adminReservations.detail)
+router.post('/reservations/:id/assign-table', ...staff, adminReservations.assignTable)
+router.post('/reservations/:id/confirm', ...staff, adminReservations.confirm)
+router.post('/reservations/:id/check-in', ...staff, adminReservations.checkIn)
+router.post('/reservations/:id/cashier-pay', ...staff, adminReservations.cashierPay)
+router.post('/reservations/:id/confirm-online-payment', ...staff, adminReservations.confirmOnlinePayment)
+router.post('/reservations/:id/cancel', ...staff, adminReservations.cancelReservation)
 
-// Menu items
-router.get('/menu-items', adminMenu.list)
-router.post('/menu-items', adminMenu.create)
-router.patch('/menu-items/:id', adminMenu.update)
-router.delete('/menu-items/:id', adminMenu.remove)
-router.post('/menu-items/:id/toggle-active', adminMenu.toggleActive)
+router.get('/menu-items', ...staff, adminMenu.list)
+router.post('/menu-items', ...adminOnly, adminMenu.create)
+router.patch('/menu-items/:id', ...adminOnly, adminMenu.update)
+router.delete('/menu-items/:id', ...adminOnly, adminMenu.remove)
+router.post('/menu-items/:id/toggle-active', ...adminOnly, adminMenu.toggleActive)
 
-// Categories
-router.get('/categories', adminCategories.list)
-router.post('/categories', adminCategories.create)
-router.patch('/categories/:id', adminCategories.update)
-router.delete('/categories/:id', adminCategories.remove)
+router.get('/categories', ...staff, adminCategories.list)
+router.post('/categories', ...adminOnly, adminCategories.create)
+router.patch('/categories/:id', ...adminOnly, adminCategories.update)
+router.delete('/categories/:id', ...adminOnly, adminCategories.remove)
 
-// Users
-router.get('/users', adminUsers.list)
-router.post('/users', adminUsers.create)
-router.patch('/users/:id/role', adminUsers.updateRole)
-router.delete('/users/:id', adminUsers.remove)
+router.get('/users', ...adminOnly, adminUsers.list)
+router.post('/users', ...adminOnly, adminUsers.create)
+router.patch('/users/:id/role', ...adminOnly, adminUsers.updateRole)
+router.delete('/users/:id', ...adminOnly, adminUsers.remove)
 
-// Reports
-router.get('/reports/revenue', adminReports.revenue)
+router.get('/reports/revenue', ...staff, adminReports.revenue)
 
 export default router
-
