@@ -18,8 +18,10 @@ export function getApiOrigin(): string {
 
 export function mediaUrl(path: string | undefined | null): string {
   if (!path) return ''
-  if (path.startsWith('http')) return path
-  return `${getApiOrigin()}${path.startsWith('/') ? '' : '/'}${path}`
+  // Nhiều file upload có khoảng trắng/ký tự đặc biệt → cần encode để CSS url()/img src hoạt động ổn định.
+  if (path.startsWith('http')) return encodeURI(path)
+  const full = `${getApiOrigin()}${path.startsWith('/') ? '' : '/'}${path}`
+  return encodeURI(full)
 }
 
 function getToken() {
