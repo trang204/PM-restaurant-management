@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiFetch, setToken } from '../../lib/api'
+import { apiFetch, mediaUrl, setToken } from '../../lib/api'
 import PasswordField from '../../components/PasswordField'
+import { fetchPublicSettings } from '../../lib/settings'
 import './AuthPages.css'
 
 export default function Login() {
@@ -9,6 +10,24 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [brand, setBrand] = useState('Luxeat')
+  const [banner, setBanner] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchPublicSettings()
+      .then((s) => {
+        setBrand(s.restaurantName?.trim() || 'Luxeat')
+        const enabled = Boolean(s.banner?.enabled ?? true)
+        const showOnAuth = Boolean(s.banner?.showOnAuth ?? true)
+        const urls = Array.isArray(s.bannerUrls) ? s.bannerUrls : []
+        if (enabled && showOnAuth && urls.length) setBanner(mediaUrl(urls[0]))
+        else setBanner(null)
+      })
+      .catch(() => {
+        setBrand('Luxeat')
+        setBanner(null)
+      })
+  }, [])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -38,8 +57,11 @@ export default function Login() {
 
   return (
     <main className="authPage">
-      <div className="authPage__aside">
-        <p className="authPage__eyebrow">Luxeat</p>
+      <div
+        className={`authPage__aside${banner ? ' authPage__aside--banner' : ''}`}
+        style={banner ? { backgroundImage: `url(${banner})` } : undefined}
+      >
+        <p className="authPage__eyebrow">{brand}</p>
         <h1 className="authPage__title">Chào mừng trở lại</h1>
         <p className="authPage__lead">
           Đăng nhập để xem lịch sử đặt bàn, cập nhật thông tin và tiếp tục trải nghiệm ẩm thực.

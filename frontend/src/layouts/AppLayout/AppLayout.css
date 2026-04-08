@@ -46,6 +46,16 @@
   flex-shrink: 0;
 }
 
+.brand__logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  border: 1px solid rgba(45, 106, 79, 0.22);
+  object-fit: cover;
+  box-shadow: 0 4px 14px rgba(45, 106, 79, 0.18);
+  flex-shrink: 0;
+}
+
 .brand__text {
   font-weight: 800;
   font-size: 1.2rem;
@@ -96,45 +106,154 @@
 
 .appFooter {
   border-top: 1px solid #e8ebe4;
-  background: linear-gradient(180deg, #fafaf8 0%, #f3f5f2 100%);
+  background: radial-gradient(1200px 400px at 20% -10%, rgba(45, 106, 79, 0.16), transparent 55%),
+    linear-gradient(180deg, #ffffff 0%, #f3f6f2 100%);
 }
 
-.appFooter__inner {
+.luxFooter {
   width: min(1400px, 100%);
   margin: 0 auto;
-  padding: 22px 18px;
+  padding: 34px 18px 18px;
   box-sizing: border-box;
+  color: #4f534f;
+  text-align: left;
+}
+
+.luxFooter__top {
+  display: grid;
+  grid-template-columns: 1.1fr 1.9fr;
+  gap: 26px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid rgba(45, 106, 79, 0.14);
+}
+
+.luxFooter__brandLink {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  text-decoration: none;
+  color: inherit;
+}
+
+.luxFooter__logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  object-fit: cover;
+  border: 1px solid rgba(45, 106, 79, 0.22);
+  box-shadow: 0 6px 18px rgba(45, 106, 79, 0.16);
+}
+
+.luxFooter__mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #40916c 0%, #2d6a4f 100%);
+  box-shadow: 0 6px 18px rgba(45, 106, 79, 0.22);
+}
+
+.luxFooter__name {
+  font-weight: 900;
+  font-size: 1.15rem;
+  letter-spacing: -0.03em;
+  color: #1b4332;
+}
+
+.luxFooter__tag {
+  margin-top: 6px;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: #606560;
+  max-width: 42ch;
+}
+
+.luxFooter__cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.luxFooter__h {
+  margin-bottom: 10px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #2d6a4f;
+}
+
+.luxFooter__link {
+  display: flex;
+  padding: 8px 0;
+  text-decoration: none;
+  color: #2f3a33;
+  font-weight: 600;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.luxFooter__link:hover {
+  opacity: 0.9;
+  transform: translateX(2px);
+}
+
+.luxFooter__text {
+  padding: 6px 0;
+  line-height: 1.55;
+  color: #5d635d;
+}
+
+.luxFooter__ctaRow {
+  margin-top: 10px;
+}
+
+.luxFooter__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #40916c 0%, #2d6a4f 100%);
+  color: #fff;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 10px 26px rgba(45, 106, 79, 0.22);
+}
+
+.luxFooter__cta:hover {
+  opacity: 0.95;
+}
+
+.luxFooter__bottom {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  color: #5c5a57;
+  gap: 12px;
+  padding-top: 16px;
   font-size: 0.9rem;
+  color: #6a6f6a;
 }
 
-.appFooter__links {
+.luxFooter__bottomLinks {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
 }
 
-.appFooter__link {
+.luxFooter__miniLink {
   text-decoration: none;
   color: #2d6a4f;
-  font-weight: 600;
-  font-size: 0.88rem;
-  transition: opacity 0.2s ease;
+  font-weight: 700;
 }
 
-.appFooter__link:hover {
-  opacity: 0.85;
-}
+@media (max-width: 900px) {
+  .luxFooter__top {
+    grid-template-columns: 1fr;
+  }
 
-.appFooter__link--muted {
-  color: #6b6966;
-  font-weight: 500;
+  .luxFooter__cols {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 560px) {

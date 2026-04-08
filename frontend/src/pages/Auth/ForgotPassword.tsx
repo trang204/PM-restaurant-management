@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiFetch } from '../../lib/api'
+import { apiFetch, mediaUrl } from '../../lib/api'
+import { fetchPublicSettings } from '../../lib/settings'
 import './AuthPages.css'
 
 export default function ForgotPassword() {
@@ -8,6 +9,24 @@ export default function ForgotPassword() {
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [brand, setBrand] = useState('Luxeat')
+  const [banner, setBanner] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchPublicSettings()
+      .then((s) => {
+        setBrand(s.restaurantName?.trim() || 'Luxeat')
+        const enabled = Boolean(s.banner?.enabled ?? true)
+        const showOnAuth = Boolean(s.banner?.showOnAuth ?? true)
+        const urls = Array.isArray(s.bannerUrls) ? s.bannerUrls : []
+        if (enabled && showOnAuth && urls.length) setBanner(mediaUrl(urls[0]))
+        else setBanner(null)
+      })
+      .catch(() => {
+        setBrand('Luxeat')
+        setBanner(null)
+      })
+  }, [])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -29,9 +48,12 @@ export default function ForgotPassword() {
 
   return (
     <main className="authPage">
-      <div className="authPage__aside">
+      <div
+        className={`authPage__aside${banner ? ' authPage__aside--banner' : ''}`}
+        style={banner ? { backgroundImage: `url(${banner})` } : undefined}
+      >
         <p className="authPage__eyebrow">Hỗ trợ</p>
-        <h1 className="authPage__title">Quên mật khẩu</h1>
+        <h1 className="authPage__title">Quên mật khẩu ({brand})</h1>
         <p className="authPage__lead">
           Nhập email đã đăng ký. Nếu tài khoản tồn tại, hệ thống sẽ gửi hướng dẫn đặt lại mật khẩu.
         </p>

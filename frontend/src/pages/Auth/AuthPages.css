@@ -39,6 +39,30 @@
   padding-right: clamp(0px, 3vw, 24px);
 }
 
+.authPage__aside--banner {
+  position: relative;
+  border-radius: 18px;
+  padding: 28px;
+  border: 1px solid rgba(45, 106, 79, 0.14);
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 12px 40px rgba(26, 46, 35, 0.08);
+}
+
+.authPage__aside--banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(246, 250, 246, 0.82) 50%, rgba(232, 245, 233, 0.78) 100%);
+  backdrop-filter: blur(2px);
+}
+
+.authPage__aside--banner > * {
+  position: relative;
+  z-index: 1;
+}
+
 .authPage__eyebrow {
   margin: 0 0 10px;
   font-size: 0.75rem;

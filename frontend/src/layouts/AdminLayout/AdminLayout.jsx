@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { apiFetch, setToken } from '../../lib/api'
+import { apiFetch, mediaUrl, setToken } from '../../lib/api'
+import { fetchPublicSettings } from '../../lib/settings'
 import './AdminLayout.css'
 
 const adminTree = [
@@ -44,6 +45,7 @@ export default function AdminLayout() {
   const { pathname } = useLocation()
   const [openGroups, setOpenGroups] = useState(() => new Set(['van-hanh', 'thuc-don', 'he-thong']))
   const [me, setMe] = useState(null)
+  const [brand, setBrand] = useState({ name: 'Luxeat', logoUrl: null })
 
   useEffect(() => {
     setOpenGroups((prev) => {
@@ -70,6 +72,12 @@ export default function AdminLayout() {
       .catch(() => navigate('/login'))
   }, [navigate])
 
+  useEffect(() => {
+    fetchPublicSettings()
+      .then((s) => setBrand({ name: s.restaurantName?.trim() || 'Luxeat', logoUrl: s.logoUrl }))
+      .catch(() => setBrand({ name: 'Luxeat', logoUrl: null }))
+  }, [])
+
   function toggleGroup(id) {
     setOpenGroups((prev) => {
       const n = new Set(prev)
@@ -89,8 +97,12 @@ export default function AdminLayout() {
     <div className="admin-app">
       <aside className="admin-sidebar" aria-label="Điều hướng quản trị">
         <NavLink to="/" className="admin-sidebar__brand">
-          <span className="admin-sidebar__brand-mark" aria-hidden />
-          <span className="admin-sidebar__brand-text">Luxeat Admin</span>
+          {brand.logoUrl ? (
+            <img className="admin-sidebar__brand-logo" src={mediaUrl(brand.logoUrl)} alt="" width={36} height={36} />
+          ) : (
+            <span className="admin-sidebar__brand-mark" aria-hidden />
+          )}
+          <span className="admin-sidebar__brand-text">{brand.name} Admin</span>
         </NavLink>
 
         <nav className="admin-sidebar__nav admin-tree" aria-label="Menu cây">

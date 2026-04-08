@@ -19,6 +19,11 @@ export default function Settings() {
     totalTables: '',
   })
   const [logoUrl, setLogoUrl] = useState('')
+  const [bannerUrls, setBannerUrls] = useState([])
+  const [bannerEnabled, setBannerEnabled] = useState(true)
+  const [bannerMode, setBannerMode] = useState('SLIDESHOW')
+  const [showOnHome, setShowOnHome] = useState(true)
+  const [showOnAuth, setShowOnAuth] = useState(true)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
@@ -26,7 +31,7 @@ export default function Settings() {
 
   useEffect(() => {
     setLoading(true)
-    apiFetch('/settings')
+    apiFetch('/admin/settings')
       .then((d) => {
         if (!d) return
         setForm({
@@ -40,6 +45,11 @@ export default function Settings() {
         })
         const lu = d.logo_url != null ? String(d.logo_url) : ''
         setLogoUrl(lu ? mediaUrl(lu) : '')
+        setBannerUrls(Array.isArray(d.banner_urls) ? d.banner_urls.map((x) => mediaUrl(String(x))) : [])
+        setBannerEnabled(Boolean(d.banner_enabled ?? true))
+        setBannerMode(String(d.banner_mode || 'SLIDESHOW').toUpperCase())
+        setShowOnHome(Boolean(d.banner_show_on_home ?? true))
+        setShowOnAuth(Boolean(d.banner_show_on_auth ?? true))
       })
       .catch(() => setErr('Không tải được cài đặt (cần quyền admin/nhân viên).'))
       .finally(() => setLoading(false))
@@ -56,10 +66,15 @@ export default function Settings() {
     setOkMsg(null)
     setSaving(true)
     try {
-      await apiFetch('/settings', {
+      await apiFetch('/admin/settings', {
         method: 'PATCH',
         body: JSON.stringify({
           restaurant_name: form.restaurantName.trim() || null,
+          banner_urls: bannerUrls.map((x) => x.replace(getApiOrigin(), '')).filter(Boolean),
+          banner_enabled: bannerEnabled,
+          banner_mode: bannerMode,
+          banner_show_on_home: showOnHome,
+          banner_show_on_auth: showOnAuth,
           phone: form.phone.trim() || null,
           email: form.email.trim() || null,
           address: form.address.trim() || null,
@@ -96,6 +111,57 @@ export default function Settings() {
       const url = json.data?.logo_url
       if (url) setLogoUrl(mediaUrl(String(url)))
       setOkMsg('Đã cập nhật logo.')
+    } catch (e2) {
+      setErr(e2?.message || String(e2))
+    }
+  }
+
+  async function onBannersChange(e) {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    setErr(null)
+    setOkMsg(null)
+    try {
+      const token = localStorage.getItem('luxeat_token')
+      const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+      const fd = new FormData()
+      for (const f of files) fd.append('banners', f)
+      const res = await fetch(`${base.replace(/\/$/, '')}/settings/banners`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      })
+      const json = await res.json().catch(() => null)
+      if (!json?.success) throw new Error(json?.error?.message || 'Upload lỗi')
+      const urls = Array.isArray(json.data?.banner_urls) ? json.data.banner_urls : []
+      setBannerUrls(urls.map((x) => mediaUrl(String(x))))
+      setOkMsg('Đã cập nhật banner.')
+    } catch (e2) {
+      setErr(e2?.message || String(e2))
+    } finally {
+      e.target.value = ''
+    }
+  }
+
+  async function removeBanner(url) {
+    setErr(null)
+    setOkMsg(null)
+    try {
+      const token = localStorage.getItem('luxeat_token')
+      const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+      const res = await fetch(`${base.replace(/\/$/, '')}/settings/banners`, {
+        method: 'DELETE',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: url.replace(getApiOrigin(), '') }),
+      })
+      const json = await res.json().catch(() => null)
+      if (!json?.success) throw new Error(json?.error?.message || 'Xóa lỗi')
+      const urls = Array.isArray(json.data?.banner_urls) ? json.data.banner_urls : []
+      setBannerUrls(urls.map((x) => mediaUrl(String(x))))
+      setOkMsg('Đã xóa banner.')
     } catch (e2) {
       setErr(e2?.message || String(e2))
     }
@@ -157,6 +223,48 @@ export default function Settings() {
                 </div>
               ) : null}
             </div>
+          </div>
+
+          <div className="settings-logo settings-field--full">
+            <span className="settings-logo__label">Banner / Slideshow (Admin)</span>
+            <div className="settings-logo__row">
+              <label className="settings-logo__upload">
+                <input type="file" accept="image/*" multiple onChange={onBannersChange} />
+                <span>Tải banner (nhiều ảnh)</span>
+              </label>
+            </div>
+            <div className="settings-bannerControls">
+              <label className="settings-check">
+                <input type="checkbox" checked={bannerEnabled} onChange={(e) => setBannerEnabled(e.target.checked)} /> Bật banner
+              </label>
+              <label className="settings-check">
+                <input type="checkbox" checked={showOnHome} onChange={(e) => setShowOnHome(e.target.checked)} /> Hiển thị ở trang chủ
+              </label>
+              <label className="settings-check">
+                <input type="checkbox" checked={showOnAuth} onChange={(e) => setShowOnAuth(e.target.checked)} /> Hiển thị ở trang đăng nhập
+              </label>
+              <label className="settings-select">
+                <span>Chế độ</span>
+                <select value={bannerMode} onChange={(e) => setBannerMode(e.target.value)}>
+                  <option value="SLIDESHOW">Slideshow</option>
+                  <option value="SINGLE">Một ảnh (ảnh đầu tiên)</option>
+                </select>
+              </label>
+            </div>
+            {bannerUrls.length ? (
+              <div className="settings-bannerGrid">
+                {bannerUrls.map((u) => (
+                  <div key={u} className="settings-bannerTile">
+                    <img src={u} alt="Banner" />
+                    <button type="button" className="settings-bannerRemove" onClick={() => removeBanner(u)}>
+                      Xóa
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ margin: 0, opacity: 0.8 }}>Chưa có banner. Tải lên để hiển thị slideshow ở trang chủ.</p>
+            )}
           </div>
         </div>
         <div className="settings-card__footer">

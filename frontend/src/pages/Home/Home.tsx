@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { publicApiFetch } from '../../lib/api'
+import { fetchPublicSettings } from '../../lib/settings'
+import { mediaUrl } from '../../lib/api'
 import './Home.css'
 
 const features = [
@@ -23,12 +24,45 @@ const features = [
 
 export default function Home() {
   const [restaurantName, setRestaurantName] = useState<string | null>(null)
+  const [hours, setHours] = useState<string | null>(null)
+  const [banners, setBanners] = useState<string[]>([])
+  const [bannerIdx, setBannerIdx] = useState(0)
+  const [bannerCfg, setBannerCfg] = useState<{ enabled: boolean; mode: string; showOnHome: boolean }>({
+    enabled: true,
+    mode: 'SLIDESHOW',
+    showOnHome: true,
+  })
 
   useEffect(() => {
-    publicApiFetch<{ restaurantName?: string | null }>('/settings/public')
-      .then((d) => setRestaurantName(d?.restaurantName || null))
-      .catch(() => setRestaurantName(null))
+    fetchPublicSettings()
+      .then((d) => {
+        setRestaurantName(d.restaurantName || null)
+        if (d.openTime && d.closeTime) setHours(`${d.openTime} – ${d.closeTime}`)
+        else setHours(null)
+        setBanners(Array.isArray(d.bannerUrls) ? d.bannerUrls.filter(Boolean) : [])
+        setBannerCfg({
+          enabled: Boolean(d.banner?.enabled ?? true),
+          mode: String(d.banner?.mode || 'SLIDESHOW').toUpperCase(),
+          showOnHome: Boolean(d.banner?.showOnHome ?? true),
+        })
+      })
+      .catch(() => {
+        setRestaurantName(null)
+        setHours(null)
+        setBanners([])
+        setBannerCfg({ enabled: true, mode: 'SLIDESHOW', showOnHome: true })
+      })
   }, [])
+
+  useEffect(() => {
+    if (!banners.length) return
+    if (!bannerCfg.enabled || !bannerCfg.showOnHome) return
+    if (bannerCfg.mode !== 'SLIDESHOW') return
+    const t = window.setInterval(() => {
+      setBannerIdx((i) => (i + 1) % banners.length)
+    }, 4500)
+    return () => window.clearInterval(t)
+  }, [banners.length, bannerCfg.enabled, bannerCfg.mode, bannerCfg.showOnHome])
 
   const brand = restaurantName?.trim() || 'Luxeat'
 
@@ -52,12 +86,21 @@ export default function Home() {
               </Link>
             </div>
             <ul className="home-hero__meta">
-              <li>Mở cửa hàng ngày</li>
+              <li>{hours ? `Giờ mở cửa: ${hours}` : 'Mở cửa hàng ngày'}</li>
               <li>Phục vụ tận nơi · không gian ấm cúng</li>
             </ul>
           </div>
           <div className="home-hero__panel" aria-hidden="true">
-            <div className="home-hero__plate" />
+            <div
+              className="home-hero__plate"
+              style={
+                bannerCfg.enabled && bannerCfg.showOnHome && banners.length
+                  ? {
+                      backgroundImage: `url(${mediaUrl(banners[bannerCfg.mode === 'SLIDESHOW' ? bannerIdx : 0])})`,
+                    }
+                  : undefined
+              }
+            />
             <p className="home-hero__panel-tag">Hôm nay còn bàn</p>
           </div>
         </div>

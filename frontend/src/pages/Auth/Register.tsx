@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiFetch, setToken } from '../../lib/api'
+import { apiFetch, mediaUrl, setToken } from '../../lib/api'
 import PasswordField from '../../components/PasswordField'
+import { fetchPublicSettings } from '../../lib/settings'
 import './AuthPages.css'
 
 export default function Register() {
@@ -12,6 +13,24 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [brand, setBrand] = useState('Luxeat')
+  const [banner, setBanner] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchPublicSettings()
+      .then((s) => {
+        setBrand(s.restaurantName?.trim() || 'Luxeat')
+        const enabled = Boolean(s.banner?.enabled ?? true)
+        const showOnAuth = Boolean(s.banner?.showOnAuth ?? true)
+        const urls = Array.isArray(s.bannerUrls) ? s.bannerUrls : []
+        if (enabled && showOnAuth && urls.length) setBanner(mediaUrl(urls[0]))
+        else setBanner(null)
+      })
+      .catch(() => {
+        setBrand('Luxeat')
+        setBanner(null)
+      })
+  }, [])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -53,9 +72,12 @@ export default function Register() {
 
   return (
     <main className="authPage">
-      <div className="authPage__aside">
+      <div
+        className={`authPage__aside${banner ? ' authPage__aside--banner' : ''}`}
+        style={banner ? { backgroundImage: `url(${banner})` } : undefined}
+      >
         <p className="authPage__eyebrow">Tài khoản mới</p>
-        <h1 className="authPage__title">Tạo tài khoản Luxeat</h1>
+        <h1 className="authPage__title">Tạo tài khoản {brand}</h1>
         <p className="authPage__lead">
           Một bước đăng ký — lưu lịch sử đặt bàn, nhận ưu đãi và quản lý thông tin cá nhân an toàn.
         </p>

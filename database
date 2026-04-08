@@ -33,6 +33,19 @@ CREATE TABLE settings (
     id SERIAL PRIMARY KEY,
     restaurant_name VARCHAR(150),
     logo_url TEXT,
+    banner_urls TEXT[] DEFAULT '{}',
+    banner_enabled BOOLEAN DEFAULT TRUE,
+    banner_mode VARCHAR(20) DEFAULT 'SLIDESHOW', -- SLIDESHOW | SINGLE
+    banner_show_on_home BOOLEAN DEFAULT TRUE,
+    banner_show_on_auth BOOLEAN DEFAULT TRUE,
+    -- Header UI
+    header_cta_label VARCHAR(80),
+    header_cta_url TEXT,
+    -- Footer UI
+    footer_tagline TEXT,
+    footer_copyright TEXT,
+    footer_links JSONB DEFAULT '[]',
+    social_links JSONB DEFAULT '[]',
     total_tables INT,
     address TEXT,
     phone VARCHAR(20),
@@ -75,6 +88,7 @@ CREATE TABLE bookings (
     booking_time TIME NOT NULL,
     guests INT,
     status VARCHAR(20) DEFAULT 'PENDING',
+    hold_expires_at TIMESTAMP,
     note TEXT,
     guest_name VARCHAR(100),
     guest_phone VARCHAR(20),

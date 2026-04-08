@@ -9,6 +9,7 @@ import * as adminCategories from '../../controllers/admin/categories.admin.contr
 import * as adminUsers from '../../controllers/admin/users.admin.controller.js'
 import * as adminReports from '../../controllers/admin/reports.admin.controller.js'
 import * as adminDashboard from '../../controllers/admin/dashboard.admin.controller.js'
+import * as adminSettings from '../../controllers/admin/settings.admin.controller.js'
 
 const router = Router()
 
@@ -43,5 +44,9 @@ router.patch('/users/:id/role', ...adminOnly, adminUsers.updateRole)
 router.delete('/users/:id', ...adminOnly, adminUsers.remove)
 
 router.get('/reports/revenue', ...staff, adminReports.revenue)
+
+// Settings (alias để admin gọi theo /admin)
+router.get('/settings', ...staff, adminSettings.getSettings)
+router.patch('/settings', ...adminOnly, adminSettings.updateSettings)
 
 export default router

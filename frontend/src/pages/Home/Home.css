@@ -168,6 +168,9 @@
     radial-gradient(ellipse 80% 60% at 50% 45%, rgba(255, 255, 255, 0.65) 0%, transparent 55%),
     radial-gradient(circle at 30% 70%, rgba(64, 145, 108, 0.12) 0%, transparent 45%),
     radial-gradient(circle at 75% 30%, rgba(45, 106, 79, 0.1) 0%, transparent 40%);
+  background-size: cover;
+  background-position: center;
+  transition: background-image 0.45s ease;
 }
 
 .home-hero__panel-tag {
