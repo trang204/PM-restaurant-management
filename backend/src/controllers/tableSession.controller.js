@@ -121,3 +121,69 @@ export async function addItem(req, res, next) {
     return next(e)
   }
 }
+
+export async function updateItem(req, res, next) {
+  try {
+    const token = String(req.params.token || '').trim()
+    const itemId = Number(req.params.itemId)
+    const { quantity } = req.body || {}
+    const qty = Number(quantity)
+    if (!token) throw badRequest('Thiếu mã')
+    if (!Number.isFinite(itemId)) throw badRequest('itemId không hợp lệ')
+    if (!Number.isFinite(qty) || qty < 1) throw badRequest('quantity phải >= 1')
+
+    const row = await loadActiveSessionByToken(token)
+    if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
+
+    const orderRow = await getOrCreateOrderForSession(row)
+    const st = String(orderRow.status || '').toUpperCase()
+    if (!['PENDING', 'SERVING'].includes(st)) throw badRequest('Đơn không thể sửa ở trạng thái này')
+
+    const sessionId = row.session_id
+    const r = await query(
+      `
+      UPDATE order_items oi
+      SET quantity = $1
+      FROM orders o
+      WHERE oi.id = $2 AND oi.order_id = o.id AND o.table_session_id = $3
+      RETURNING oi.*
+    `,
+      [qty, itemId, sessionId],
+    )
+    if (!r.rows.length) throw notFound('Không tìm thấy món trong đơn')
+    return ok(res, r.rows[0])
+  } catch (e) {
+    return next(e)
+  }
+}
+
+export async function removeItem(req, res, next) {
+  try {
+    const token = String(req.params.token || '').trim()
+    const itemId = Number(req.params.itemId)
+    if (!token) throw badRequest('Thiếu mã')
+    if (!Number.isFinite(itemId)) throw badRequest('itemId không hợp lệ')
+
+    const row = await loadActiveSessionByToken(token)
+    if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
+
+    const orderRow = await getOrCreateOrderForSession(row)
+    const st = String(orderRow.status || '').toUpperCase()
+    if (!['PENDING', 'SERVING'].includes(st)) throw badRequest('Đơn không thể sửa ở trạng thái này')
+
+    const sessionId = row.session_id
+    const r = await query(
+      `
+      DELETE FROM order_items oi
+      USING orders o
+      WHERE oi.id = $1 AND oi.order_id = o.id AND o.table_session_id = $2
+      RETURNING oi.id
+    `,
+      [itemId, sessionId],
+    )
+    if (!r.rows.length) throw notFound('Không tìm thấy món trong đơn')
+    return ok(res, { removedId: r.rows[0].id })
+  } catch (e) {
+    return next(e)
+  }
+}

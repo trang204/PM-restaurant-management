@@ -12,6 +12,70 @@ function badgeClass(status) {
   return 'book-badge'
 }
 
+function normDate(d) {
+  if (d == null || d === '') return ''
+  return String(d).slice(0, 10)
+}
+
+function normTime(t) {
+  if (t == null || t === '') return ''
+  const s = String(t)
+  const m = s.match(/^(\d{1,2}):(\d{2})/)
+  if (m) return `${m[1].padStart(2, '0')}:${m[2]}`
+  return s.length >= 5 ? s.slice(0, 5) : s
+}
+
+function isActiveBookingStatus(status) {
+  const u = String(status || '').toUpperCase()
+  return u === 'PENDING' || u === 'CONFIRMED' || u === 'CHECKED_IN'
+}
+
+/** Mã bàn (string) đã gán cho đơn khác cùng khung ngày + giờ. */
+function tableIdsTakenByOtherBookings(rows, currentRow) {
+  const taken = new Set()
+  const d = normDate(currentRow.date)
+  const tm = normTime(currentRow.time)
+  for (const o of rows) {
+    if (o.id === currentRow.id) continue
+    if (!isActiveBookingStatus(o.status)) continue
+    if (normDate(o.date) !== d || normTime(o.time) !== tm) continue
+    if (o.assignedTableId) taken.add(String(o.assignedTableId))
+  }
+  return taken
+}
+
+function isTableBlockedByStatus(table) {
+  const s = String(table?.status || '').toUpperCase()
+  return s === 'OCCUPIED' || s === 'RESERVED'
+}
+
+/**
+ * Bàn hiển thị trong select: trừ bàn đã gán chỗ khác (cùng slot) và bàn OCCUPIED/RESERVED,
+ * nhưng luôn giữ bàn đang gán / đang chọn của dòng này.
+ */
+function tablesSelectableForRow(allTables, rows, row, assignPick) {
+  const takenByOthers = tableIdsTakenByOtherBookings(rows, row)
+  const keepId = new Set()
+  if (row.assignedTableId) keepId.add(String(row.assignedTableId))
+  const pick = assignPick[row.id]
+  if (pick) keepId.add(String(pick))
+
+  const out = allTables.filter((t) => {
+    const id = String(t.id)
+    if (keepId.has(id)) return true
+    if (takenByOthers.has(id)) return false
+    if (isTableBlockedByStatus(t)) return false
+    return true
+  })
+
+  const need = String(pick || row.assignedTableId || '')
+  if (need && !out.some((t) => String(t.id) === need)) {
+    const missing = allTables.find((t) => String(t.id) === need)
+    if (missing) return [missing, ...out]
+  }
+  return out
+}
+
 /** @param {{ staffMode?: boolean }} props */
 export default function BookingManagement({ staffMode = false }) {
   const [rows, setRows] = useState([])
@@ -38,6 +102,17 @@ export default function BookingManagement({ staffMode = false }) {
       .then((d) => setTables(Array.isArray(d) ? d : []))
       .catch(() => setTables([]))
   }, [])
+
+  /** Đồng bộ dropdown gán bàn với bàn đã lưu trên server (F5 vẫn thấy đúng bàn). */
+  useEffect(() => {
+    setAssignPick((prev) => {
+      const next = { ...prev }
+      for (const r of rows) {
+        if (r.assignedTableId) next[r.id] = String(r.assignedTableId)
+      }
+      return next
+    })
+  }, [rows])
 
   async function confirm(id) {
     try {
@@ -174,7 +249,9 @@ export default function BookingManagement({ staffMode = false }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {rows.map((r) => {
+              const selectableTables = tablesSelectableForRow(tables, rows, r, assignPick)
+              return (
               <tr key={r.id}>
                 <td data-label="Khách">{r.fullName}</td>
                 <td data-label="SĐT">{r.phone}</td>
@@ -183,7 +260,11 @@ export default function BookingManagement({ staffMode = false }) {
                 <td data-label="Giờ">{r.time}</td>
                 <td data-label="Số khách">{r.guestCount}</td>
                 <td data-label="Bàn">
-                  {Array.isArray(r.tables) && r.tables.length ? r.tables.join(', ') : '—'}
+                  {Array.isArray(r.tables) && r.tables.length
+                    ? r.tables.join(', ')
+                    : r.assignedTableId
+                      ? `Bàn #${r.assignedTableId}`
+                      : '—'}
                 </td>
                 <td data-label="Gán bàn">
                   <div className="booking-mgmt__assign">
@@ -193,7 +274,7 @@ export default function BookingManagement({ staffMode = false }) {
                       aria-label="Chọn bàn"
                     >
                       <option value="">— Chọn —</option>
-                      {tables.map((t) => (
+                      {selectableTables.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.name || `Bàn ${t.id}`}
                         </option>
@@ -241,7 +322,8 @@ export default function BookingManagement({ staffMode = false }) {
                   </div>
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
         {!loading && !err && rows.length === 0 ? (

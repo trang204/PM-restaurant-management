@@ -3,7 +3,9 @@ import * as tableSession from '../../controllers/tableSession.controller.js'
 
 const router = Router()
 
-router.get('/:token', tableSession.getSessionContext)
+router.patch('/:token/items/:itemId', tableSession.updateItem)
+router.delete('/:token/items/:itemId', tableSession.removeItem)
 router.post('/:token/items', tableSession.addItem)
+router.get('/:token', tableSession.getSessionContext)
 
 export default router

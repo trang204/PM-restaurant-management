@@ -34,16 +34,22 @@ export async function list(req, res, next) {
       `
       SELECT
         b.*,
-        MAX(u.name) AS user_name,
-        MAX(u.email) AS user_email,
-        MAX(u.phone) AS user_phone,
-        COALESCE(array_agg(DISTINCT bt.table_id) FILTER (WHERE bt.table_id IS NOT NULL), '{}') AS table_ids,
-        COALESCE(array_agg(DISTINCT t.name) FILTER (WHERE t.id IS NOT NULL), '{}') AS tables
+        u.name AS user_name,
+        u.email AS user_email,
+        u.phone AS user_phone,
+        (
+          SELECT COALESCE(array_agg(DISTINCT bt.table_id), ARRAY[]::integer[])
+          FROM booking_tables bt
+          WHERE bt.booking_id = b.id AND bt.table_id IS NOT NULL
+        ) AS table_ids,
+        (
+          SELECT COALESCE(array_agg(DISTINCT t.name), ARRAY[]::text[])
+          FROM booking_tables bt2
+          JOIN tables t ON t.id = bt2.table_id
+          WHERE bt2.booking_id = b.id AND t.name IS NOT NULL
+        ) AS tables
       FROM bookings b
       LEFT JOIN users u ON u.id = b.user_id
-      LEFT JOIN booking_tables bt ON bt.booking_id = b.id
-      LEFT JOIN tables t ON t.id = bt.table_id
-      GROUP BY b.id
       ORDER BY b.created_at DESC
     `,
     )
@@ -62,17 +68,23 @@ export async function detail(req, res, next) {
       `
       SELECT
         b.*,
-        MAX(u.name) AS user_name,
-        MAX(u.email) AS user_email,
-        MAX(u.phone) AS user_phone,
-        COALESCE(array_agg(DISTINCT bt.table_id) FILTER (WHERE bt.table_id IS NOT NULL), '{}') AS table_ids,
-        COALESCE(array_agg(DISTINCT t2.name) FILTER (WHERE t2.id IS NOT NULL), '{}') AS tables
+        u.name AS user_name,
+        u.email AS user_email,
+        u.phone AS user_phone,
+        (
+          SELECT COALESCE(array_agg(DISTINCT bt.table_id), ARRAY[]::integer[])
+          FROM booking_tables bt
+          WHERE bt.booking_id = b.id AND bt.table_id IS NOT NULL
+        ) AS table_ids,
+        (
+          SELECT COALESCE(array_agg(DISTINCT t2.name), ARRAY[]::text[])
+          FROM booking_tables bt2
+          JOIN tables t2 ON t2.id = bt2.table_id
+          WHERE bt2.booking_id = b.id AND t2.name IS NOT NULL
+        ) AS tables
       FROM bookings b
       LEFT JOIN users u ON u.id = b.user_id
-      LEFT JOIN booking_tables bt ON bt.booking_id = b.id
-      LEFT JOIN tables t2 ON t2.id = bt.table_id
       WHERE b.id = $1
-      GROUP BY b.id
     `,
       [id],
     )
@@ -121,7 +133,10 @@ export async function assignTable(req, res, next) {
       JOIN bookings b ON b.id = bt.booking_id
       WHERE b.booking_date = $1
         AND b.booking_time = $2
-        AND b.status IN ('PENDING', 'CONFIRMED', 'CHECKED_IN')
+        AND (
+          b.status IN ('PENDING', 'CONFIRMED', 'CHECKED_IN')
+          OR (b.status = 'HOLD' AND b.hold_expires_at IS NOT NULL AND b.hold_expires_at > NOW())
+        )
         AND bt.table_id = $3
         AND b.id <> $4
       LIMIT 1

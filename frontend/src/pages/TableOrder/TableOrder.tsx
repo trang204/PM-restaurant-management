@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { mediaUrl, publicApiFetch } from '../../lib/api'
 import './TableOrder.css'
@@ -29,12 +29,28 @@ type Ctx = {
   orderUrl: string
 }
 
+const STATUS_VI: Record<string, string> = {
+  PENDING: 'Đang chờ bếp',
+  SERVING: 'Đang phục vụ',
+  DONE: 'Đã xong',
+  CANCELLED: 'Đã hủy',
+}
+
+function formatPrice(n: number) {
+  return `${n.toLocaleString('vi-VN')} ₫`
+}
+
 export default function TableOrder() {
   const { token } = useParams()
   const [ctx, setCtx] = useState<Ctx | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState<number | null>(null)
+  const [itemBusy, setItemBusy] = useState<number | null>(null)
+  const [search, setSearch] = useState('')
+  const [cat, setCat] = useState<string>('all')
+  const [cartOpen, setCartOpen] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
 
   const load = useCallback(() => {
     if (!token) return
@@ -49,16 +65,68 @@ export default function TableOrder() {
     load()
   }, [load])
 
-  async function addToCart(foodId: number) {
+  useEffect(() => {
+    document.body.style.overflow = cartOpen ? 'hidden' : ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [cartOpen])
+
+  function showToast(msg: string) {
+    setToast(msg)
+    window.setTimeout(() => setToast(null), 2200)
+  }
+
+  const canOrder = ctx ? ['PENDING', 'SERVING'].includes(String(ctx.order.status || '').toUpperCase()) : false
+
+  const categories = useMemo(() => {
+    if (!ctx?.menu.length) return [] as string[]
+    const s = new Set<string>()
+    for (const m of ctx.menu) {
+      const c = (m.category_name || 'Khác').trim()
+      if (c) s.add(c)
+    }
+    return Array.from(s).sort((a, b) => a.localeCompare(b, 'vi'))
+  }, [ctx?.menu])
+
+  const itemsByFoodId = useMemo(() => {
+    const map = new Map<number, OrderItem>()
+    if (!ctx?.items) return map
+    for (const i of ctx.items) map.set(Number(i.food_id), i)
+    return map
+  }, [ctx?.items])
+
+  const filteredMenu = useMemo(() => {
+    if (!ctx?.menu) return []
+    const q = search.trim().toLowerCase()
+    return ctx.menu.filter((m) => {
+      const cname = (m.category_name || 'Khác').trim()
+      if (cat !== 'all' && cname !== cat) return false
+      if (!q) return true
+      const name = String(m.name || '').toLowerCase()
+      const desc = String(m.description || '').toLowerCase()
+      return name.includes(q) || desc.includes(q)
+    })
+  }, [ctx?.menu, search, cat])
+
+  const total = useMemo(
+    () => ctx?.items.reduce((s, i) => s + Number(i.price) * Number(i.quantity), 0) ?? 0,
+    [ctx?.items],
+  )
+
+  const totalQty = useMemo(() => ctx?.items.reduce((s, i) => s + Number(i.quantity), 0) ?? 0, [ctx?.items])
+
+  async function addToCart(foodId: number, qty = 1) {
     if (!token) return
     setAdding(foodId)
     setErr(null)
     try {
       await publicApiFetch(`/table-session/${encodeURIComponent(token)}/items`, {
         method: 'POST',
-        body: JSON.stringify({ food_id: foodId, quantity: 1 }),
+        body: JSON.stringify({ food_id: foodId, quantity: qty }),
       })
       await load()
+      showToast('Đã thêm vào đơn')
     } catch (e) {
       setErr((e as Error).message)
     } finally {
@@ -66,89 +134,390 @@ export default function TableOrder() {
     }
   }
 
-  const total =
-    ctx?.items.reduce((s, i) => s + Number(i.price) * Number(i.quantity), 0) ?? 0
+  async function setLineQty(itemId: number, quantity: number) {
+    if (!token) return
+    if (quantity < 1) return
+    setItemBusy(itemId)
+    setErr(null)
+    try {
+      await publicApiFetch(`/table-session/${encodeURIComponent(token)}/items/${itemId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ quantity }),
+      })
+      await load()
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setItemBusy(null)
+    }
+  }
+
+  async function removeLine(itemId: number) {
+    if (!token) return
+    setItemBusy(itemId)
+    setErr(null)
+    try {
+      await publicApiFetch(`/table-session/${encodeURIComponent(token)}/items/${itemId}`, {
+        method: 'DELETE',
+      })
+      await load()
+      showToast('Đã xóa món')
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setItemBusy(null)
+    }
+  }
+
+  function callStaff() {
+    const phone = ctx?.restaurant?.phone?.replace(/\s/g, '') || ''
+    if (phone) {
+      window.location.href = `tel:${phone}`
+      return
+    }
+    showToast('Nhà hàng chưa cập nhật số điện thoại')
+  }
+
+  const statusKey = ctx ? String(ctx.order.status || '').toUpperCase() : ''
+  const statusLabel = STATUS_VI[statusKey] || ctx?.order.status || '—'
 
   return (
-    <main className="table-order">
-      <header className="table-order__hero">
-        <div>
-          <p className="table-order__eyebrow">{ctx?.restaurant?.name || 'Luxeat'}</p>
-          <h1 className="table-order__title">Gọi món tại bàn</h1>
-          {ctx ? (
-            <p className="table-order__meta">
-              <strong>{ctx.tableName}</strong> · Đơn #{ctx.order.id} · {ctx.order.status}
-            </p>
-          ) : null}
+    <div className="tableOrder">
+      <div className={`tableOrder__toast${toast ? ' tableOrder__toast--on' : ''}`} role="status">
+        {toast}
+      </div>
+
+      <header className="tableOrder__hero">
+        <div className="tableOrder__heroInner">
+          <div className="tableOrder__brand">
+            {ctx?.restaurant?.logoUrl ? (
+              <img
+                className="tableOrder__logo"
+                src={mediaUrl(ctx.restaurant.logoUrl)}
+                alt=""
+                width={56}
+                height={56}
+              />
+            ) : (
+              <div className="tableOrder__logoFallback" aria-hidden />
+            )}
+            <div>
+              <p className="tableOrder__eyebrow">{ctx?.restaurant?.name || 'Nhà hàng'}</p>
+              <h1 className="tableOrder__title">Gọi món tại bàn</h1>
+              {ctx ? (
+                <div className="tableOrder__chipsRow">
+                  <span className="tableOrder__chip tableOrder__chip--table">
+                    <span className="tableOrder__chipIcon" aria-hidden>
+                      ◈
+                    </span>
+                    {ctx.tableName}
+                  </span>
+                  <span className={`tableOrder__chip tableOrder__chip--status tableOrder__chip--${statusKey.toLowerCase()}`}>
+                    {statusLabel}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          </div>
+          <div className="tableOrder__heroActions">
+            <button type="button" className="tableOrder__btn tableOrder__btn--ghost" onClick={() => load()} disabled={loading}>
+              {loading ? 'Đang tải…' : 'Làm mới'}
+            </button>
+            <button type="button" className="tableOrder__btn tableOrder__btn--accent" onClick={callStaff}>
+              Gọi nhân viên
+            </button>
+            <Link to="/" className="tableOrder__btn tableOrder__btn--ghost">
+              Trang chủ
+            </Link>
+          </div>
         </div>
-        <Link to="/" className="table-order__home">
-          Về trang chủ
-        </Link>
+        {ctx?.restaurant?.address ? <p className="tableOrder__address">{ctx.restaurant.address}</p> : null}
       </header>
 
-      {loading ? <p className="table-order__msg">Đang tải...</p> : null}
-      {err ? <p className="table-order__err">{err}</p> : null}
-
-      {ctx ? (
-        <div className="table-order__layout">
-          <section className="table-order__menu" aria-label="Thực đơn">
-            <h2 className="table-order__h2">Chọn món</h2>
-            <div className="table-order__grid">
-              {ctx.menu.map((m) => (
-                <article key={String(m.id)} className="table-order__card">
-                  <div
-                    className="table-order__img"
-                    style={
-                      m.image_url
-                        ? { backgroundImage: `url(${mediaUrl(m.image_url)})` }
-                        : undefined
-                    }
-                  />
-                  <div className="table-order__card-body">
-                    <p className="table-order__cat">{m.category_name || 'Món'}</p>
-                    <h3 className="table-order__name">{m.name}</h3>
-                    <p className="table-order__price">
-                      {Number(m.price).toLocaleString('vi-VN')} ₫
-                    </p>
-                    <button
-                      type="button"
-                      className="table-order__add"
-                      disabled={adding === Number(m.id) || !['PENDING', 'SERVING'].includes(ctx.order.status)}
-                      onClick={() => addToCart(Number(m.id))}
-                    >
-                      {adding === Number(m.id) ? 'Đang thêm...' : 'Thêm'}
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <aside className="table-order__cart" aria-label="Giỏ gọi món">
-            <h2 className="table-order__h2">Đơn của bạn</h2>
-            {ctx.items.length === 0 ? (
-              <p className="table-order__empty">Chưa có món. Chọn món bên trái.</p>
-            ) : (
-              <ul className="table-order__items">
-                {ctx.items.map((i) => (
-                  <li key={i.id} className="table-order__line">
-                    <span>{i.food_name || `Món #${i.food_id}`}</span>
-                    <span>
-                      ×{i.quantity} · {(Number(i.price) * i.quantity).toLocaleString('vi-VN')} ₫
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <p className="table-order__total">
-              Tạm tính: <strong>{total.toLocaleString('vi-VN')} ₫</strong>
-            </p>
-            <p className="table-order__hint">
-              Nhân viên sẽ xác nhận và thanh toán tại quầy. Giữ trang này để thêm món.
-            </p>
-          </aside>
+      {loading && !ctx ? (
+        <div className="tableOrder__skeleton" aria-busy>
+          <div className="tableOrder__skLine" />
+          <div className="tableOrder__skGrid">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="tableOrder__skCard" />
+            ))}
+          </div>
         </div>
       ) : null}
-    </main>
+
+      {err ? (
+        <div className="tableOrder__banner tableOrder__banner--err" role="alert">
+          {err}
+        </div>
+      ) : null}
+
+      {!loading && !ctx && !err ? (
+        <div className="tableOrder__banner tableOrder__banner--err">Không tải được phiên bàn. Kiểm tra link QR.</div>
+      ) : null}
+
+      {ctx ? (
+        <>
+          {!canOrder ? (
+            <div className="tableOrder__banner tableOrder__banner--info">
+              Đơn đã khóa (trạng thái: {statusLabel}). Liên hệ nhân viên nếu cần thêm món.
+            </div>
+          ) : null}
+
+          <div className="tableOrder__toolbar">
+            <div className="tableOrder__searchWrap">
+              <span className="tableOrder__searchIcon" aria-hidden>
+                ⌕
+              </span>
+              <input
+                className="tableOrder__search"
+                type="search"
+                placeholder="Tìm món, ví dụ: pizza, salad…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                autoComplete="off"
+              />
+            </div>
+            <div className="tableOrder__cats" role="tablist" aria-label="Danh mục">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={cat === 'all'}
+                className={`tableOrder__cat ${cat === 'all' ? 'tableOrder__cat--on' : ''}`}
+                onClick={() => setCat('all')}
+              >
+                Tất cả
+              </button>
+              {categories.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  role="tab"
+                  aria-selected={cat === c}
+                  className={`tableOrder__cat ${cat === c ? 'tableOrder__cat--on' : ''}`}
+                  onClick={() => setCat(c)}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="tableOrder__layout">
+            <section className="tableOrder__menu" aria-label="Thực đơn">
+              <div className="tableOrder__menuHead">
+                <h2 className="tableOrder__h2">Thực đơn</h2>
+                <span className="tableOrder__count">{filteredMenu.length} món</span>
+              </div>
+              {filteredMenu.length === 0 ? (
+                <p className="tableOrder__empty">Không có món phù hợp. Thử đổi từ khóa hoặc danh mục.</p>
+              ) : (
+                <div className="tableOrder__grid">
+                  {filteredMenu.map((m) => {
+                    const fid = Number(m.id)
+                    const inCart = itemsByFoodId.get(fid)
+                    const busy = adding === fid
+                    return (
+                      <article key={String(m.id)} className="tableOrder__card">
+                        <div
+                          className="tableOrder__img"
+                          style={
+                            m.image_url
+                              ? { backgroundImage: `url(${mediaUrl(m.image_url)})` }
+                              : undefined
+                          }
+                        />
+                        <div className="tableOrder__cardBody">
+                          <p className="tableOrder__catLabel">{m.category_name || 'Món'}</p>
+                          <h3 className="tableOrder__name">{m.name}</h3>
+                          {m.description ? <p className="tableOrder__desc">{m.description}</p> : null}
+                          <div className="tableOrder__row">
+                            <span className="tableOrder__price">{formatPrice(Number(m.price))}</span>
+                            {inCart && canOrder ? (
+                              <div className="tableOrder__qtyInline">
+                                <button
+                                  type="button"
+                                  className="tableOrder__iconBtn"
+                                  disabled={itemBusy === inCart.id || busy}
+                                  aria-label="Giảm"
+                                  onClick={() =>
+                                    inCart.quantity <= 1 ? removeLine(inCart.id) : setLineQty(inCart.id, inCart.quantity - 1)
+                                  }
+                                >
+                                  −
+                                </button>
+                                <span className="tableOrder__qtyNum">{inCart.quantity}</span>
+                                <button
+                                  type="button"
+                                  className="tableOrder__iconBtn"
+                                  disabled={itemBusy === inCart.id || busy}
+                                  aria-label="Tăng"
+                                  onClick={() => setLineQty(inCart.id, inCart.quantity + 1)}
+                                >
+                                  +
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                className="tableOrder__add"
+                                disabled={busy || !canOrder}
+                                onClick={() => addToCart(fid, 1)}
+                              >
+                                {busy ? '…' : 'Thêm'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
+
+            <aside className="tableOrder__cart" aria-label="Đơn của bạn">
+              <div className="tableOrder__cartHead">
+                <h2 className="tableOrder__h2">Đơn của bạn</h2>
+                <span className="tableOrder__orderId">#{ctx.order.id}</span>
+              </div>
+              {ctx.items.length === 0 ? (
+                <div className="tableOrder__cartEmpty">
+                  <p>Chưa có món nào.</p>
+                  <p className="tableOrder__cartHint">Chọn món bên cạnh — nhân viên sẽ nhận đơn tại quầy.</p>
+                </div>
+              ) : (
+                <ul className="tableOrder__lines">
+                  {ctx.items.map((i) => {
+                    const line = Number(i.price) * i.quantity
+                    const busy = itemBusy === i.id
+                    return (
+                      <li key={i.id} className="tableOrder__line">
+                        <div className="tableOrder__lineMain">
+                          <span className="tableOrder__lineName">{i.food_name || `Món #${i.food_id}`}</span>
+                          <span className="tableOrder__lineSub">{formatPrice(Number(i.price))} / phần</span>
+                        </div>
+                        <div className="tableOrder__lineActions">
+                          {canOrder ? (
+                            <>
+                              <button
+                                type="button"
+                                className="tableOrder__iconBtn tableOrder__iconBtn--sm"
+                                disabled={busy}
+                                aria-label="Giảm"
+                                onClick={() =>
+                                  i.quantity <= 1 ? removeLine(i.id) : setLineQty(i.id, i.quantity - 1)
+                                }
+                              >
+                                −
+                              </button>
+                              <span className="tableOrder__qtyNum">{i.quantity}</span>
+                              <button
+                                type="button"
+                                className="tableOrder__iconBtn tableOrder__iconBtn--sm"
+                                disabled={busy}
+                                aria-label="Tăng"
+                                onClick={() => setLineQty(i.id, i.quantity + 1)}
+                              >
+                                +
+                              </button>
+                            </>
+                          ) : (
+                            <span className="tableOrder__qtyNum">×{i.quantity}</span>
+                          )}
+                          <span className="tableOrder__lineTotal">{formatPrice(line)}</span>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+              <div className="tableOrder__cartFooter">
+                <div className="tableOrder__totalRow">
+                  <span>Tạm tính</span>
+                  <strong>{formatPrice(total)}</strong>
+                </div>
+                <p className="tableOrder__legal">Thanh toán tại quầy. Giữ trang này để cập nhật đơn.</p>
+              </div>
+            </aside>
+          </div>
+
+          <div className="tableOrder__mobileBar">
+            <button type="button" className="tableOrder__mobileBarBtn" onClick={() => setCartOpen(true)}>
+              <span className="tableOrder__mobileBarLabel">Đơn của bạn</span>
+              <span className="tableOrder__mobileBarMeta">
+                {totalQty > 0 ? `${totalQty} món · ` : ''}
+                {formatPrice(total)}
+              </span>
+            </button>
+          </div>
+
+          {cartOpen ? (
+            <div className="tableOrder__drawerBack" role="presentation" onClick={() => setCartOpen(false)} />
+          ) : null}
+          <div className={`tableOrder__drawer${cartOpen ? ' tableOrder__drawer--open' : ''}`} aria-hidden={!cartOpen}>
+            <div className="tableOrder__drawerHead">
+              <h2 className="tableOrder__h2">Đơn của bạn</h2>
+              <button type="button" className="tableOrder__drawerClose" onClick={() => setCartOpen(false)} aria-label="Đóng">
+                ×
+              </button>
+            </div>
+            <div className="tableOrder__drawerBody">
+              {ctx.items.length === 0 ? (
+                <p className="tableOrder__cartEmpty">Chưa có món.</p>
+              ) : (
+                <ul className="tableOrder__lines">
+                  {ctx.items.map((i) => {
+                    const line = Number(i.price) * i.quantity
+                    const busy = itemBusy === i.id
+                    return (
+                      <li key={i.id} className="tableOrder__line">
+                        <div className="tableOrder__lineMain">
+                          <span className="tableOrder__lineName">{i.food_name || `Món #${i.food_id}`}</span>
+                          <span className="tableOrder__lineSub">{formatPrice(Number(i.price))} / phần</span>
+                        </div>
+                        <div className="tableOrder__lineActions">
+                          {canOrder ? (
+                            <>
+                              <button
+                                type="button"
+                                className="tableOrder__iconBtn tableOrder__iconBtn--sm"
+                                disabled={busy}
+                                onClick={() =>
+                                  i.quantity <= 1 ? removeLine(i.id) : setLineQty(i.id, i.quantity - 1)
+                                }
+                              >
+                                −
+                              </button>
+                              <span className="tableOrder__qtyNum">{i.quantity}</span>
+                              <button
+                                type="button"
+                                className="tableOrder__iconBtn tableOrder__iconBtn--sm"
+                                disabled={busy}
+                                onClick={() => setLineQty(i.id, i.quantity + 1)}
+                              >
+                                +
+                              </button>
+                            </>
+                          ) : (
+                            <span className="tableOrder__qtyNum">×{i.quantity}</span>
+                          )}
+                          <span className="tableOrder__lineTotal">{formatPrice(line)}</span>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+            <div className="tableOrder__drawerFoot">
+              <div className="tableOrder__totalRow">
+                <span>Tạm tính</span>
+                <strong>{formatPrice(total)}</strong>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : null}
+    </div>
   )
 }
