@@ -9,6 +9,27 @@ import { query } from '../../config/db.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const UPLOAD_DIR = path.resolve(__dirname, '../../../uploads')
 
+/** Chuẩn hóa đường dẫn banner (FE gửi full URL đã encodeURI, DB lưu /uploads/... gốc). */
+function normalizeBannerPath(u) {
+  const raw = String(u || '').trim()
+  if (!raw) return ''
+  let p = raw
+  if (/^https?:\/\//i.test(p)) {
+    try {
+      const parsed = new URL(p)
+      p = parsed.pathname + parsed.search
+    } catch {
+      return raw
+    }
+  }
+  if (!p.startsWith('/')) p = `/${p}`
+  try {
+    return decodeURIComponent(p)
+  } catch {
+    return p
+  }
+}
+
 export async function getSettings(req, res, next) {
   try {
     const r = await query('SELECT * FROM settings ORDER BY id LIMIT 1')
@@ -138,13 +159,13 @@ export async function uploadBanners(req, res, next) {
 
 export async function removeBanner(req, res, next) {
   try {
-    const { url } = req.body || {}
-    const target = String(url || '').trim()
+    const rawInput = req.body?.url ?? req.query?.url
+    const target = normalizeBannerPath(rawInput)
     if (!target) throw badRequest('url là bắt buộc')
 
     const cur = await query('SELECT banner_urls FROM settings WHERE id = 1')
     const existing = Array.isArray(cur.rows[0]?.banner_urls) ? cur.rows[0].banner_urls : []
-    const nextUrls = existing.filter((x) => String(x) !== target)
+    const nextUrls = existing.filter((x) => normalizeBannerPath(x) !== target)
 
     const r = await query(
       `

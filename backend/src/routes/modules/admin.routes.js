@@ -10,6 +10,7 @@ import * as adminUsers from '../../controllers/admin/users.admin.controller.js'
 import * as adminReports from '../../controllers/admin/reports.admin.controller.js'
 import * as adminDashboard from '../../controllers/admin/dashboard.admin.controller.js'
 import * as adminSettings from '../../controllers/admin/settings.admin.controller.js'
+import * as adminTables from '../../controllers/admin/tables.admin.controller.js'
 
 const router = Router()
 
@@ -21,6 +22,7 @@ router.get('/dashboard', ...staff, adminDashboard.stats)
 router.get('/reservations', ...staff, adminReservations.list)
 router.get('/reservations/:id', ...staff, adminReservations.detail)
 router.post('/reservations/:id/assign-table', ...staff, adminReservations.assignTable)
+router.post('/reservations/:id/transfer-table', ...staff, adminReservations.transferTable)
 router.post('/reservations/:id/confirm', ...staff, adminReservations.confirm)
 router.post('/reservations/:id/check-in', ...staff, adminReservations.checkIn)
 router.post('/reservations/:id/cashier-pay', ...staff, adminReservations.cashierPay)
@@ -44,6 +46,9 @@ router.patch('/users/:id/role', ...adminOnly, adminUsers.updateRole)
 router.delete('/users/:id', ...adminOnly, adminUsers.remove)
 
 router.get('/reports/revenue', ...staff, adminReports.revenue)
+
+router.post('/tables/:id/close', ...staff, adminTables.closeTable)
+router.post('/tables/:id/reopen', ...staff, adminTables.reopenTable)
 
 // Settings (alias để admin gọi theo /admin)
 router.get('/settings', ...staff, adminSettings.getSettings)

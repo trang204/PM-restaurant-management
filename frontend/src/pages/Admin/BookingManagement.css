@@ -27,6 +27,158 @@
   color: var(--bm-muted);
 }
 
+.booking-mgmt__today {
+  margin-bottom: 20px;
+  padding: 16px 18px;
+  border-radius: var(--bm-radius);
+  border: 1px solid var(--bm-border);
+  background: linear-gradient(135deg, #faf8f5 0%, #fff 100%);
+  box-shadow: var(--bm-shadow);
+}
+
+.booking-mgmt__todayEyebrow {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bm-muted);
+}
+
+.booking-mgmt__todayRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.booking-mgmt__todayDate {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--bm-text);
+}
+
+.booking-mgmt__todayStats {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--bm-text);
+}
+
+.booking-mgmt__todayStats strong {
+  color: #1b4332;
+  font-weight: 800;
+}
+
+.booking-mgmt__todayEmpty {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #8d6e63;
+}
+
+.booking-mgmt__day {
+  margin-bottom: 28px;
+}
+
+.booking-mgmt__day:last-child {
+  margin-bottom: 0;
+}
+
+.booking-mgmt__dayHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.booking-mgmt__dayTitle {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--bm-text);
+}
+
+.booking-mgmt__dayMeta {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--bm-muted);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.booking-mgmt__dayBadge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.booking-mgmt__pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 20px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: var(--bm-radius);
+  border: 1px solid var(--bm-border);
+  background: #fff;
+  box-shadow: var(--bm-shadow);
+}
+
+.booking-mgmt__pagerMain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.booking-mgmt__pagerLabel {
+  font-size: 0.9rem;
+  color: var(--bm-muted);
+}
+
+.booking-mgmt__pagerLabel strong {
+  color: var(--bm-text);
+  font-weight: 800;
+}
+
+.booking-mgmt__pagerPick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.booking-mgmt__pagerSelectLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--bm-muted);
+}
+
+.booking-mgmt__pagerSelect {
+  min-width: 220px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--bm-border);
+  font-size: 0.88rem;
+  background: #fff;
+  color: var(--bm-text);
+}
+
 .booking-mgmt__table-wrap {
   background: var(--bm-bg);
   border: 1px solid var(--bm-border);
@@ -204,6 +356,41 @@
   width: 100%;
   padding: 24px;
   text-align: center;
+}
+
+.booking-mgmt__modal--wide {
+  max-width: 480px;
+  text-align: left;
+}
+
+.booking-mgmt__field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+  text-align: left;
+}
+
+.booking-mgmt__field span {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--bm-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.booking-mgmt__field select,
+.booking-mgmt__field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--bm-border);
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.booking-mgmt__field textarea {
+  resize: vertical;
+  min-height: 72px;
 }
 
 .booking-mgmt__modal-title {

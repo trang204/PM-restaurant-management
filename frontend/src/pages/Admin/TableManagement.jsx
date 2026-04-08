@@ -4,8 +4,10 @@ import './TableManagement.css'
 
 function statusMeta(status) {
   const s = String(status || '').toUpperCase()
-  if (s === 'AVAILABLE') return { className: 'table-card__status table-card__status--green', label: 'Available' }
-  if (s === 'RESERVED') return { className: 'table-card__status table-card__status--yellow', label: 'Reserved' }
+  if (s === 'AVAILABLE') return { className: 'table-card__status table-card__status--green', label: 'Trống' }
+  if (s === 'RESERVED') return { className: 'table-card__status table-card__status--yellow', label: 'Đã giữ' }
+  if (s === 'OCCUPIED') return { className: 'table-card__status table-card__status--red', label: 'Có khách' }
+  if (s === 'CLOSED') return { className: 'table-card__status table-card__status--muted', label: 'Đóng' }
   if (s === 'IN_USE' || s === 'IN USE') return { className: 'table-card__status table-card__status--red', label: 'In Use' }
   return { className: 'table-card__status', label: status }
 }
@@ -82,7 +84,7 @@ export default function TableManagement() {
       <header className="table-mgmt__header">
         <div>
           <h1 className="table-mgmt__title">Bàn</h1>
-          <p className="table-mgmt__subtitle">GET/POST/PATCH/DELETE /api/tables (cần quyền admin cho thao tác ghi)</p>
+          <p className="table-mgmt__subtitle">Quản lý sơ đồ bàn, sức chứa và trạng thái.</p>
         </div>
         <button type="button" className="table-mgmt__add" onClick={addTable}>
           Thêm bàn
@@ -104,7 +106,29 @@ export default function TableManagement() {
               <p className="table-card__capacity">
                 Sức chứa: <strong>{t.capacity}</strong> khách
               </p>
+              {t.status_note ? (
+                <p className="table-card__note" title={t.status_note}>
+                  {t.status_note}
+                </p>
+              ) : null}
               <div className="table-card__actions">
+                {String(t.status || '').toUpperCase() === 'CLOSED' ? (
+                  <button
+                    type="button"
+                    className="table-card__btn table-card__btn--primary"
+                    onClick={() => reopenTable(t.id)}
+                  >
+                    Mở bàn
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="table-card__btn table-card__btn--secondary"
+                    onClick={() => closeTable(t.id)}
+                  >
+                    Đóng bàn
+                  </button>
+                )}
                 <button type="button" className="table-card__btn table-card__btn--secondary" onClick={() => editTable(t.id)}>
                   Sửa
                 </button>

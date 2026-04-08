@@ -24,6 +24,30 @@ export function mediaUrl(path: string | undefined | null): string {
   return encodeURI(full)
 }
 
+/** Đường dẫn lưu trong DB (/uploads/...) từ URL đầy đủ đã encode — dùng khi xóa banner / lưu PATCH. */
+export function storagePathFromMediaUrl(fullOrRelative: string): string {
+  const raw = String(fullOrRelative || '').trim()
+  if (!raw) return ''
+  let p = raw
+  if (/^https?:\/\//i.test(p)) {
+    try {
+      const u = new URL(p)
+      p = u.pathname + u.search
+    } catch {
+      return raw
+    }
+  } else {
+    const origin = getApiOrigin()
+    if (p.startsWith(origin)) p = p.slice(origin.length)
+  }
+  if (!p.startsWith('/')) p = `/${p}`
+  try {
+    return decodeURIComponent(p)
+  } catch {
+    return p
+  }
+}
+
 function getToken() {
   return localStorage.getItem('luxeat_token')
 }

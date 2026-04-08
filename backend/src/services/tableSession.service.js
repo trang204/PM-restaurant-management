@@ -120,6 +120,7 @@ export async function loadActiveSessionByToken(token) {
     JOIN tables t ON t.id = ts.table_id
     JOIN bookings b ON b.id = ts.booking_id
     WHERE ts.qr_token = $1 AND ts.status = 'ACTIVE'
+      AND COALESCE(t.status, 'AVAILABLE') <> 'CLOSED'
     LIMIT 1
   `,
     [raw],

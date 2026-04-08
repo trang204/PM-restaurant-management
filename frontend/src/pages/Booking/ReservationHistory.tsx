@@ -34,7 +34,7 @@ export default function ReservationHistory() {
         <div className="menuHero__content">
           <p className="menuHero__eyebrow">Đặt bàn</p>
           <h1 className="menuHero__title">Lịch sử đặt bàn</h1>
-          <p className="menuHero__subtitle">Danh sách từ GET /api/reservations (cần đăng nhập).</p>
+          <p className="menuHero__subtitle">Xem các lần đặt trước và trạng thái đơn của bạn.</p>
         </div>
       </header>
 

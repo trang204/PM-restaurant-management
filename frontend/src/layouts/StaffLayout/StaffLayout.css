@@ -34,6 +34,41 @@
   box-shadow: 0 2px 12px rgba(45, 106, 79, 0.06);
 }
 
+.staff-topbar__left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px 20px;
+}
+
+.staff-topbar__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.staff-topbar__navLink {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--staff-muted);
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.staff-topbar__navLink:hover {
+  color: var(--staff-text);
+  background: rgba(45, 106, 79, 0.08);
+}
+
+.staff-topbar__navLink.active {
+  color: var(--staff-text);
+  background: #fff;
+  border-color: var(--staff-border);
+}
+
 .staff-topbar__brand {
   display: flex;
   align-items: center;

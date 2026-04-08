@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { apiFetch, setToken } from '../../lib/api'
 import './StaffLayout.css'
 
@@ -36,11 +36,21 @@ export default function StaffLayout() {
   return (
     <div className="staff-app">
       <header className="staff-topbar">
-        <Link to="/staff" className="staff-topbar__brand">
-          <span className="staff-topbar__mark" aria-hidden />
-          <span>Luxeat</span>
-          <span className="staff-topbar__badge">Nhân viên</span>
-        </Link>
+        <div className="staff-topbar__left">
+          <Link to="/staff" className="staff-topbar__brand">
+            <span className="staff-topbar__mark" aria-hidden />
+            <span>Luxeat</span>
+            <span className="staff-topbar__badge">Nhân viên</span>
+          </Link>
+          <nav className="staff-topbar__nav" aria-label="Menu nhân viên">
+            <NavLink to="/staff" className="staff-topbar__navLink" end>
+              Tiếp đón
+            </NavLink>
+            <NavLink to="/staff/reports" className="staff-topbar__navLink">
+              Thống kê doanh thu
+            </NavLink>
+          </nav>
+        </div>
         <div className="staff-topbar__right">
           <span className="staff-topbar__user" title={me?.email || ''}>
             {me?.fullName || me?.email || '…'}

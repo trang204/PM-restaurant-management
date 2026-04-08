@@ -13,6 +13,7 @@ const adminTree = [
       children: [
         { to: '/admin/bookings', label: 'Đặt bàn' },
         { to: '/admin/tables', label: 'Bàn' },
+        { to: '/admin/reports', label: 'Thống kê doanh thu' },
       ],
     },
     {
@@ -26,7 +27,7 @@ const adminTree = [
       id: 'he-thong',
       label: 'Hệ thống',
       children: [
-        { to: '/admin/users', label: 'Người dùng' },
+        { to: '/admin/users/customers', label: 'Người dùng' },
         { to: '/admin/settings', label: 'Cài đặt' },
       ],
     },
@@ -34,7 +35,12 @@ const adminTree = [
 
 function pathOpensGroup(pathname) {
   const s = new Set()
-  if (pathname.startsWith('/admin/bookings') || pathname.startsWith('/admin/tables')) s.add('van-hanh')
+  if (
+    pathname.startsWith('/admin/bookings') ||
+    pathname.startsWith('/admin/tables') ||
+    pathname.startsWith('/admin/reports')
+  )
+    s.add('van-hanh')
   if (pathname.startsWith('/admin/menu')) s.add('thuc-don')
   if (pathname.startsWith('/admin/users') || pathname.startsWith('/admin/settings')) s.add('he-thong')
   return s

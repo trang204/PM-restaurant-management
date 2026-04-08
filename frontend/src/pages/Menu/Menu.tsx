@@ -7,6 +7,7 @@ import goicuonUrl from '../../assets/menu/goicuon.svg?url'
 import trasuaUrl from '../../assets/menu/trasua.svg?url'
 import cheUrl from '../../assets/menu/che.svg?url'
 import { apiFetch, mediaUrl } from '../../lib/api'
+import { Link } from 'react-router-dom'
 
 type ApiMenuItem = {
   id: string | number
@@ -46,6 +47,7 @@ export default function Menu() {
   const [categories, setCategories] = useState<CategoryRow[]>([])
   const [activeCat, setActiveCat] = useState<number | 'all'>('all')
   const [q, setQ] = useState('')
+  const [myTable, setMyTable] = useState<null | { tableName: string; url: string }>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -69,6 +71,23 @@ export default function Menu() {
     }
   }, [])
 
+  useEffect(() => {
+    const token = localStorage.getItem('luxeat_token')
+    if (!token) {
+      setMyTable(null)
+      return
+    }
+    apiFetch<any>('/table-session/me')
+      .then((d) => {
+        if (d?.tableName && d?.tableOrderToken) {
+          setMyTable({ tableName: String(d.tableName), url: `/order/table/${encodeURIComponent(String(d.tableOrderToken))}` })
+        } else {
+          setMyTable(null)
+        }
+      })
+      .catch(() => setMyTable(null))
+  }, [])
+
   const visible = useMemo(() => {
     const qq = q.trim().toLowerCase()
     return items.filter((i) => {
@@ -86,15 +105,24 @@ export default function Menu() {
         <div className="menuHero__content">
           <p className="menuHero__eyebrow">Thực đơn hôm nay</p>
           <h1 className="menuHero__title">Món ngon — giá rõ ràng</h1>
-          <p className="menuHero__subtitle">
-            Dữ liệu lấy từ API <code>/api/menu</code>. Giá hiển thị theo VND.
-          </p>
+          <p className="menuHero__subtitle">Chọn danh mục hoặc tìm món bạn yêu thích.</p>
         </div>
         <div className="menuHero__meta" aria-label="Thông tin nhanh">
           <div className="menuPill">
             <span className="menuPill__label">Giờ mở cửa</span>
             <span className="menuPill__value">08:00 – 22:00</span>
           </div>
+          {myTable ? (
+            <div className="menuPill">
+              <span className="menuPill__label">Bàn của bạn</span>
+              <span className="menuPill__value">
+                <strong>{myTable.tableName}</strong> ·{' '}
+                <Link to={myTable.url} className="menuPill__link">
+                  Gọi món
+                </Link>
+              </span>
+            </div>
+          ) : null}
           <div className="menuPill">
             <span className="menuPill__label">Cập nhật</span>
             <span className="menuPill__value">Theo nhà hàng</span>
@@ -183,9 +211,7 @@ export default function Menu() {
         </div>
       </section>
 
-      <footer className="menuFooter">
-        <p className="menuFooter__text">Nguồn dữ liệu: backend REST · GET /api/menu</p>
-      </footer>
+      <footer className="menuFooter" />
     </main>
   )
 }

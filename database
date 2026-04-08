@@ -60,6 +60,7 @@ CREATE TABLE tables (
     name VARCHAR(50),
     capacity INT NOT NULL,
     status VARCHAR(20) DEFAULT 'AVAILABLE',
+    status_note TEXT,
     pos_x INT,
     pos_y INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -267,5 +268,8 @@ SELECT setval(pg_get_serial_sequence('orders', 'id'), COALESCE((SELECT MAX(id) F
 SELECT setval(pg_get_serial_sequence('order_items', 'id'), COALESCE((SELECT MAX(id) FROM order_items), 1));
 SELECT setval(pg_get_serial_sequence('payments', 'id'), COALESCE((SELECT MAX(id) FROM payments), 1));
 SELECT setval(pg_get_serial_sequence('notifications', 'id'), COALESCE((SELECT MAX(id) FROM notifications), 1));
+
+-- ----- Migration bổ sung (chạy trên DB đã tạo trước khi có cột) -----
+ALTER TABLE tables ADD COLUMN IF NOT EXISTS status_note TEXT;
 
 -- Xong.

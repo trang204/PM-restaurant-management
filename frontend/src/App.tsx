@@ -18,6 +18,7 @@ import TableManagement from './pages/Admin/TableManagement.jsx'
 import MenuManagement from './pages/Admin/MenuManagement.jsx'
 import UserManagement from './pages/Admin/UserManagement.jsx'
 import Settings from './pages/Admin/Settings.jsx'
+import RevenueReports from './pages/Admin/RevenueReports'
 import TableOrder from './pages/TableOrder/TableOrder'
 
 export default function App() {
@@ -41,12 +42,15 @@ export default function App() {
         <Route path="bookings" element={<BookingManagement />} />
         <Route path="tables" element={<TableManagement />} />
         <Route path="menu" element={<MenuManagement />} />
-        <Route path="users" element={<UserManagement />} />
+        <Route path="users" element={<Navigate to="/admin/users/customers" replace />} />
+        <Route path="users/:group" element={<UserManagement />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="reports" element={<RevenueReports />} />
       </Route>
 
       <Route path="/staff" element={<StaffLayout />}>
         <Route index element={<StaffDesk />} />
+        <Route path="reports" element={<RevenueReports />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

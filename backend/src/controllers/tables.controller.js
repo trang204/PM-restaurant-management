@@ -2,12 +2,12 @@ import { ok, created } from '../utils/response.js'
 import { badRequest, notFound } from '../utils/httpError.js'
 import { query } from '../config/db.js'
 
-const ALLOWED_STATUS = new Set(['AVAILABLE', 'RESERVED', 'OCCUPIED'])
+const ALLOWED_STATUS = new Set(['AVAILABLE', 'RESERVED', 'OCCUPIED', 'CLOSED'])
 
 export async function listTables(req, res, next) {
   try {
     const r = await query(
-      'SELECT id, name, capacity, status, pos_x, pos_y, created_at FROM tables ORDER BY id ASC',
+      'SELECT id, name, capacity, status, status_note, pos_x, pos_y, created_at FROM tables ORDER BY id ASC',
     )
     return ok(res, r.rows)
   } catch (e) {
@@ -21,7 +21,7 @@ export async function getTable(req, res, next) {
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
 
     const r = await query(
-      'SELECT id, name, capacity, status, pos_x, pos_y, created_at FROM tables WHERE id = $1',
+      'SELECT id, name, capacity, status, status_note, pos_x, pos_y, created_at FROM tables WHERE id = $1',
       [id],
     )
     if (!r.rows.length) throw notFound('Không tìm thấy bàn')
@@ -47,7 +47,7 @@ export async function createTable(req, res, next) {
       `
       INSERT INTO tables (name, capacity, status, pos_x, pos_y)
       VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, name, capacity, status, pos_x, pos_y, created_at
+      RETURNING id, name, capacity, status, status_note, pos_x, pos_y, created_at
     `,
       [
         String(name),
@@ -86,7 +86,7 @@ export async function updateTable(req, res, next) {
         pos_x = COALESCE($4, pos_x),
         pos_y = COALESCE($5, pos_y)
       WHERE id = $6
-      RETURNING id, name, capacity, status, pos_x, pos_y, created_at
+      RETURNING id, name, capacity, status, status_note, pos_x, pos_y, created_at
     `,
       [
         name ? String(name) : null,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { apiFetch, getApiOrigin, mediaUrl } from '../../lib/api'
+import { apiFetch, mediaUrl, storagePathFromMediaUrl } from '../../lib/api'
 import './Settings.css'
 
 function sliceTime(v) {
@@ -70,7 +70,7 @@ export default function Settings() {
         method: 'PATCH',
         body: JSON.stringify({
           restaurant_name: form.restaurantName.trim() || null,
-          banner_urls: bannerUrls.map((x) => x.replace(getApiOrigin(), '')).filter(Boolean),
+          banner_urls: bannerUrls.map((x) => storagePathFromMediaUrl(x)).filter(Boolean),
           banner_enabled: bannerEnabled,
           banner_mode: bannerMode,
           banner_show_on_home: showOnHome,
@@ -155,7 +155,7 @@ export default function Settings() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url: url.replace(getApiOrigin(), '') }),
+        body: JSON.stringify({ url: storagePathFromMediaUrl(url) }),
       })
       const json = await res.json().catch(() => null)
       if (!json?.success) throw new Error(json?.error?.message || 'Xóa lỗi')
@@ -172,7 +172,7 @@ export default function Settings() {
       <header className="settings-page__header">
         <h1 className="settings-page__title">Cài đặt nhà hàng</h1>
         <p className="settings-page__subtitle">
-          Đồng bộ với API <code>{getApiOrigin()}/api/settings</code> · chỉ tài khoản Admin mới sửa được.
+          Cập nhật thông tin hiển thị trên website và khu quản trị. Chỉ tài khoản Admin mới sửa được.
         </p>
       </header>
 
@@ -254,7 +254,7 @@ export default function Settings() {
             {bannerUrls.length ? (
               <div className="settings-bannerGrid">
                 {bannerUrls.map((u) => (
-                  <div key={u} className="settings-bannerTile">
+                  <div key={storagePathFromMediaUrl(u)} className="settings-bannerTile">
                     <img src={u} alt="Banner" />
                     <button type="button" className="settings-bannerRemove" onClick={() => removeBanner(u)}>
                       Xóa

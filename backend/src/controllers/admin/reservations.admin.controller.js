@@ -8,6 +8,14 @@ import {
   ensureTableSessionForBooking,
 } from '../../services/tableSession.service.js'
 
+async function orderItemsTotal(client, orderId) {
+  const tot = await client.query(
+    `SELECT COALESCE(SUM(price * quantity), 0)::numeric AS total FROM order_items WHERE order_id = $1`,
+    [orderId],
+  )
+  return Number(tot.rows[0]?.total || 0)
+}
+
 async function tableSessionPayload(bookingId, bookingStatus) {
   const sessionPayload = await ensureTableSessionForBooking(bookingId)
   let qrSvg = null
@@ -126,6 +134,12 @@ export async function assignTable(req, res, next) {
     const cur = await query('SELECT id, booking_date, booking_time, status FROM bookings WHERE id = $1', [bookingId])
     if (!cur.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
 
+    const tblSt = await query('SELECT status FROM tables WHERE id = $1', [tId])
+    if (!tblSt.rows.length) throw notFound('Bàn không tồn tại')
+    if (String(tblSt.rows[0].status || '').toUpperCase() === 'CLOSED') {
+      throw badRequest('Bàn đang đóng — không gán được')
+    }
+
     const conflicts = await query(
       `
       SELECT 1
@@ -151,6 +165,80 @@ export async function assignTable(req, res, next) {
     })
 
     return ok(res, { reservationId: bookingId, tableId: tId })
+  } catch (e) {
+    return next(e)
+  }
+}
+
+/**
+ * Chuyển khách sang bàn khác (staff/admin). Giữ nguyên phiên/QR nếu đã có session.
+ * Body: { tableId, reason?: string }
+ */
+export async function transferTable(req, res, next) {
+  try {
+    const { tableId: nextTableId, reason } = req.body || {}
+    const bookingId = Number(req.params.id)
+    const tId = Number(nextTableId)
+    if (!Number.isFinite(bookingId) || !Number.isFinite(tId)) throw badRequest('id không hợp lệ')
+
+    const cur = await query('SELECT id, booking_date, booking_time, status FROM bookings WHERE id = $1', [bookingId])
+    if (!cur.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
+
+    const newT = await query('SELECT id, status FROM tables WHERE id = $1', [tId])
+    if (!newT.rows.length) throw notFound('Bàn không tồn tại')
+    if (String(newT.rows[0].status || '').toUpperCase() === 'CLOSED') {
+      throw badRequest('Bàn đích đang đóng — chọn bàn khác')
+    }
+
+    const prevBt = await query('SELECT table_id FROM booking_tables WHERE booking_id = $1', [bookingId])
+    if (!prevBt.rows.length) throw badRequest('Đơn chưa gán bàn — không thể chuyển')
+    const oldTid = prevBt.rows[0].table_id
+    if (Number(oldTid) === tId) throw badRequest('Chọn bàn khác với bàn hiện tại')
+
+    const conflicts = await query(
+      `
+      SELECT 1
+      FROM booking_tables bt
+      JOIN bookings b ON b.id = bt.booking_id
+      WHERE b.booking_date = $1
+        AND b.booking_time = $2
+        AND (
+          b.status IN ('PENDING', 'CONFIRMED', 'CHECKED_IN')
+          OR (b.status = 'HOLD' AND b.hold_expires_at IS NOT NULL AND b.hold_expires_at > NOW())
+        )
+        AND bt.table_id = $3
+        AND b.id <> $4
+      LIMIT 1
+    `,
+      [cur.rows[0].booking_date, cur.rows[0].booking_time, tId, bookingId],
+    )
+    if (conflicts.rows.length) throw badRequest('Bàn đích đã được đặt trong khung giờ này')
+
+    const reasonNote = reason != null && String(reason).trim() ? String(reason).trim() : null
+    const bSt = String(cur.rows[0].status || '').toUpperCase()
+    const nextTableStatus = bSt === 'CHECKED_IN' ? 'OCCUPIED' : 'RESERVED'
+
+    await withTransaction(async (client) => {
+      await client.query('DELETE FROM booking_tables WHERE booking_id = $1', [bookingId])
+      await client.query('INSERT INTO booking_tables (booking_id, table_id) VALUES ($1, $2)', [bookingId, tId])
+
+      await client.query(
+        `UPDATE table_sessions SET table_id = $1 WHERE booking_id = $2 AND status = 'ACTIVE'`,
+        [tId, bookingId],
+      )
+
+      await client.query(`UPDATE tables SET status = 'AVAILABLE' WHERE id = $1`, [oldTid])
+      await client.query(`UPDATE tables SET status = $1 WHERE id = $2`, [nextTableStatus, tId])
+
+      if (reasonNote) {
+        await client.query(`UPDATE bookings SET note = COALESCE(note, '') || $2 WHERE id = $1`, [
+          bookingId,
+          `\n[Chuyển bàn] ${reasonNote}`,
+        ])
+      }
+    })
+
+    return ok(res, { reservationId: bookingId, tableId: tId, fromTableId: oldTid })
   } catch (e) {
     return next(e)
   }
@@ -205,6 +293,7 @@ export async function confirmOnlinePayment(req, res, next) {
         ])
       }
       const orderId = order.rows[0].id
+      const amountTotal = await orderItemsTotal(client, orderId)
 
       let payRow = await client.query('SELECT * FROM payments WHERE order_id = $1 ORDER BY id DESC LIMIT 1', [
         orderId,
@@ -212,12 +301,12 @@ export async function confirmOnlinePayment(req, res, next) {
       if (!payRow.rows.length) {
         payRow = await client.query(
           `INSERT INTO payments (order_id, amount, method, status, paid_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
-          [orderId, 0, 'bank_transfer', 'PAID'],
+          [orderId, amountTotal, 'bank_transfer', 'PAID'],
         )
       } else {
         payRow = await client.query(
-          `UPDATE payments SET status = 'PAID', method = COALESCE(method, 'bank_transfer'), paid_at = COALESCE(paid_at, NOW()) WHERE id = $1 RETURNING *`,
-          [payRow.rows[0].id],
+          `UPDATE payments SET status = 'PAID', amount = COALESCE(NULLIF(amount, 0), $2), method = COALESCE(method, 'bank_transfer'), paid_at = COALESCE(paid_at, NOW()) WHERE id = $1 RETURNING *`,
+          [payRow.rows[0].id, amountTotal],
         )
       }
 
@@ -251,10 +340,11 @@ export async function cashierPay(req, res, next) {
         order = await client.query(`UPDATE orders SET status = 'DONE' WHERE id = $1 RETURNING *`, [order.rows[0].id])
       }
       const orderId = order.rows[0].id
+      const amountTotal = await orderItemsTotal(client, orderId)
 
       const payRow = await client.query(
         `INSERT INTO payments (order_id, amount, method, status, paid_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
-        [orderId, 0, 'cash', 'PAID'],
+        [orderId, amountTotal, 'cash', 'PAID'],
       )
 
       const b = await client.query(`UPDATE bookings SET status = 'COMPLETED' WHERE id = $1 RETURNING *`, [bookingId])

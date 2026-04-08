@@ -5,7 +5,7 @@ export async function revenue(req, res, next) {
   try {
     const { from, to, groupBy = 'day' } = req.query || {}
 
-    const allowedGroup = new Set(['day', 'month'])
+    const allowedGroup = new Set(['day', 'month', 'quarter', 'year'])
     const grp = allowedGroup.has(String(groupBy)) ? String(groupBy) : 'day'
 
     const fromDate = from ? String(from) : null
@@ -26,7 +26,14 @@ export async function revenue(req, res, next) {
       where.push(`paid_at < ($${params.length}::date + INTERVAL '1 day')`)
     }
 
-    const dateExpr = grp === 'month' ? "DATE_TRUNC('month', paid_at)::date" : 'DATE(paid_at)'
+    const dateExpr =
+      grp === 'month'
+        ? "DATE_TRUNC('month', paid_at)::date"
+        : grp === 'quarter'
+          ? "DATE_TRUNC('quarter', paid_at)::date"
+          : grp === 'year'
+            ? "DATE_TRUNC('year', paid_at)::date"
+            : 'DATE(paid_at)'
 
     const totalRes = await query(
       `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM payments WHERE ${where.join(' AND ')}`,

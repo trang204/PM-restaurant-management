@@ -121,7 +121,7 @@ export default function MenuManagement() {
       <header className="menu-mgmt__header">
         <div>
           <h1 className="menu-mgmt__title">Thực đơn</h1>
-          <p className="menu-mgmt__subtitle">CRUD /api/admin/menu-items · danh mục /api/admin/categories</p>
+          <p className="menu-mgmt__subtitle">Thêm/sửa món, quản lý hiển thị và danh mục.</p>
         </div>
         <button type="button" className="menu-mgmt__add" onClick={openAdd}>
           Thêm món
