@@ -173,6 +173,15 @@
   transition: background-image 0.45s ease;
 }
 
+/* Ảnh banner từ settings: tách khỏi gradient mặc định để url() luôn hiển thị */
+.home-hero__plate--photo {
+  background: none;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: background-image 0.45s ease;
+}
+
 .home-hero__panel-tag {
   position: absolute;
   bottom: 20px;

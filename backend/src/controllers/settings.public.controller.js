@@ -1,5 +1,6 @@
 import { ok } from '../utils/response.js'
 import { query } from '../config/db.js'
+import { asTextArray } from '../utils/bookingMapper.js'
 
 /** Thông tin hiển thị công khai (trang chủ, footer, QR). */
 export async function getPublicSettings(req, res, next) {
@@ -21,7 +22,7 @@ export async function getPublicSettings(req, res, next) {
     return ok(res, {
       restaurantName: s.restaurant_name ?? null,
       logoUrl: s.logo_url ?? null,
-      bannerUrls: Array.isArray(s.banner_urls) ? s.banner_urls.filter(Boolean) : [],
+      bannerUrls: asTextArray(s.banner_urls),
       banner: {
         enabled: Boolean(s.banner_enabled ?? true),
         mode: String(s.banner_mode || 'SLIDESHOW').toUpperCase(),

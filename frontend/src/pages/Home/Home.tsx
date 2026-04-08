@@ -64,6 +64,16 @@ export default function Home() {
     return () => window.clearInterval(t)
   }, [banners.length, bannerCfg.enabled, bannerCfg.mode, bannerCfg.showOnHome])
 
+  useEffect(() => {
+    setBannerIdx(0)
+  }, [banners.join('|')])
+
+  const showHeroBanner =
+    bannerCfg.enabled && bannerCfg.showOnHome && banners.length > 0
+  const heroBannerUrl = banners.length
+    ? mediaUrl(banners[bannerCfg.mode === 'SLIDESHOW' ? bannerIdx : 0])
+    : ''
+
   const brand = restaurantName?.trim() || 'Luxeat'
 
   return (
@@ -92,14 +102,10 @@ export default function Home() {
           </div>
           <div className="home-hero__panel" aria-hidden="true">
             <div
-              className="home-hero__plate"
-              style={
-                bannerCfg.enabled && bannerCfg.showOnHome && banners.length
-                  ? {
-                      backgroundImage: `url(${mediaUrl(banners[bannerCfg.mode === 'SLIDESHOW' ? bannerIdx : 0])})`,
-                    }
-                  : undefined
+              className={
+                showHeroBanner ? 'home-hero__plate home-hero__plate--photo' : 'home-hero__plate'
               }
+              style={showHeroBanner ? { backgroundImage: `url(${heroBannerUrl})` } : undefined}
             />
             <p className="home-hero__panel-tag">Hôm nay còn bàn</p>
           </div>

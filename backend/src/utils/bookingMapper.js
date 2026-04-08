@@ -5,10 +5,28 @@ function asIntArray(v) {
   return []
 }
 
-function asTextArray(v) {
+/** Chuẩn hóa mảng chuỗi (PostgreSQL TEXT[] hoặc literal dạng `{a,b}`). */
+export function asTextArray(v) {
   if (v == null) return []
   if (Array.isArray(v)) return v.map((x) => (x == null ? '' : String(x).trim())).filter(Boolean)
-  return []
+  const s = String(v).trim()
+  if (s.startsWith('{') && s.endsWith('}')) {
+    const inner = s.slice(1, -1)
+    if (!inner) return []
+    return inner
+      .split(',')
+      .map((x) => x.replace(/^"(.*)"$/, '$1').replace(/\\"/g, '"').trim())
+      .filter(Boolean)
+  }
+  if (s.startsWith('[')) {
+    try {
+      const j = JSON.parse(s)
+      if (Array.isArray(j)) return j.map((x) => String(x).trim()).filter(Boolean)
+    } catch {
+      /* ignore */
+    }
+  }
+  return s ? [s] : []
 }
 
 export function pickDate(v) {
