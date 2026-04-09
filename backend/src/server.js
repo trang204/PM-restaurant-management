@@ -1,5 +1,5 @@
 import { createServer } from './app.js'
-import { query } from './config/db.js'
+import { ensureDbSchema, query } from './config/db.js'
 
 const app = createServer()
 
@@ -54,8 +54,19 @@ function onListening() {
   }, 60_000)
 }
 
-if (HOST) {
-  app.listen(PORT, HOST, onListening)
-} else {
-  app.listen(PORT, onListening)
+async function start() {
+  try {
+    await ensureDbSchema()
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('ensureDbSchema failed:', e)
+    process.exit(1)
+  }
+  if (HOST) {
+    app.listen(PORT, HOST, onListening)
+  } else {
+    app.listen(PORT, onListening)
+  }
 }
+
+start()

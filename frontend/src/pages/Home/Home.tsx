@@ -39,7 +39,7 @@ export default function Home() {
         setRestaurantName(d.restaurantName || null)
         if (d.openTime && d.closeTime) setHours(`${d.openTime} – ${d.closeTime}`)
         else setHours(null)
-        setBanners(Array.isArray(d.bannerUrls) ? d.bannerUrls.filter(Boolean) : [])
+        setBanners(d.bannerUrls ?? [])
         setBannerCfg({
           enabled: Boolean(d.banner?.enabled ?? true),
           mode: String(d.banner?.mode || 'SLIDESHOW').toUpperCase(),
@@ -105,8 +105,17 @@ export default function Home() {
               className={
                 showHeroBanner ? 'home-hero__plate home-hero__plate--photo' : 'home-hero__plate'
               }
-              style={showHeroBanner ? { backgroundImage: `url(${heroBannerUrl})` } : undefined}
-            />
+            >
+              {showHeroBanner && heroBannerUrl ? (
+                <img
+                  className="home-hero__plate-img"
+                  src={heroBannerUrl}
+                  alt=""
+                  decoding="async"
+                  loading="eager"
+                />
+              ) : null}
+            </div>
             <p className="home-hero__panel-tag">Hôm nay còn bàn</p>
           </div>
         </div>

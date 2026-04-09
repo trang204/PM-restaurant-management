@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import { apiFetch } from '../../lib/api'
+import { useEffect, useMemo, useState } from 'react'
+import { apiFetch, mediaUrl, uploadFoodImage } from '../../lib/api'
+import { useNotifications } from '../../context/NotificationsContext'
 import './MenuManagement.css'
 
 const placeholderImg =
@@ -15,6 +16,7 @@ function formatPrice(n) {
 }
 
 export default function MenuManagement() {
+  const { toast, confirm } = useNotifications()
   const [items, setItems] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
@@ -22,6 +24,9 @@ export default function MenuManagement() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState(emptyForm)
+  const [imageFile, setImageFile] = useState(null)
+  /** 'all' | string category id */
+  const [filterCat, setFilterCat] = useState('all')
 
   function load() {
     setLoading(true)
@@ -40,81 +45,138 @@ export default function MenuManagement() {
 
   function openAdd() {
     setEditingId(null)
+    setImageFile(null)
     const first = categories[0]
     setForm({
       ...emptyForm,
-      categoryId: first?.id || '',
+      categoryId: first?.id != null ? String(first.id) : '',
     })
     setModalOpen(true)
   }
 
   function openEdit(item) {
     setEditingId(item.id)
+    setImageFile(null)
+    const img = item.image_url || ''
     setForm({
       name: item.name,
       price: String(item.price),
-      categoryId: item.categoryId || categories[0]?.id || '',
-      imageUrl: item.imageUrl || '',
-      image: item.imageUrl ? item.imageUrl : placeholderImg,
+      categoryId:
+        item.category_id != null && item.category_id !== ''
+          ? String(item.category_id)
+          : categories[0]?.id != null
+            ? String(categories[0].id)
+            : '',
+      imageUrl: img,
+      image: img ? mediaUrl(img) : placeholderImg,
     })
     setModalOpen(true)
   }
 
   function closeModal() {
     setModalOpen(false)
+    setImageFile(null)
   }
 
   async function saveItem(e) {
     e.preventDefault()
     const priceNum = Number.parseInt(String(form.price).replace(/\D/g, ''), 10)
     const price = Number.isFinite(priceNum) ? priceNum : 0
-    const cat = categories.find((c) => c.id === form.categoryId)
-    const body = {
-      name: form.name.trim() || 'Món mới',
-      price,
-      categoryId: form.categoryId || cat?.id,
-      categoryName: cat?.name,
-      imageUrl: form.imageUrl || '',
-      isActive: true,
+    const catId = Number(form.categoryId)
+    if (!Number.isFinite(catId) || catId <= 0) {
+      toast('Chọn danh mục.', { variant: 'info' })
+      return
     }
     try {
+      const imageUrl = form.imageUrl?.trim() ? form.imageUrl.trim() : null
+
       if (editingId) {
         await apiFetch(`/admin/menu-items/${editingId}`, {
           method: 'PATCH',
-          body: JSON.stringify(body),
+          body: JSON.stringify({
+            name: form.name.trim() || 'Món mới',
+            price,
+            category_id: catId,
+            image_url: imageUrl,
+            description: null,
+            status: 'AVAILABLE',
+          }),
         })
+        if (imageFile) {
+          await uploadFoodImage(editingId, imageFile)
+        }
       } else {
-        await apiFetch('/admin/menu-items', {
+        const created = await apiFetch('/admin/menu-items', {
           method: 'POST',
-          body: JSON.stringify(body),
+          body: JSON.stringify({
+            name: form.name.trim() || 'Món mới',
+            price,
+            category_id: catId,
+            image_url: null,
+            description: null,
+            status: 'AVAILABLE',
+          }),
         })
+        if (imageFile && created?.id != null) {
+          await uploadFoodImage(Number(created.id), imageFile)
+        }
       }
       load()
       closeModal()
     } catch (ex) {
-      window.alert(ex.message)
+      toast(ex.message, { variant: 'error' })
     }
   }
 
   async function deleteItem(id) {
-    if (!window.confirm('Xóa món này?')) return
+    const okDel = await confirm({ title: 'Xóa món', message: 'Xóa món này?' })
+    if (!okDel) return
     try {
       await apiFetch(`/admin/menu-items/${id}`, { method: 'DELETE' })
       load()
     } catch (e) {
-      window.alert(e.message)
+      toast(e.message, { variant: 'error' })
     }
   }
 
   function onFileChange(e) {
     const file = e.target.files?.[0]
     if (!file) return
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    if (!allowed.includes(file.type)) {
+      toast('Chỉ chấp nhận ảnh JPEG, PNG, WebP hoặc GIF (tối đa 5MB).', { variant: 'error' })
+      e.target.value = ''
+      return
+    }
+    setImageFile(file)
     const url = URL.createObjectURL(file)
     setForm((f) => ({ ...f, image: url, imageUrl: '' }))
   }
 
   const previewSrc =
-    form.image && String(form.image).startsWith('data:') ? form.image : form.imageUrl || form.image || placeholderImg
+    form.image && String(form.image).startsWith('data:') ? form.image : form.imageUrl ? mediaUrl(form.imageUrl) : form.image || placeholderImg
+
+  const sections = useMemo(() => {
+    const byKey = new Map()
+    for (const it of items) {
+      const cid = it.category_id != null && it.category_id !== '' ? String(it.category_id) : '_none'
+      const cname = it.category_name || 'Chưa phân loại'
+      const key = `${cid}`
+      if (!byKey.has(key)) {
+        byKey.set(key, { category_id: it.category_id, category_name: cname, items: [] })
+      }
+      byKey.get(key).items.push(it)
+    }
+    const arr = Array.from(byKey.values())
+    arr.sort((a, b) => String(a.category_name).localeCompare(String(b.category_name), 'vi'))
+    for (const s of arr) {
+      s.items.sort((x, y) => String(x.name || '').localeCompare(String(y.name || ''), 'vi'))
+    }
+    if (filterCat === 'all') return arr
+    const n = Number(filterCat)
+    if (!Number.isFinite(n)) return arr
+    return arr.filter((s) => Number(s.category_id) === n)
+  }, [items, filterCat])
 
   return (
     <div className="menu-mgmt">
@@ -131,28 +193,79 @@ export default function MenuManagement() {
       {loading ? <p>Đang tải...</p> : null}
       {err ? <p style={{ color: 'crimson' }}>{err}</p> : null}
 
-      <div className="menu-mgmt__grid">
-        {items.map((it) => (
-          <article key={it.id} className="menu-card">
-            <div className="menu-card__image-wrap">
-              <img className="menu-card__image" src={it.imageUrl || placeholderImg} alt="" />
-            </div>
-            <div className="menu-card__body">
-              <h2 className="menu-card__name">{it.name}</h2>
-              <p className="menu-card__price">{formatPrice(Number(it.price) || 0)}</p>
-              <p className="menu-card__category">{it.categoryName || it.categoryId}</p>
-              <div className="menu-card__actions">
-                <button type="button" className="menu-card__btn menu-card__btn--secondary" onClick={() => openEdit(it)}>
-                  Sửa
-                </button>
-                <button type="button" className="menu-card__btn menu-card__btn--danger" onClick={() => deleteItem(it.id)}>
-                  Xóa
-                </button>
+      {!loading && !err && (items.length > 0 || categories.length > 0) ? (
+        <div className="menu-mgmt__filters" role="tablist" aria-label="Lọc theo danh mục">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={filterCat === 'all'}
+            className={`menu-mgmt__filter${filterCat === 'all' ? ' menu-mgmt__filter--on' : ''}`}
+            onClick={() => setFilterCat('all')}
+          >
+            Tất cả ({items.length})
+          </button>
+          {categories.map((c) => {
+            const count = items.filter((i) => Number(i.category_id) === Number(c.id)).length
+            return (
+              <button
+                key={c.id}
+                type="button"
+                role="tab"
+                aria-selected={filterCat === String(c.id)}
+                className={`menu-mgmt__filter${filterCat === String(c.id) ? ' menu-mgmt__filter--on' : ''}`}
+                onClick={() => setFilterCat(String(c.id))}
+              >
+                {c.name}
+                {count > 0 ? ` (${count})` : ''}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+
+      {!loading && !err && sections.length === 0 ? (
+        <p className="menu-mgmt__empty">Chưa có món nào{filterCat !== 'all' ? ' trong danh mục này' : ''}.</p>
+      ) : null}
+
+      {!loading && !err
+        ? sections.map((sec) => (
+            <section key={String(sec.category_id ?? 'none')} className="menu-mgmt__section" aria-labelledby={`cat-${sec.category_id ?? 'none'}`}>
+              <h2 id={`cat-${sec.category_id ?? 'none'}`} className="menu-mgmt__sectionTitle">
+                {sec.category_name}
+                <span className="menu-mgmt__sectionCount">{sec.items.length} món</span>
+              </h2>
+              <div className="menu-mgmt__grid">
+                {sec.items.map((it) => (
+                  <article key={it.id} className="menu-card">
+                    <div className="menu-card__image-wrap">
+                      <img
+                        className="menu-card__image"
+                        src={it.image_url ? mediaUrl(it.image_url) : placeholderImg}
+                        alt=""
+                      />
+                    </div>
+                    <div className="menu-card__body">
+                      <h3 className="menu-card__name">{it.name}</h3>
+                      <p className="menu-card__price">{formatPrice(Number(it.price) || 0)}</p>
+                      <p className="menu-card__category">{it.category_name || '—'}</p>
+                      <p className="menu-card__status" data-status={String(it.status || '').toUpperCase()}>
+                        {String(it.status || '').toUpperCase() === 'AVAILABLE' ? 'Đang bán' : 'Ngừng bán'}
+                      </p>
+                      <div className="menu-card__actions">
+                        <button type="button" className="menu-card__btn menu-card__btn--secondary" onClick={() => openEdit(it)}>
+                          Sửa
+                        </button>
+                        <button type="button" className="menu-card__btn menu-card__btn--danger" onClick={() => deleteItem(it.id)}>
+                          Xóa
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
               </div>
-            </div>
-          </article>
-        ))}
-      </div>
+            </section>
+          ))
+        : null}
 
       {modalOpen ? (
         <div className="menu-modal" role="dialog" aria-modal="true" aria-labelledby="menu-modal-title">
@@ -182,9 +295,14 @@ export default function MenuManagement() {
               </label>
               <label className="menu-modal__field">
                 <span>Danh mục</span>
-                <select value={form.categoryId} onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))}>
+                <select
+                  value={form.categoryId}
+                  onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))}
+                  required
+                >
+                  <option value="">— Chọn danh mục —</option>
                   {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
+                    <option key={c.id} value={String(c.id)}>
                       {c.name}
                     </option>
                   ))}

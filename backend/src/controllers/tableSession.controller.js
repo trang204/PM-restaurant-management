@@ -6,6 +6,7 @@ import {
   loadActiveSessionByToken,
   publicOrderUrl,
 } from '../services/tableSession.service.js'
+import { notifyStaffAdmins } from '../utils/notifyStaff.js'
 
 export async function getMyActiveSession(req, res, next) {
   try {
@@ -128,12 +129,14 @@ export async function addItem(req, res, next) {
     if (!['PENDING', 'SERVING'].includes(st)) throw badRequest('Đơn không thể thêm món ở trạng thái này')
 
     const foodRes = await query(
-      `SELECT id, price FROM foods WHERE id = $1 AND COALESCE(status, 'AVAILABLE') = 'AVAILABLE'`,
+      `SELECT id, name, price FROM foods WHERE id = $1 AND COALESCE(status, 'AVAILABLE') = 'AVAILABLE'`,
       [foodId],
     )
     if (!foodRes.rows.length) throw notFound('Không tìm thấy món')
 
     const price = foodRes.rows[0].price
+    const foodName = String(foodRes.rows[0].name || 'Món').trim() || 'Món'
+    const tableLabel = String(row.table_name || 'Bàn').trim() || 'Bàn'
 
     const existing = await query(
       'SELECT id, quantity FROM order_items WHERE order_id = $1 AND food_id = $2',
@@ -141,9 +144,12 @@ export async function addItem(req, res, next) {
     )
     if (existing.rows.length) {
       const r2 = await query(
-        `UPDATE order_items SET quantity = quantity + $1 WHERE id = $2 RETURNING *`,
+        `UPDATE order_items
+         SET quantity = quantity + $1, kitchen_status = 'PENDING', kitchen_ack_at = NULL
+         WHERE id = $2 RETURNING *`,
         [qty, existing.rows[0].id],
       )
+      notifyStaffAdmins(`[Gọi món] ${tableLabel}: ${foodName} x${qty} (thêm vào đơn)`).catch(() => {})
       return ok(res, r2.rows[0])
     }
 
@@ -155,6 +161,7 @@ export async function addItem(req, res, next) {
     `,
       [orderId, foodId, qty, price],
     )
+    notifyStaffAdmins(`[Gọi món] ${tableLabel}: ${foodName} x${qty}`).catch(() => {})
     return created(res, r3.rows[0])
   } catch (e) {
     return next(e)
@@ -256,6 +263,11 @@ export async function submitOrder(req, res, next) {
     )
     if (!updated.rows.length) throw badRequest('Đơn không thể xác nhận ở trạng thái này')
 
+    const tableLabel = String(row.table_name || 'Bàn').trim() || 'Bàn'
+    notifyStaffAdmins(
+      `[Gửi đơn] ${tableLabel}: khách đã gửi đơn — tổng ${Number(total).toLocaleString('vi-VN')} ₫`,
+    ).catch(() => {})
+
     return ok(res, { orderId, status: updated.rows[0].status, total })
   } catch (e) {
     return next(e)
@@ -298,21 +310,45 @@ export async function createPayment(req, res, next) {
     const total = await computeOrderTotal(orderId)
     if (!Number.isFinite(total) || total <= 0) throw badRequest('Chưa có món trong đơn')
 
-    // nếu đã có payment PAID thì không tạo thêm
     const existingPaid = await query(
       `SELECT id FROM payments WHERE order_id = $1 AND status = 'PAID' ORDER BY id DESC LIMIT 1`,
       [orderId],
     )
     if (existingPaid.rows.length) throw badRequest('Đơn đã thanh toán')
 
-    const ins = await query(
-      `INSERT INTO payments (order_id, amount, method, status) VALUES ($1, $2, $3, 'UNPAID') RETURNING *`,
-      [orderId, total, m],
-    )
+    const tableLabel = String(row.table_name || 'Bàn').trim() || 'Bàn'
+    const methodVi = m === 'bank_transfer' ? 'Chuyển khoản' : 'Tiền mặt'
+    const money = `${Number(total).toLocaleString('vi-VN')} ₫`
 
-    // QR content cơ bản (có thể nâng cấp VietQR bằng settings sau)
+    const latest = await query(`SELECT id, status FROM payments WHERE order_id = $1 ORDER BY id DESC LIMIT 1`, [
+      orderId,
+    ])
+    let payRow
+    let isUpdate = false
+    if (latest.rows.length && String(latest.rows[0].status || '').toUpperCase() === 'UNPAID') {
+      const upd = await query(
+        `UPDATE payments SET amount = $2, method = $3 WHERE id = $1 RETURNING *`,
+        [latest.rows[0].id, total, m],
+      )
+      payRow = upd.rows[0]
+      isUpdate = true
+      notifyStaffAdmins(
+        `[Thanh toán] ${tableLabel}: khách cập nhật yêu cầu — ${methodVi} · ${money} · Đơn #${orderId}`,
+      ).catch(() => {})
+    } else {
+      const ins = await query(
+        `INSERT INTO payments (order_id, amount, method, status) VALUES ($1, $2, $3, 'UNPAID') RETURNING *`,
+        [orderId, total, m],
+      )
+      payRow = ins.rows[0]
+      notifyStaffAdmins(
+        `[Thanh toán] ${tableLabel}: khách yêu cầu thanh toán — ${methodVi} · ${money} · Đơn #${orderId}`,
+      ).catch(() => {})
+    }
+
     const qrContent = m === 'bank_transfer' ? `PAY|ORDER:${orderId}|AMOUNT:${total}` : null
-    return created(res, { orderId, total, payment: ins.rows[0], qrContent })
+    const payload = { orderId, total, payment: payRow, qrContent }
+    return isUpdate ? ok(res, payload) : created(res, payload)
   } catch (e) {
     return next(e)
   }

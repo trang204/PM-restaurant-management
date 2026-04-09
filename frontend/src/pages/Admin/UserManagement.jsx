@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { NavLink, useParams } from 'react-router-dom'
 import { apiFetch } from '../../lib/api'
+import { useNotifications } from '../../context/NotificationsContext'
 import './UserManagement.css'
 
 const roles = ['CUSTOMER', 'STAFF', 'ADMIN']
@@ -13,12 +14,16 @@ function groupMeta(group) {
 }
 
 export default function UserManagement() {
+  const { toast, confirm } = useNotifications()
   const { group } = useParams()
   const meta = useMemo(() => groupMeta(group), [group])
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
   const [q, setQ] = useState('')
+  const [roleModal, setRoleModal] = useState(null)
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [addForm, setAddForm] = useState({ email: '', password: '', fullName: '' })
 
   function load() {
     setLoading(true)
@@ -40,51 +45,69 @@ export default function UserManagement() {
     return () => window.clearTimeout(t)
   }, [q])
 
-  async function editRole(id) {
+  function openRoleModal(id) {
     const user = users.find((u) => u.id === id)
     if (!user) return
-    const choice = window.prompt(`Role (${roles.join(', ')})`, user.role)
-    if (choice === null) return
-    const trimmed = choice.trim()
+    setRoleModal({ id, role: user.role })
+  }
+
+  async function submitRole() {
+    if (!roleModal) return
+    const trimmed = String(roleModal.role || '').trim()
     if (!roles.includes(trimmed)) {
-      window.alert('Role không hợp lệ.')
+      toast('Role không hợp lệ.', { variant: 'error' })
       return
     }
     try {
-      await apiFetch(`/admin/users/${id}/role`, {
+      await apiFetch(`/admin/users/${roleModal.id}/role`, {
         method: 'PATCH',
         body: JSON.stringify({ role: trimmed }),
       })
+      setRoleModal(null)
       load()
     } catch (e) {
-      window.alert(e.message)
+      toast(e.message, { variant: 'error' })
     }
   }
 
   async function deleteUser(id) {
-    if (!window.confirm('Xóa người dùng này?')) return
+    const okDel = await confirm({ title: 'Xóa người dùng', message: 'Xóa người dùng này?' })
+    if (!okDel) return
     try {
       await apiFetch(`/admin/users/${id}`, { method: 'DELETE' })
       load()
     } catch (e) {
-      window.alert(e.message)
+      toast(e.message, { variant: 'error' })
     }
   }
 
-  async function addUser() {
-    const email = window.prompt('Email')
-    if (!email) return
-    const password = window.prompt('Mật khẩu')
-    if (!password) return
-    const fullName = window.prompt('Họ tên', '') || ''
+  function openAddModal() {
+    setAddForm({ email: '', password: '', fullName: '' })
+    setAddModalOpen(true)
+  }
+
+  async function submitAddUser() {
+    const email = addForm.email.trim()
+    const password = addForm.password
+    const fullName = addForm.fullName.trim()
+    if (!email) {
+      toast('Nhập email.', { variant: 'info' })
+      return
+    }
+    if (!password) {
+      toast('Nhập mật khẩu.', { variant: 'info' })
+      return
+    }
     try {
       await apiFetch('/admin/users', {
         method: 'POST',
         body: JSON.stringify({ email, password, name: fullName, fullName, role: meta.role }),
       })
+      setAddModalOpen(false)
+      setAddForm({ email: '', password: '', fullName: '' })
       load()
     } catch (e) {
-      window.alert(e.message)
+      toast(e.message, { variant: 'error' })
     }
   }
 
@@ -107,7 +130,7 @@ export default function UserManagement() {
               Admin
             </NavLink>
           </div>
-          <button type="button" className="user-mgmt__add" onClick={addUser}>
+          <button type="button" className="user-mgmt__add" onClick={openAddModal}>
             Thêm {meta.label}
           </button>
         </div>
@@ -161,6 +184,93 @@ export default function UserManagement() {
           </tbody>
         </table>
       </div>
+
+      {roleModal ? (
+        <div
+          className="user-mgmt__backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="user-role-title"
+          onClick={() => setRoleModal(null)}
+        >
+          <div className="user-mgmt__dialog" onClick={(e) => e.stopPropagation()}>
+            <h2 id="user-role-title" className="user-mgmt__dialogTitle">
+              Đổi role
+            </h2>
+            <label className="user-mgmt__dialogField">
+              <span>Role ({roles.join(', ')})</span>
+              <select
+                value={roleModal.role}
+                onChange={(e) => setRoleModal((m) => (m ? { ...m, role: e.target.value } : m))}
+              >
+                {roles.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="user-mgmt__dialogActions">
+              <button type="button" className="user-mgmt__btn user-mgmt__btn--ghost" onClick={() => setRoleModal(null)}>
+                Hủy
+              </button>
+              <button type="button" className="user-mgmt__btn user-mgmt__btn--primary" onClick={submitRole}>
+                Lưu
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {addModalOpen ? (
+        <div
+          className="user-mgmt__backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="user-add-title"
+          onClick={() => setAddModalOpen(false)}
+        >
+          <div className="user-mgmt__dialog" onClick={(e) => e.stopPropagation()}>
+            <h2 id="user-add-title" className="user-mgmt__dialogTitle">
+              Thêm {meta.label}
+            </h2>
+            <label className="user-mgmt__dialogField">
+              <span>Email</span>
+              <input
+                type="email"
+                autoComplete="off"
+                value={addForm.email}
+                onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))}
+              />
+            </label>
+            <label className="user-mgmt__dialogField">
+              <span>Mật khẩu</span>
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={addForm.password}
+                onChange={(e) => setAddForm((f) => ({ ...f, password: e.target.value }))}
+              />
+            </label>
+            <label className="user-mgmt__dialogField">
+              <span>Họ tên</span>
+              <input
+                type="text"
+                value={addForm.fullName}
+                onChange={(e) => setAddForm((f) => ({ ...f, fullName: e.target.value }))}
+              />
+            </label>
+            <div className="user-mgmt__dialogActions">
+              <button type="button" className="user-mgmt__btn user-mgmt__btn--ghost" onClick={() => setAddModalOpen(false)}>
+                Hủy
+              </button>
+              <button type="button" className="user-mgmt__btn user-mgmt__btn--primary" onClick={submitAddUser}>
+                Tạo
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

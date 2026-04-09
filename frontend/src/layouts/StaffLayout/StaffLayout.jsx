@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { LayoutGrid, ChefHat, BarChart3, LogOut } from 'lucide-react'
 import { apiFetch, setToken } from '../../lib/api'
+import NotificationBell from '../../components/NotificationBell.jsx'
 import './StaffLayout.css'
 
 export default function StaffLayout() {
@@ -44,18 +46,26 @@ export default function StaffLayout() {
           </Link>
           <nav className="staff-topbar__nav" aria-label="Menu nhân viên">
             <NavLink to="/staff" className="staff-topbar__navLink" end>
+              <LayoutGrid size={14} />
               Tiếp đón
             </NavLink>
+            <NavLink to="/staff/kitchen" className="staff-topbar__navLink">
+              <ChefHat size={14} />
+              Bếp & gọi món
+            </NavLink>
             <NavLink to="/staff/reports" className="staff-topbar__navLink">
-              Thống kê doanh thu
+              <BarChart3 size={14} />
+              Doanh thu
             </NavLink>
           </nav>
         </div>
         <div className="staff-topbar__right">
+          <NotificationBell />
           <span className="staff-topbar__user" title={me?.email || ''}>
             {me?.fullName || me?.email || '…'}
           </span>
           <button type="button" className="staff-topbar__logout" onClick={handleLogout}>
+            <LogOut size={14} />
             Đăng xuất
           </button>
         </div>

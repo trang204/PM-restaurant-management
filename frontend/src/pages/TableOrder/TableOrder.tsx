@@ -18,6 +18,8 @@ type OrderItem = {
   quantity: number
   price: string | number
   food_name?: string | null
+  kitchen_status?: string | null
+  kitchen_ack_at?: string | null
 }
 
 type Ctx = {
@@ -477,6 +479,17 @@ export default function TableOrder() {
                         <div className="tableOrder__lineMain">
                           <span className="tableOrder__lineName">{i.food_name || `Món #${i.food_id}`}</span>
                           <span className="tableOrder__lineSub">{formatPrice(Number(i.price))} / phần</span>
+                          <span
+                            className={
+                              String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
+                                ? 'tableOrder__kitchenOk'
+                                : 'tableOrder__kitchenWait'
+                            }
+                          >
+                            {String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
+                              ? 'Bếp đã nhận'
+                              : 'Chờ bếp xác nhận'}
+                          </span>
                         </div>
                         <div className="tableOrder__lineActions">
                           {canOrder ? (
@@ -556,6 +569,11 @@ export default function TableOrder() {
                       <div>Trạng thái: <strong>{paymentCtx.payment.status || 'UNPAID'}</strong></div>
                       <div>Phương thức: <strong>{paymentCtx.payment.method || '—'}</strong></div>
                       <div>Số tiền: <strong>{formatPrice(Number(paymentCtx.total || total))}</strong></div>
+                      {String(paymentCtx.payment.status || '').toUpperCase() !== 'PAID' ? (
+                        <p className="tableOrder__payNotify">
+                          Yêu cầu đã gửi tới nhân viên (chuông thông báo trên quầy). Quý khách vui lòng chờ xác nhận.
+                        </p>
+                      ) : null}
                       {paymentCtx.qrContent ? (
                         <div className="tableOrder__qrBox">
                           <div className="tableOrder__qrTitle">Mã thanh toán (tạm)</div>
@@ -604,6 +622,17 @@ export default function TableOrder() {
                         <div className="tableOrder__lineMain">
                           <span className="tableOrder__lineName">{i.food_name || `Món #${i.food_id}`}</span>
                           <span className="tableOrder__lineSub">{formatPrice(Number(i.price))} / phần</span>
+                          <span
+                            className={
+                              String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
+                                ? 'tableOrder__kitchenOk'
+                                : 'tableOrder__kitchenWait'
+                            }
+                          >
+                            {String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
+                              ? 'Bếp đã nhận'
+                              : 'Chờ bếp xác nhận'}
+                          </span>
                         </div>
                         <div className="tableOrder__lineActions">
                           {canOrder ? (

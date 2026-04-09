@@ -16,6 +16,115 @@ async function orderItemsTotal(client, orderId) {
   return Number(tot.rows[0]?.total || 0)
 }
 
+/** Không xác nhận / check-in khi bàn gán đang CLOSED. */
+function padTimeForDb(t) {
+  const s = String(t || '').trim()
+  if (!s) return null
+  const m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
+  if (!m) return null
+  const h = m[1].padStart(2, '0')
+  const min = m[2].padStart(2, '0')
+  const sec = (m[3] || '00').padStart(2, '0')
+  return `${h}:${min}:${sec}`
+}
+
+/** Tạo đặt bàn không tài khoản, check-in ngay, gán bàn và tạo phiên QR gọi món. */
+export async function walkIn(req, res, next) {
+  try {
+    const { tableId, guestName, guestPhone, guests, bookingDate, bookingTime } = req.body || {}
+    const tId = Number(tableId)
+    if (!Number.isFinite(tId) || tId <= 0) throw badRequest('tableId là bắt buộc')
+
+    const nGuests = Number(guests)
+    const gCount = Number.isFinite(nGuests) && nGuests > 0 ? Math.min(99, nGuests) : 2
+    const name =
+      guestName != null && String(guestName).trim() ? String(guestName).trim().slice(0, 100) : 'Khách vãng lai'
+    const phone =
+      guestPhone != null && String(guestPhone).trim() ? String(guestPhone).trim().slice(0, 20) : null
+
+    let bDate = bookingDate != null ? String(bookingDate).trim().slice(0, 10) : ''
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(bDate)) {
+      const r = await query(`SELECT CURRENT_DATE::text AS d`)
+      bDate = r.rows[0].d
+    }
+
+    let timeRaw = bookingTime != null ? String(bookingTime).trim() : ''
+    const timeForDb = padTimeForDb(timeRaw) || (await query(`SELECT to_char(NOW(), 'HH24:MI:SS') AS t`)).rows[0].t
+
+    const tbl = await query('SELECT id, status FROM tables WHERE id = $1', [tId])
+    if (!tbl.rows.length) throw notFound('Bàn không tồn tại')
+    const tst = String(tbl.rows[0].status || '').toUpperCase()
+    if (tst === 'CLOSED') throw badRequest('Bàn đang đóng — không mở được cho khách')
+    if (tst === 'OCCUPIED' || tst === 'RESERVED') throw badRequest('Bàn không trống — chọn bàn khác')
+
+    const conflicts = await query(
+      `
+      SELECT 1
+      FROM booking_tables bt
+      JOIN bookings b ON b.id = bt.booking_id
+      WHERE b.booking_date = $1::date
+        AND b.booking_time = $2::time
+        AND (
+          b.status IN ('PENDING', 'CONFIRMED', 'CHECKED_IN')
+          OR (b.status = 'HOLD' AND b.hold_expires_at IS NOT NULL AND b.hold_expires_at > NOW())
+        )
+        AND bt.table_id = $3
+      LIMIT 1
+    `,
+      [bDate, timeForDb, tId],
+    )
+    if (conflicts.rows.length) {
+      throw badRequest('Bàn đã có đơn khác trong cùng khung giờ — chọn bàn hoặc đợi vài phút')
+    }
+
+    const bookingId = await withTransaction(async (client) => {
+      const ins = await client.query(
+        `
+        INSERT INTO bookings (
+          user_id, booking_date, booking_time, guests, status,
+          note, guest_name, guest_phone
+        )
+        VALUES (NULL, $1::date, $2::time, $3, 'CHECKED_IN', $4, $5, $6)
+        RETURNING id
+      `,
+        [bDate, timeForDb, gCount, 'Walk-in (vãng lai)', name, phone],
+      )
+      const bid = ins.rows[0].id
+      await client.query('INSERT INTO booking_tables (booking_id, table_id) VALUES ($1, $2)', [bid, tId])
+      await client.query(`UPDATE tables SET status = 'OCCUPIED' WHERE id = $1`, [tId])
+      return bid
+    })
+
+    const payload = await tableSessionPayload(bookingId, 'CHECKED_IN')
+    return ok(res, {
+      reservationId: bookingId,
+      walkIn: true,
+      ...payload,
+    })
+  } catch (e) {
+    return next(e)
+  }
+}
+
+async function assertAssignedTableNotClosed(bookingId, actionVi) {
+  const r = await query(
+    `
+    SELECT t.status
+    FROM booking_tables bt
+    JOIN tables t ON t.id = bt.table_id
+    WHERE bt.booking_id = $1
+    LIMIT 1
+    `,
+    [bookingId],
+  )
+  if (!r.rows.length) return
+  if (String(r.rows[0].status || '').toUpperCase() === 'CLOSED') {
+    throw badRequest(
+      `Bàn đã đóng — không thể ${actionVi}. Chuyển khách sang bàn khác hoặc mở lại bàn (Trang bàn → Mở bàn).`,
+    )
+  }
+}
+
 async function tableSessionPayload(bookingId, bookingStatus) {
   const sessionPayload = await ensureTableSessionForBooking(bookingId)
   let qrSvg = null
@@ -262,6 +371,8 @@ export async function checkIn(req, res, next) {
   try {
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
+
+    await assertAssignedTableNotClosed(id, 'check-in')
 
     const bt = await query('SELECT table_id FROM booking_tables WHERE booking_id = $1', [id])
     if (bt.rows.length) {

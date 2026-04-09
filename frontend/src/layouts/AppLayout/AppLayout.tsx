@@ -4,7 +4,7 @@ import { apiFetch, mediaUrl, setToken } from '../../lib/api'
 import { fetchPublicSettings } from '../../lib/settings'
 import './AppLayout.css'
 
-type Me = { id?: string; email?: string; role?: string; fullName?: string }
+type Me = { id?: string; email?: string; role?: string; fullName?: string; avatarUrl?: string | null }
 
 export default function AppLayout() {
   const [me, setMe] = useState<Me | null>(null)
@@ -18,14 +18,19 @@ export default function AppLayout() {
   } | null>(null)
 
   useEffect(() => {
-    const t = localStorage.getItem('luxeat_token')
-    if (!t) {
-      setMe(null)
-      return
+    function loadMe() {
+      const t = localStorage.getItem('luxeat_token')
+      if (!t) {
+        setMe(null)
+        return
+      }
+      apiFetch<Me>('/users/me')
+        .then(setMe)
+        .catch(() => setMe(null))
     }
-    apiFetch<Me>('/users/me')
-      .then(setMe)
-      .catch(() => setMe(null))
+    loadMe()
+    window.addEventListener('luxeat:me-updated', loadMe)
+    return () => window.removeEventListener('luxeat:me-updated', loadMe)
   }, [])
 
   useEffect(() => {
@@ -76,8 +81,17 @@ export default function AppLayout() {
             </NavLink>
             {me ? (
               <>
-                <NavLink to="/profile" className="nav__link">
-                  {me.fullName || me.email}
+                <NavLink to="/profile" className="nav__link nav__link--profile">
+                  {me.avatarUrl ? (
+                    <img
+                      className="nav__avatar"
+                      src={mediaUrl(me.avatarUrl)}
+                      alt=""
+                      width={28}
+                      height={28}
+                    />
+                  ) : null}
+                  <span>{me.fullName || me.email}</span>
                 </NavLink>
                 {me.role === 'ADMIN' ? (
                   <NavLink to="/admin" className="nav__link">

@@ -1,44 +1,67 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import {
+  LayoutDashboard,
+  CalendarDays,
+  TableProperties,
+  ChefHat,
+  BarChart3,
+  UtensilsCrossed,
+  Users,
+  Settings,
+  LogOut,
+  Home,
+} from 'lucide-react'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
 import { fetchPublicSettings } from '../../lib/settings'
+import NotificationBell from '../../components/NotificationBell.jsx'
 import './AdminLayout.css'
 
 const adminTree = [
-    { type: 'link', to: '/admin', label: 'Tổng quan', end: true },
-    {
-      type: 'group',
-      id: 'van-hanh',
-      label: 'Vận hành',
-      children: [
-        { to: '/admin/bookings', label: 'Đặt bàn' },
-        { to: '/admin/tables', label: 'Bàn' },
-        { to: '/admin/reports', label: 'Thống kê doanh thu' },
-      ],
-    },
-    {
-      type: 'group',
-      id: 'thuc-don',
-      label: 'Thực đơn',
-      children: [{ to: '/admin/menu', label: 'Món ăn' }],
-    },
-    {
-      type: 'group',
-      id: 'he-thong',
-      label: 'Hệ thống',
-      children: [
-        { to: '/admin/users/customers', label: 'Người dùng' },
-        { to: '/admin/settings', label: 'Cài đặt' },
-      ],
-    },
-  ]
+  {
+    type: 'link',
+    to: '/admin',
+    label: 'Tổng quan',
+    end: true,
+    icon: <LayoutDashboard size={16} />,
+  },
+  {
+    type: 'group',
+    id: 'van-hanh',
+    label: 'Vận hành',
+    children: [
+      { to: '/admin/bookings', label: 'Đặt bàn', icon: <CalendarDays size={15} /> },
+      { to: '/admin/tables', label: 'Quản lý bàn', icon: <TableProperties size={15} /> },
+      { to: '/admin/kitchen', label: 'Bếp & gọi món', icon: <ChefHat size={15} /> },
+      { to: '/admin/reports', label: 'Doanh thu', icon: <BarChart3 size={15} /> },
+    ],
+  },
+  {
+    type: 'group',
+    id: 'thuc-don',
+    label: 'Thực đơn',
+    children: [
+      { to: '/admin/menu', label: 'Món ăn', icon: <UtensilsCrossed size={15} /> },
+    ],
+  },
+  {
+    type: 'group',
+    id: 'he-thong',
+    label: 'Hệ thống',
+    children: [
+      { to: '/admin/users/customers', label: 'Người dùng', icon: <Users size={15} /> },
+      { to: '/admin/settings', label: 'Cài đặt', icon: <Settings size={15} /> },
+    ],
+  },
+]
 
 function pathOpensGroup(pathname) {
   const s = new Set()
   if (
     pathname.startsWith('/admin/bookings') ||
     pathname.startsWith('/admin/tables') ||
-    pathname.startsWith('/admin/reports')
+    pathname.startsWith('/admin/reports') ||
+    pathname.startsWith('/admin/kitchen')
   )
     s.add('van-hanh')
   if (pathname.startsWith('/admin/menu')) s.add('thuc-don')
@@ -104,14 +127,20 @@ export default function AdminLayout() {
       <aside className="admin-sidebar" aria-label="Điều hướng quản trị">
         <NavLink to="/" className="admin-sidebar__brand">
           {brand.logoUrl ? (
-            <img className="admin-sidebar__brand-logo" src={mediaUrl(brand.logoUrl)} alt="" width={36} height={36} />
+            <img
+              className="admin-sidebar__brand-logo"
+              src={mediaUrl(brand.logoUrl)}
+              alt=""
+              width={34}
+              height={34}
+            />
           ) : (
             <span className="admin-sidebar__brand-mark" aria-hidden />
           )}
           <span className="admin-sidebar__brand-text">{brand.name} Admin</span>
         </NavLink>
 
-        <nav className="admin-sidebar__nav admin-tree" aria-label="Menu cây">
+        <nav className="admin-sidebar__nav admin-tree" aria-label="Menu điều hướng">
           <ul className="admin-tree__root">
             {adminTree.map((node) => {
               if (node.type === 'link') {
@@ -124,6 +153,7 @@ export default function AdminLayout() {
                         `admin-tree__link${isActive ? ' admin-tree__link--active' : ''}`
                       }
                     >
+                      {node.icon}
                       {node.label}
                     </NavLink>
                   </li>
@@ -131,7 +161,9 @@ export default function AdminLayout() {
               }
 
               const isOpen = openGroups.has(node.id)
-              const childActive = node.children.some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`))
+              const childActive = node.children.some(
+                (c) => pathname === c.to || pathname.startsWith(`${c.to}/`),
+              )
 
               return (
                 <li key={node.id} className="admin-tree__item admin-tree__item--root">
@@ -141,7 +173,10 @@ export default function AdminLayout() {
                     onClick={() => toggleGroup(node.id)}
                     aria-expanded={isOpen}
                   >
-                    <span className={`admin-tree__chevron${isOpen ? ' admin-tree__chevron--open' : ''}`} aria-hidden />
+                    <span
+                      className={`admin-tree__chevron${isOpen ? ' admin-tree__chevron--open' : ''}`}
+                      aria-hidden
+                    />
                     <span className="admin-tree__branch-label">{node.label}</span>
                   </button>
                   {isOpen ? (
@@ -154,6 +189,7 @@ export default function AdminLayout() {
                               `admin-tree__link admin-tree__link--leaf${isActive ? ' admin-tree__link--active' : ''}`
                             }
                           >
+                            {child.icon}
                             {child.label}
                           </NavLink>
                         </li>
@@ -167,7 +203,21 @@ export default function AdminLayout() {
         </nav>
 
         <div className="admin-sidebar__footer">
-          <span className="admin-sidebar__version">API</span>
+          <NavLink
+            to="/"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              color: 'rgba(158,144,128,0.6)',
+              textDecoration: 'none',
+              fontSize: '0.78rem',
+              fontWeight: 500,
+            }}
+          >
+            <Home size={13} />
+            Trang chủ
+          </NavLink>
         </div>
       </aside>
 
@@ -175,11 +225,13 @@ export default function AdminLayout() {
         <header className="admin-topbar">
           <div className="admin-topbar__spacer" />
           <div className="admin-topbar__actions">
+            <NotificationBell />
             <span className="admin-topbar__name">{me?.fullName || me?.email || '...'}</span>
-            <div className="admin-topbar__avatar" title="Admin" aria-hidden>
+            <div className="admin-topbar__avatar" title={me?.email || 'Admin'} aria-hidden>
               {(me?.email || 'A').slice(0, 2).toUpperCase()}
             </div>
             <button type="button" className="admin-topbar__logout" onClick={handleLogout}>
+              <LogOut size={14} />
               Đăng xuất
             </button>
           </div>

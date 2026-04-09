@@ -1,21 +1,24 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { apiFetch, setToken } from '../../lib/api'
+import { apiFetch, mediaUrl, setToken } from '../../lib/api'
 import './Profile.css'
 
 export default function Profile() {
   const navigate = useNavigate()
+  const avatarInputRef = useRef<HTMLInputElement>(null)
   const [me, setMe] = useState<{
     id: string
     fullName: string
     email: string
     phone?: string | null
+    avatarUrl?: string | null
     role?: string | null
     createdAt?: string | null
   } | null>(null)
   const [form, setForm] = useState({ fullName: '', phone: '' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [okMsg, setOkMsg] = useState<string | null>(null)
 
@@ -65,13 +68,56 @@ export default function Profile() {
     window.location.href = '/'
   }
 
+  async function onAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Vui lòng chọn file ảnh (JPEG, PNG, WebP hoặc GIF).')
+      return
+    }
+    setAvatarUploading(true)
+    setError(null)
+    setOkMsg(null)
+    try {
+      const fd = new FormData()
+      fd.append('avatar', file)
+      const d = await apiFetch<any>('/users/me/avatar', { method: 'POST', body: fd })
+      setMe(d)
+      window.dispatchEvent(new Event('luxeat:me-updated'))
+      setOkMsg('Đã cập nhật ảnh đại diện.')
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setAvatarUploading(false)
+    }
+  }
+
+  async function clearAvatar() {
+    setAvatarUploading(true)
+    setError(null)
+    setOkMsg(null)
+    try {
+      const d = await apiFetch<any>('/users/me/avatar', { method: 'DELETE' })
+      setMe(d)
+      window.dispatchEvent(new Event('luxeat:me-updated'))
+      setOkMsg('Đã xóa ảnh đại diện.')
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setAvatarUploading(false)
+    }
+  }
+
   return (
     <main className="profilePage">
       <header className="profileHero">
         <div>
           <p className="profileHero__eyebrow">Tài khoản</p>
           <h1 className="profileHero__title">Thông tin cá nhân</h1>
-          <p className="profileHero__subtitle">Cập nhật họ tên và số điện thoại để đặt bàn nhanh hơn.</p>
+          <p className="profileHero__subtitle">
+            Cập nhật ảnh đại diện, họ tên và số điện thoại để đặt bàn nhanh hơn.
+          </p>
         </div>
         <div className="profileHero__actions">
           <Link to="/reservations" className="profileBtn profileBtn--ghost">
@@ -92,6 +138,52 @@ export default function Profile() {
           <div className="profileGrid">
             <form className="profileCard" onSubmit={save}>
               <h2 className="profileCard__title">Thông tin</h2>
+              <div className="profileAvatar">
+                <div className="profileAvatar__preview">
+                  {me.avatarUrl ? (
+                    <img
+                      className="profileAvatar__img"
+                      src={mediaUrl(me.avatarUrl)}
+                      alt=""
+                      width={120}
+                      height={120}
+                    />
+                  ) : (
+                    <div className="profileAvatar__placeholder" aria-hidden>
+                      {(me.fullName || me.email || '?').slice(0, 1).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="profileAvatar__file"
+                  onChange={onAvatarFile}
+                  aria-label="Chọn ảnh đại diện"
+                />
+                <div className="profileAvatar__actions">
+                  <button
+                    type="button"
+                    className="profileBtn profileBtn--ghost"
+                    disabled={avatarUploading}
+                    onClick={() => avatarInputRef.current?.click()}
+                  >
+                    {avatarUploading ? 'Đang tải…' : me.avatarUrl ? 'Đổi ảnh' : 'Tải ảnh lên'}
+                  </button>
+                  {me.avatarUrl ? (
+                    <button
+                      type="button"
+                      className="profileBtn profileBtn--danger"
+                      disabled={avatarUploading}
+                      onClick={clearAvatar}
+                    >
+                      Xóa ảnh
+                    </button>
+                  ) : null}
+                </div>
+                <p className="profileAvatar__hint">JPEG, PNG, WebP hoặc GIF — tối đa 5MB.</p>
+              </div>
               <label className="profileField">
                 <span>Họ tên</span>
                 <input

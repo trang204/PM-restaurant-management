@@ -12,6 +12,7 @@ import ReservationDetail from './pages/Booking/ReservationDetail'
 import AdminLayout from './layouts/AdminLayout/AdminLayout.jsx'
 import StaffLayout from './layouts/StaffLayout/StaffLayout.jsx'
 import StaffDesk from './pages/Staff/StaffDesk.jsx'
+import KitchenOrders from './pages/Staff/KitchenOrders.jsx'
 import Dashboard from './pages/Admin/Dashboard.jsx'
 import BookingManagement from './pages/Admin/BookingManagement.jsx'
 import TableManagement from './pages/Admin/TableManagement.jsx'
@@ -46,11 +47,13 @@ export default function App() {
         <Route path="users/:group" element={<UserManagement />} />
         <Route path="settings" element={<Settings />} />
         <Route path="reports" element={<RevenueReports />} />
+        <Route path="kitchen" element={<KitchenOrders />} />
       </Route>
 
       <Route path="/staff" element={<StaffLayout />}>
         <Route index element={<StaffDesk />} />
         <Route path="reports" element={<RevenueReports />} />
+        <Route path="kitchen" element={<KitchenOrders />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

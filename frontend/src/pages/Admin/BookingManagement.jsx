@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { apiFetch } from '../../lib/api'
+import { useNotifications } from '../../context/NotificationsContext'
 import './BookingManagement.css'
 
 function badgeClass(status) {
@@ -32,6 +33,16 @@ function todayYmdLocal() {
   const m = String(n.getMonth() + 1).padStart(2, '0')
   const d = String(n.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
+}
+
+function nowHmLocal() {
+  const n = new Date()
+  return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`
+}
+
+function tableAvailableForWalkIn(t) {
+  const s = String(t?.status || '').toUpperCase()
+  return s === 'AVAILABLE'
 }
 
 function parseYmd(ymd) {
@@ -103,8 +114,15 @@ function tablesSelectableForRow(allTables, rows, row, assignPick) {
   return out
 }
 
+function assignedTableIsClosed(tables, row) {
+  if (!row?.assignedTableId) return false
+  const t = tables.find((x) => String(x.id) === String(row.assignedTableId))
+  return Boolean(t && String(t.status || '').toUpperCase() === 'CLOSED')
+}
+
 /** @param {{ staffMode?: boolean }} props */
 export default function BookingManagement({ staffMode = false }) {
+  const { toast, confirm: askConfirm } = useNotifications()
   const [rows, setRows] = useState([])
   const [tables, setTables] = useState([])
   const [assignPick, setAssignPick] = useState({})
@@ -120,6 +138,11 @@ export default function BookingManagement({ staffMode = false }) {
   const [closeTableModal, setCloseTableModal] = useState(null)
   const [closeTableReason, setCloseTableReason] = useState('')
   const [opsBusy, setOpsBusy] = useState(false)
+  const [walkInTableId, setWalkInTableId] = useState('')
+  const [walkInName, setWalkInName] = useState('')
+  const [walkInPhone, setWalkInPhone] = useState('')
+  const [walkInGuests, setWalkInGuests] = useState('2')
+  const [walkInBusy, setWalkInBusy] = useState(false)
 
   function load() {
     setLoading(true)
@@ -196,7 +219,7 @@ export default function BookingManagement({ staffMode = false }) {
     if (idx >= 0) setDayPage(idx)
   }
 
-  async function confirm(id) {
+  async function confirmReservation(id) {
     try {
       const res = await apiFetch(`/admin/reservations/${id}/confirm`, { method: 'POST', body: '{}' })
       load()
@@ -208,10 +231,10 @@ export default function BookingManagement({ staffMode = false }) {
           note: res.tableSessionNote,
         })
       } else if (res?.tableSessionNote) {
-        window.alert(res.tableSessionNote)
+        toast(res.tableSessionNote, { variant: 'info' })
       }
     } catch (e) {
-      window.alert(e.message)
+      toast(e.message, { variant: 'error' })
     }
   }
 
@@ -227,17 +250,17 @@ export default function BookingManagement({ staffMode = false }) {
           note: res.tableSessionNote,
         })
       } else if (res?.tableSessionNote) {
-        window.alert(res.tableSessionNote)
+        toast(res.tableSessionNote, { variant: 'info' })
       }
     } catch (e) {
-      window.alert(e.message)
+      toast(e.message, { variant: 'error' })
     }
   }
 
   async function assignTable(bookingId) {
     const tid = assignPick[bookingId]
     if (!tid) {
-      window.alert('Chọn bàn trước.')
+      toast('Chọn bàn trước.', { variant: 'info' })
       return
     }
     try {
@@ -247,30 +270,34 @@ export default function BookingManagement({ staffMode = false }) {
       })
       load()
     } catch (e) {
-      window.alert(e.message)
+      toast(e.message, { variant: 'error' })
     }
   }
 
   async function cancelBooking(id) {
-    if (!window.confirm('Hủy đơn này?')) return
+    const okCancel = await askConfirm({ title: 'Hủy đơn', message: 'Hủy đơn này?' })
+    if (!okCancel) return
     try {
       await apiFetch(`/admin/reservations/${id}/cancel`, { method: 'POST', body: '{}' })
       load()
     } catch (e) {
-      window.alert(e.message)
+      toast(e.message, { variant: 'error' })
     }
   }
 
   function copyUrl(url) {
     navigator.clipboard.writeText(url).then(
-      () => window.alert('Đã copy link.'),
-      () => window.prompt('Copy link:', url),
+      () => toast('Đã copy link.', { variant: 'success' }),
+      () =>
+        toast('Không thể copy tự động. Hãy chọn và sao chép liên kết trong ô bên dưới hoặc dùng nút mở trang.', {
+          variant: 'info',
+        }),
     )
   }
 
   function openTransfer(r) {
     if (!r.assignedTableId) {
-      window.alert('Chưa gán bàn — không thể chuyển.')
+      toast('Chưa gán bàn — không thể chuyển.', { variant: 'info' })
       return
     }
     setTransferModal({ id: r.id })
@@ -282,7 +309,7 @@ export default function BookingManagement({ staffMode = false }) {
     if (!transferModal) return
     const tid = Number(transferToId)
     if (!Number.isFinite(tid) || tid <= 0) {
-      window.alert('Chọn bàn đích.')
+      toast('Chọn bàn đích.', { variant: 'info' })
       return
     }
     setOpsBusy(true)
@@ -300,7 +327,7 @@ export default function BookingManagement({ staffMode = false }) {
       load()
       refreshTables()
     } catch (e) {
-      window.alert(e.message)
+      toast(e.message, { variant: 'error' })
     } finally {
       setOpsBusy(false)
     }
@@ -308,7 +335,7 @@ export default function BookingManagement({ staffMode = false }) {
 
   function openCloseTable(r) {
     if (!r.assignedTableId) {
-      window.alert('Chưa gán bàn.')
+      toast('Chưa gán bàn.', { variant: 'info' })
       return
     }
     setCloseTableModal({ tableId: Number(r.assignedTableId), label: r.fullName || `Đơn #${r.id}` })
@@ -330,7 +357,7 @@ export default function BookingManagement({ staffMode = false }) {
       load()
       refreshTables()
     } catch (e) {
-      window.alert(e.message)
+      toast(e.message, { variant: 'error' })
     } finally {
       setOpsBusy(false)
     }
@@ -345,14 +372,122 @@ export default function BookingManagement({ staffMode = false }) {
           </h1>
           <p className="booking-mgmt__subtitle">
             {staffMode
-              ? 'Gán bàn cho khách → Xác nhận đơn → Check-in khi khách đến → QR/link để khách gọi món tại bàn. Danh sách theo ngày: mỗi trang một ngày.'
-              : 'Xác nhận đơn chờ → tạo link & QR gọi món tại bàn (cần đã gán bàn). Check-in khi khách đến. Danh sách theo ngày: mỗi trang một ngày.'}
+              ? 'Khách vãng lai: mở bàn nhanh (form bên dưới). Đặt trước: gán bàn → Xác nhận → Check-in → QR gọi món. Danh sách theo ngày.'
+              : 'Khách vãng lai: mở bàn nhanh. Đặt trước: xác nhận đơn → QR gọi món (đã gán bàn). Danh sách theo ngày.'}
           </p>
         </div>
       </header>
 
       {loading ? <p>Đang tải...</p> : null}
       {err ? <p style={{ color: 'crimson' }}>{err}</p> : null}
+
+      {!loading ? (
+        <section className="booking-mgmt__walkIn" aria-labelledby="walkin-heading">
+          <h2 id="walkin-heading" className="booking-mgmt__walkInTitle">
+            Mở bàn — khách vãng lai
+          </h2>
+          <p className="booking-mgmt__walkInHint">
+            Tạo đơn không cần tài khoản, check-in ngay, bàn chuyển sang đang có khách và hiển thị QR/link gọi món.
+          </p>
+          <div className="booking-mgmt__walkInGrid">
+            <label className="booking-mgmt__field">
+              <span>Bàn trống</span>
+              <select
+                value={walkInTableId}
+                onChange={(e) => setWalkInTableId(e.target.value)}
+                aria-label="Chọn bàn cho khách vãng lai"
+              >
+                <option value="">— Chọn bàn —</option>
+                {tables.filter(tableAvailableForWalkIn).map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name || `Bàn ${t.id}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="booking-mgmt__field">
+              <span>Tên khách (tuỳ chọn)</span>
+              <input
+                type="text"
+                value={walkInName}
+                onChange={(e) => setWalkInName(e.target.value)}
+                placeholder="Khách vãng lai"
+                maxLength={100}
+              />
+            </label>
+            <label className="booking-mgmt__field">
+              <span>Số điện thoại (tuỳ chọn)</span>
+              <input
+                type="tel"
+                value={walkInPhone}
+                onChange={(e) => setWalkInPhone(e.target.value)}
+                placeholder="09…"
+                maxLength={20}
+              />
+            </label>
+            <label className="booking-mgmt__field">
+              <span>Số khách</span>
+              <input
+                type="number"
+                min={1}
+                max={99}
+                value={walkInGuests}
+                onChange={(e) => setWalkInGuests(e.target.value)}
+              />
+            </label>
+          </div>
+          <div className="booking-mgmt__walkInActions">
+            <button
+              type="button"
+              className="booking-mgmt__btn booking-mgmt__btn--primary"
+              disabled={walkInBusy}
+              onClick={async () => {
+                const tid = Number(walkInTableId)
+                if (!Number.isFinite(tid) || tid <= 0) {
+                  toast('Chọn bàn trống.', { variant: 'info' })
+                  return
+                }
+                setWalkInBusy(true)
+                try {
+                  const res = await apiFetch('/admin/reservations/walk-in', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      tableId: tid,
+                      guestName: walkInName.trim() || undefined,
+                      guestPhone: walkInPhone.trim() || undefined,
+                      guests: Number(walkInGuests) || 2,
+                      bookingDate: todayYmdLocal(),
+                      bookingTime: nowHmLocal(),
+                    }),
+                  })
+                  setWalkInTableId('')
+                  setWalkInName('')
+                  setWalkInPhone('')
+                  setWalkInGuests('2')
+                  load()
+                  refreshTables()
+                  if (res?.tableSession?.qrSvg && res?.tableSession?.orderUrl) {
+                    setQrModal({
+                      title: 'Vãng lai — QR gọi món',
+                      svg: res.tableSession.qrSvg,
+                      url: res.tableSession.orderUrl,
+                      note: res.tableSessionNote,
+                    })
+                  } else if (res?.tableSessionNote) {
+                    toast(res.tableSessionNote, { variant: 'info' })
+                  }
+                } catch (e) {
+                  toast(e.message, { variant: 'error' })
+                } finally {
+                  setWalkInBusy(false)
+                }
+              }}
+            >
+              {walkInBusy ? 'Đang mở bàn…' : 'Mở bàn & tạo QR'}
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       {qrModal ? (
         <div className="booking-mgmt__modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="qr-title">
@@ -588,6 +723,7 @@ export default function BookingManagement({ staffMode = false }) {
               <tbody>
                 {activeDayRows.map((r) => {
                   const selectableTables = tablesSelectableForRow(tables, rows, r, assignPick)
+                  const tableClosed = assignedTableIsClosed(tables, r)
                   return (
                     <tr key={r.id}>
                       <td data-label="Khách">{r.fullName}</td>
@@ -635,15 +771,27 @@ export default function BookingManagement({ staffMode = false }) {
                           <button
                             type="button"
                             className="booking-mgmt__btn booking-mgmt__btn--primary"
-                            disabled={r.status !== 'PENDING'}
-                            onClick={() => confirm(r.id)}
+                            disabled={r.status !== 'PENDING' || tableClosed}
+                            title={
+                              tableClosed
+                                ? 'Bàn đang đóng — chuyển khách sang bàn khác hoặc mở lại bàn trước'
+                                : undefined
+                            }
+                            onClick={() => confirmReservation(r.id)}
                           >
                             Xác nhận
                           </button>
                           <button
                             type="button"
                             className="booking-mgmt__btn booking-mgmt__btn--secondary"
-                            disabled={r.status === 'CANCELLED' || r.status === 'COMPLETED'}
+                            disabled={
+                              r.status === 'CANCELLED' || r.status === 'COMPLETED' || tableClosed
+                            }
+                            title={
+                              tableClosed
+                                ? 'Bàn đang đóng — chuyển khách sang bàn khác hoặc mở lại bàn trước'
+                                : undefined
+                            }
                             onClick={() => checkIn(r.id)}
                           >
                             Check-in

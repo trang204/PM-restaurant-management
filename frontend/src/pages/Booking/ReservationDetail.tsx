@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { apiFetch } from '../../lib/api'
+import { useNotifications } from '../../context/NotificationsContext'
 import { normalizeReservation, type ReservationRow } from '../../lib/reservation'
 
 export default function ReservationDetail() {
+  const { toast, confirm } = useNotifications()
   const { id } = useParams()
   const navigate = useNavigate()
   const [data, setData] = useState<ReservationRow | null>(null)
@@ -34,18 +36,19 @@ export default function ReservationDetail() {
     if (!id) return
     const token = localStorage.getItem('luxeat_token')
     if (!token) {
-      window.alert('Đăng nhập để hủy đơn của bạn.')
+      toast('Đăng nhập để hủy đơn của bạn.', { variant: 'info' })
       navigate('/login')
       return
     }
-    if (!window.confirm('Hủy đơn đặt bàn này?')) return
+    const okCancel = await confirm({ title: 'Hủy đơn', message: 'Hủy đơn đặt bàn này?' })
+    if (!okCancel) return
     setCancelling(true)
     try {
       await apiFetch(`/reservations/${id}/cancel`, { method: 'POST', body: '{}' })
       const d = await apiFetch<unknown>(`/reservations/${id}`)
       setData(normalizeReservation(d))
     } catch (e) {
-      window.alert((e as Error).message)
+      toast((e as Error).message, { variant: 'error' })
     } finally {
       setCancelling(false)
     }
