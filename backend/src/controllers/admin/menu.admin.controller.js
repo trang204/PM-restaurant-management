@@ -1,6 +1,40 @@
+import path from 'node:path'
+import fs from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
+
 import { ok, created } from '../../utils/response.js'
 import { badRequest, notFound } from '../../utils/httpError.js'
 import { query } from '../../config/db.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const UPLOAD_DIR = path.resolve(__dirname, '../../../uploads')
+
+const IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+
+async function removeUploadFileIfSafe(publicPath) {
+  const raw = String(publicPath || '').trim()
+  if (!raw.startsWith('/uploads/')) return
+  const rel = raw.replace(/^\/uploads\//, '')
+  if (!rel || rel.includes('..')) return
+  const full = path.join(UPLOAD_DIR, rel)
+  if (!full.startsWith(UPLOAD_DIR)) return
+  await fs.unlink(full).catch(() => {})
+}
+
+/** Khớp DECIMAL(14,2) — tối đa ~9,99 nghìn tỷ (đủ cho giá VND). */
+const MAX_PRICE = 999999999999.99
+
+function parsePrice(v) {
+  if (v === undefined || v === null || v === '') return null
+  const n = typeof v === 'number' ? v : Number(String(v).replace(/\s/g, '').replace(',', '.'))
+  if (!Number.isFinite(n)) return NaN
+  return n
+}
+
+function assertPriceInRange(n) {
+  if (n < 0) throw badRequest('Giá không được âm')
+  if (n > MAX_PRICE) throw badRequest(`Giá quá lớn (tối đa ${MAX_PRICE.toLocaleString('vi-VN')} ₫)`)
+}
 
 export async function list(req, res, next) {
   try {
@@ -34,7 +68,7 @@ export async function list(req, res, next) {
       FROM foods f
       LEFT JOIN categories c ON c.id = f.category_id
       ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-      ORDER BY f.created_at DESC
+      ORDER BY c.name NULLS LAST, f.name ASC, f.id ASC
     `,
       params,
     )
@@ -49,7 +83,15 @@ export async function create(req, res, next) {
     const { name, price, description, image_url, category_id, status } = req.body || {}
     if (!name) throw badRequest('name là bắt buộc')
     if (price === undefined || price === null) throw badRequest('price là bắt buộc')
-    if (!category_id) throw badRequest('category_id là bắt buộc')
+    if (category_id === undefined || category_id === null || category_id === '') {
+      throw badRequest('category_id là bắt buộc')
+    }
+    const priceNum = parsePrice(price)
+    if (priceNum == null || !Number.isFinite(priceNum)) {
+      throw badRequest('price không hợp lệ')
+    }
+    const catNum = Number(category_id)
+    if (!Number.isFinite(catNum)) throw badRequest('category_id không hợp lệ')
 
     const r = await query(
       `
@@ -59,10 +101,10 @@ export async function create(req, res, next) {
     `,
       [
         String(name),
-        price,
+        priceNum,
         description ? String(description) : null,
-        image_url ? String(image_url) : null,
-        Number(category_id),
+        image_url != null && String(image_url).trim() ? String(image_url).trim() : null,
+        catNum,
         status ? String(status) : null,
       ],
     )
@@ -78,31 +120,77 @@ export async function update(req, res, next) {
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
 
     const { name, price, description, image_url, category_id, status } = req.body || {}
+
+    if (category_id === undefined || category_id === null || category_id === '') {
+      throw badRequest('category_id là bắt buộc')
+    }
+    const catVal = Number(category_id)
+    if (!Number.isFinite(catVal)) throw badRequest('category_id không hợp lệ')
+
+    if (price === undefined || price === null || price === '') {
+      throw badRequest('price là bắt buộc')
+    }
+    const priceVal = parsePrice(price)
+    if (priceVal == null || !Number.isFinite(priceVal)) throw badRequest('price không hợp lệ')
+    assertPriceInRange(priceVal)
+
+    const nameVal = String(name || '').trim() || 'Món'
+    const descVal =
+      description === undefined || description === null
+        ? null
+        : String(description).trim() === ''
+          ? null
+          : String(description)
+    const imageVal =
+      image_url == null || String(image_url).trim() === '' ? null : String(image_url).trim()
+    const statusVal = status != null && String(status).trim() ? String(status).trim() : 'AVAILABLE'
+
     const r = await query(
       `
       UPDATE foods
       SET
-        name = COALESCE($1, name),
-        price = COALESCE($2, price),
-        description = COALESCE($3, description),
-        image_url = COALESCE($4, image_url),
-        category_id = COALESCE($5, category_id),
-        status = COALESCE($6, status)
+        name = $1,
+        price = $2,
+        description = $3,
+        image_url = $4,
+        category_id = $5,
+        status = $6
       WHERE id = $7
       RETURNING *
     `,
-      [
-        name ? String(name) : null,
-        price ?? null,
-        description ? String(description) : null,
-        image_url ? String(image_url) : null,
-        category_id ? Number(category_id) : null,
-        status ? String(status) : null,
-        id,
-      ],
+      [nameVal, priceVal, descVal, imageVal, catVal, statusVal, id],
     )
     if (!r.rows.length) throw notFound('Không tìm thấy món')
     return ok(res, r.rows[0])
+  } catch (e) {
+    return next(e)
+  }
+}
+
+/** Upload ảnh món (multipart field: image). Cập nhật image_url trong DB. */
+export async function uploadImage(req, res, next) {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
+
+    const file = req.file
+    if (!file) throw badRequest('Cần file ảnh')
+    const mime = String(file.mimetype || '').toLowerCase()
+    if (!IMAGE_MIME.has(mime)) throw badRequest('Chỉ chấp nhận ảnh JPEG, PNG, WebP hoặc GIF')
+
+    const cur = await query('SELECT id, image_url FROM foods WHERE id = $1', [id])
+    if (!cur.rows.length) throw notFound('Không tìm thấy món')
+    const prevUrl = cur.rows[0].image_url
+
+    await fs.mkdir(UPLOAD_DIR, { recursive: true })
+    const ext = mime === 'image/jpeg' ? 'jpg' : mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'gif'
+    const safeName = `food_${id}_${Date.now()}_${Math.random().toString(16).slice(2)}.${ext}`
+    await fs.writeFile(path.join(UPLOAD_DIR, safeName), file.buffer)
+
+    const publicUrl = `/uploads/${safeName}`
+    const r = await query(`UPDATE foods SET image_url = $1 WHERE id = $2 RETURNING id, image_url`, [publicUrl, id])
+    if (prevUrl && prevUrl !== publicUrl) await removeUploadFileIfSafe(prevUrl)
+    return ok(res, { id: r.rows[0].id, image_url: r.rows[0].image_url })
   } catch (e) {
     return next(e)
   }

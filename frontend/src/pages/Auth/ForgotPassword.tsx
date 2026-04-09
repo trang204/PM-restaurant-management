@@ -1,11 +1,32 @@
-import { useState } from 'react'
-import { apiFetch } from '../../lib/api'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { apiFetch, mediaUrl } from '../../lib/api'
+import { fetchPublicSettings } from '../../lib/settings'
+import './AuthPages.css'
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [brand, setBrand] = useState('Luxeat')
+  const [banner, setBanner] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchPublicSettings()
+      .then((s) => {
+        setBrand(s.restaurantName?.trim() || 'Luxeat')
+        const enabled = Boolean(s.banner?.enabled ?? true)
+        const showOnAuth = Boolean(s.banner?.showOnAuth ?? true)
+        const urls = Array.isArray(s.bannerUrls) ? s.bannerUrls : []
+        if (enabled && showOnAuth && urls.length) setBanner(mediaUrl(urls[0]))
+        else setBanner(null)
+      })
+      .catch(() => {
+        setBrand('Luxeat')
+        setBanner(null)
+      })
+  }, [])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -26,34 +47,59 @@ export default function ForgotPassword() {
   }
 
   return (
-    <main className="menuPage">
-      <header className="menuHero">
-        <div className="menuHero__content">
-          <p className="menuHero__eyebrow">Tài khoản</p>
-          <h1 className="menuHero__title">Quên mật khẩu</h1>
-          <p className="menuHero__subtitle">POST /api/auth/forgot-password</p>
-        </div>
-      </header>
+    <main className="authPage">
+      <div
+        className={`authPage__aside${banner ? ' authPage__aside--banner' : ''}`}
+        style={banner ? { backgroundImage: `url(${banner})` } : undefined}
+      >
+        <p className="authPage__eyebrow">Hỗ trợ</p>
+        <h1 className="authPage__title">Quên mật khẩu ({brand})</h1>
+        <p className="authPage__lead">
+          Nhập email đã đăng ký. Nếu tài khoản tồn tại, hệ thống sẽ gửi hướng dẫn đặt lại mật khẩu.
+        </p>
+      </div>
 
-      <section className="menuSection">
-        <form onSubmit={onSubmit} style={{ maxWidth: 520, margin: '0 auto', textAlign: 'left' }}>
-          <label>
-            Email
+      <div className="authCard">
+        <div className="authCard__head">
+          <h2 className="authCard__title">Khôi phục truy cập</h2>
+          <p className="authCard__subtitle">Chúng tôi sẽ xử lý yêu cầu theo email bạn cung cấp.</p>
+        </div>
+
+        <form className="authForm" onSubmit={onSubmit}>
+          <div className="authField">
+            <label htmlFor="forgot-email" className="authField__label">
+              Email
+            </label>
             <input
+              id="forgot-email"
+              className="authField__input"
               required
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={{ width: '100%', padding: 10, borderRadius: 12, border: '1px solid var(--border)', marginTop: 6 }}
+              placeholder="tenban@email.com"
+              disabled={loading}
             />
-          </label>
-          {err ? <p style={{ color: 'crimson' }}>{err}</p> : null}
-          {msg ? <p>{msg}</p> : null}
-          <button className="nav__link nav__cta" type="submit" disabled={loading} style={{ marginTop: 12 }}>
-            {loading ? 'Đang gửi...' : 'Gửi'}
+          </div>
+
+          {err ? <p className="authError">{err}</p> : null}
+          {msg ? <p className="authSuccess">{msg}</p> : null}
+
+          <button className="authSubmit" type="submit" disabled={loading}>
+            {loading ? 'Đang gửi…' : 'Gửi liên kết'}
           </button>
         </form>
-      </section>
+
+        <div className="authFooter">
+          <p>
+            <Link to="/login">← Quay lại đăng nhập</Link>
+          </p>
+          <p style={{ marginTop: 10 }}>
+            Chưa có tài khoản? <Link to="/register">Đăng ký</Link>
+          </p>
+        </div>
+      </div>
     </main>
   )
 }

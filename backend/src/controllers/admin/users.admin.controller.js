@@ -5,6 +5,20 @@ import { query } from '../../config/db.js'
 
 export async function list(req, res, next) {
   try {
+    const q = String(req.query.q || '').trim().toLowerCase()
+    const role = req.query.role ? String(req.query.role).toUpperCase() : null
+
+    const params = []
+    const where = []
+    if (q) {
+      params.push(`%${q}%`)
+      where.push(`(LOWER(u.name) LIKE $${params.length} OR LOWER(u.email) LIKE $${params.length} OR LOWER(COALESCE(u.phone, '')) LIKE $${params.length})`)
+    }
+    if (role) {
+      params.push(role)
+      where.push(`r.name = $${params.length}`)
+    }
+
     const r = await query(
       `
       SELECT
@@ -16,10 +30,18 @@ export async function list(req, res, next) {
         u.created_at
       FROM users u
       LEFT JOIN roles r ON r.id = u.role_id
+      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
       ORDER BY u.created_at DESC
     `,
+      params,
     )
-    return ok(res, r.rows)
+    return ok(
+      res,
+      r.rows.map((row) => ({
+        ...row,
+        fullName: row.name,
+      })),
+    )
   } catch (e) {
     return next(e)
   }

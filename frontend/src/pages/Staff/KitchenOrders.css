@@ -1,0 +1,315 @@
+/* ─── Kitchen Orders ─── */
+:root {
+  --ko-gold:    #B8935A;
+  --ko-gold-d:  #8B6E41;
+  --ko-gold-s:  #F4ECE0;
+  --ko-border:  #E2D9CC;
+  --ko-card:    #FFFFFF;
+  --ko-text:    #1C1713;
+  --ko-muted:   #7A7069;
+  --ko-radius:  12px;
+  --ko-shadow:  0 2px 12px rgba(28,23,19,0.07);
+  --ko-ease:    0.2s ease;
+}
+
+.kitchen {
+  color: var(--ko-text);
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+/* ─── Head ─── */
+.kitchen__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.kitchen__title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.55rem;
+  font-weight: 600;
+  color: var(--ko-text);
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+
+.kitchen__sub {
+  font-size: 0.88rem;
+  color: var(--ko-muted);
+  margin: 0;
+}
+
+.kitchen__refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 9px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--ko-border);
+  background: var(--ko-card);
+  color: var(--ko-text);
+  transition: all var(--ko-ease);
+}
+
+.kitchen__refresh:hover { background: #FDFAF7; border-color: rgba(184,147,90,0.3); }
+
+/* Error */
+.kitchen__err {
+  padding: 10px 14px;
+  background: #FEF3F2;
+  border: 1px solid #F5C4C0;
+  border-radius: 9px;
+  font-size: 0.875rem;
+  color: #C0392B;
+  margin-bottom: 16px;
+}
+
+/* ─── Grid ─── */
+.kitchen__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+/* ─── Card ─── */
+.kitchen__card {
+  background: var(--ko-card);
+  border: 1px solid var(--ko-border);
+  border-radius: var(--ko-radius);
+  overflow: hidden;
+  box-shadow: var(--ko-shadow);
+  transition: box-shadow var(--ko-ease);
+}
+
+.kitchen__card:hover { box-shadow: 0 4px 20px rgba(28,23,19,0.1); }
+
+.kitchen__detail {
+  border-left: 3px solid var(--ko-gold);
+}
+
+.kitchen__h2 {
+  padding: 12px 16px;
+  background: #FDFAF7;
+  border-bottom: 1px solid var(--ko-border);
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ko-text);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.kitchen__h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ko-text);
+  margin: 0 0 10px;
+}
+
+.kitchen__empty {
+  text-align: center;
+  padding: 36px 16px;
+  color: var(--ko-muted);
+  font-size: 0.875rem;
+  background: var(--ko-card);
+  border: 1px solid var(--ko-border);
+  border-radius: var(--ko-radius);
+}
+
+/* ─── List / Meta ─── */
+.kitchen__list {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kitchen__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--ko-text);
+}
+
+.kitchen__muted {
+  color: var(--ko-muted);
+  font-size: 0.82rem;
+}
+
+.kitchen__hint {
+  font-size: 0.82rem;
+  color: var(--ko-muted);
+  font-style: italic;
+  padding: 8px 16px;
+}
+
+.kitchen__detailHead {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ko-border);
+  background: #FDFAF7;
+}
+
+/* ─── Badges / Pills ─── */
+.kitchen__badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.kitchen__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #F5F2ED;
+  color: var(--ko-muted);
+  border: 1px solid var(--ko-border);
+}
+
+.kitchen__pill--ok {
+  background: #EFF6EF;
+  color: #2D6A2D;
+  border-color: #C3E6C3;
+}
+
+.kitchen__pill--warn {
+  background: #FEF9EC;
+  color: #92600A;
+  border-color: #F5E0A0;
+}
+
+.kitchen__pill--pay {
+  background: #F4ECE0;
+  color: #8B6E41;
+  border-color: rgba(184,147,90,0.3);
+}
+
+/* ─── Table in kitchen ─── */
+.kitchen__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.kitchen__table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ko-muted);
+  background: #FDFAF7;
+  border-bottom: 1px solid var(--ko-border);
+}
+
+.kitchen__table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(226,217,204,0.5);
+  color: var(--ko-text);
+  vertical-align: middle;
+}
+
+.kitchen__table tr:last-child td { border-bottom: none; }
+
+/* ─── Buttons ─── */
+.kitchen__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--ko-border);
+  background: var(--ko-card);
+  color: var(--ko-text);
+  transition: all var(--ko-ease);
+}
+
+.kitchen__btn:hover { background: #FDFAF7; border-color: rgba(184,147,90,0.3); }
+
+.kitchen__btn--primary {
+  background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(184,147,90,0.3);
+}
+
+.kitchen__btn--primary:hover { filter: brightness(1.06); border-color: transparent; }
+
+.kitchen__btn--ghost {
+  background: transparent;
+  border-color: var(--ko-border);
+  color: var(--ko-muted);
+}
+
+.kitchen__btn--ghost:hover { color: var(--ko-text); background: #FDFAF7; }
+.kitchen__btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ─── Pay section ─── */
+.kitchen__pay {
+  padding: 12px 16px;
+  border-top: 1px solid var(--ko-border);
+  background: #FDFAF7;
+}
+
+.kitchen__payBox {
+  background: var(--ko-card);
+  border: 1px solid var(--ko-border);
+  border-radius: 9px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+
+.kitchen__payBox--done {
+  border-color: #C3E6C3;
+  background: #EFF6EF;
+}
+
+/* ─── Footer ─── */
+.kitchen__foot {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--ko-border);
+  background: #FDFAF7;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.kitchen__link {
+  color: var(--ko-gold-d);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.kitchen__link:hover { text-decoration: underline; }
+
+@media (max-width: 700px) {
+  .kitchen__grid { grid-template-columns: 1fr; }
+}

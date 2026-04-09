@@ -6,15 +6,17 @@ import comtamUrl from '../../assets/menu/comtam.svg?url'
 import goicuonUrl from '../../assets/menu/goicuon.svg?url'
 import trasuaUrl from '../../assets/menu/trasua.svg?url'
 import cheUrl from '../../assets/menu/che.svg?url'
-import { apiFetch } from '../../lib/api'
+import { apiFetch, mediaUrl } from '../../lib/api'
+import { Link } from 'react-router-dom'
 
 type ApiMenuItem = {
-  id: string
+  id: string | number
   name: string
   price: number
-  categoryName?: string
-  imageUrl?: string
-  isActive?: boolean
+  description?: string | null
+  image_url?: string | null
+  category_id?: number | null
+  category_name?: string | null
 }
 
 const LOCAL_IMG: Record<string, string> = {
@@ -34,21 +36,29 @@ const vnd = new Intl.NumberFormat('vi-VN', {
 
 function resolveImageSrc(id: string, imageUrl?: string) {
   if (LOCAL_IMG[id]) return LOCAL_IMG[id]
-  if (imageUrl && imageUrl.startsWith('http')) return imageUrl
+  if (imageUrl) return mediaUrl(imageUrl)
   return comtamUrl
 }
 
+type CategoryRow = { id: number; name: string }
+
 export default function Menu() {
   const [items, setItems] = useState<ApiMenuItem[]>([])
+  const [categories, setCategories] = useState<CategoryRow[]>([])
+  const [activeCat, setActiveCat] = useState<number | 'all'>('all')
+  const [q, setQ] = useState('')
+  const [myTable, setMyTable] = useState<null | { tableName: string; url: string }>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    apiFetch<ApiMenuItem[]>('/menu')
-      .then((data) => {
-        if (!cancelled) setItems(Array.isArray(data) ? data : [])
+    Promise.all([apiFetch<ApiMenuItem[]>('/menu'), apiFetch<CategoryRow[]>('/menu/categories')])
+      .then(([data, cats]) => {
+        if (cancelled) return
+        setItems(Array.isArray(data) ? data : [])
+        setCategories(Array.isArray(cats) ? cats : [])
       })
       .catch((e) => {
         if (!cancelled) setError((e as Error).message)
@@ -61,7 +71,33 @@ export default function Menu() {
     }
   }, [])
 
-  const visible = useMemo(() => items.filter((i) => i.isActive !== false), [items])
+  useEffect(() => {
+    const token = localStorage.getItem('luxeat_token')
+    if (!token) {
+      setMyTable(null)
+      return
+    }
+    apiFetch<any>('/table-session/me')
+      .then((d) => {
+        if (d?.tableName && d?.tableOrderToken) {
+          setMyTable({ tableName: String(d.tableName), url: `/order/table/${encodeURIComponent(String(d.tableOrderToken))}` })
+        } else {
+          setMyTable(null)
+        }
+      })
+      .catch(() => setMyTable(null))
+  }, [])
+
+  const visible = useMemo(() => {
+    const qq = q.trim().toLowerCase()
+    return items.filter((i) => {
+      if (activeCat !== 'all' && Number(i.category_id) !== Number(activeCat)) return false
+      if (!qq) return true
+      const name = String(i.name || '').toLowerCase()
+      const desc = String(i.description || '').toLowerCase()
+      return name.includes(qq) || desc.includes(qq)
+    })
+  }, [items, activeCat, q])
 
   return (
     <main className="menuPage">
@@ -69,15 +105,24 @@ export default function Menu() {
         <div className="menuHero__content">
           <p className="menuHero__eyebrow">Thực đơn hôm nay</p>
           <h1 className="menuHero__title">Món ngon — giá rõ ràng</h1>
-          <p className="menuHero__subtitle">
-            Dữ liệu lấy từ API <code>/api/menu</code>. Giá hiển thị theo VND.
-          </p>
+          <p className="menuHero__subtitle">Chọn danh mục hoặc tìm món bạn yêu thích.</p>
         </div>
         <div className="menuHero__meta" aria-label="Thông tin nhanh">
           <div className="menuPill">
             <span className="menuPill__label">Giờ mở cửa</span>
             <span className="menuPill__value">08:00 – 22:00</span>
           </div>
+          {myTable ? (
+            <div className="menuPill">
+              <span className="menuPill__label">Bàn của bạn</span>
+              <span className="menuPill__value">
+                <strong>{myTable.tableName}</strong> ·{' '}
+                <Link to={myTable.url} className="menuPill__link">
+                  Gọi món
+                </Link>
+              </span>
+            </div>
+          ) : null}
           <div className="menuPill">
             <span className="menuPill__label">Cập nhật</span>
             <span className="menuPill__value">Theo nhà hàng</span>
@@ -95,45 +140,78 @@ export default function Menu() {
           </p>
         </div>
 
-        <div className="menuGrid" role="list">
-          {!loading && !error && visible.length === 0 ? (
-            <p>Chưa có món. Thêm món trong khu quản trị.</p>
-          ) : null}
-          {visible.map((item) => (
-            <article
-              className="menuCard"
-              key={item.id}
-              role="listitem"
-              tabIndex={0}
-              aria-label={`${item.name}, giá ${vnd.format(item.price)}`}
-            >
-              <div className="menuCard__media">
-                <img
-                  className="menuCard__img"
-                  src={resolveImageSrc(String(item.id), item.imageUrl)}
-                  alt={item.name}
-                  loading="lazy"
-                />
-                <span className="menuBadge" aria-label={`Danh mục ${item.categoryName || ''}`}>
-                  {item.categoryName || 'Món'}
-                </span>
-              </div>
+        <div className="menuLayout">
+          <aside className="menuSide" aria-label="Danh mục món ăn">
+            <div className="menuSide__search">
+              <input
+                className="menuSearch"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Tìm món…"
+                type="search"
+              />
+            </div>
+            <nav className="menuCats">
+              <button
+                type="button"
+                className={`menuCat${activeCat === 'all' ? ' menuCat--on' : ''}`}
+                onClick={() => setActiveCat('all')}
+              >
+                Tất cả
+              </button>
+              {categories.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`menuCat${activeCat === c.id ? ' menuCat--on' : ''}`}
+                  onClick={() => setActiveCat(c.id)}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </nav>
+          </aside>
 
-              <div className="menuCard__body">
-                <div className="menuCard__row">
-                  <h3 className="menuCard__name">{item.name}</h3>
-                  <p className="menuCard__price">{vnd.format(item.price)}</p>
-                </div>
-                <p className="menuCard__desc">Món từ thực đơn nhà hàng.</p>
-              </div>
-            </article>
-          ))}
+          <div className="menuMain">
+            {!loading && !error && visible.length === 0 ? (
+              <p>Chưa có món phù hợp. Thử đổi danh mục hoặc từ khóa.</p>
+            ) : null}
+            <div className="menuGrid" role="list">
+              {visible.map((item) => (
+                <article
+                  className="menuCard"
+                  key={String(item.id)}
+                  role="listitem"
+                  tabIndex={0}
+                  aria-label={`${item.name}, giá ${vnd.format(item.price)}`}
+                >
+                  <div className="menuCard__media">
+                    <img
+                      className="menuCard__img"
+                      src={resolveImageSrc(String(item.id), item.image_url || undefined)}
+                      alt={item.name}
+                      loading="lazy"
+                    />
+                    <span className="menuBadge" aria-label={`Danh mục ${item.category_name || ''}`}>
+                      {item.category_name || 'Món'}
+                    </span>
+                  </div>
+
+                  <div className="menuCard__body">
+                    <div className="menuCard__row">
+                      <h3 className="menuCard__name">{item.name}</h3>
+                      <p className="menuCard__price">{vnd.format(item.price)}</p>
+                    </div>
+                    <p className="menuCard__desc">{item.description || 'Món từ thực đơn nhà hàng.'}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
-      <footer className="menuFooter">
-        <p className="menuFooter__text">Nguồn dữ liệu: backend REST · GET /api/menu</p>
-      </footer>
+      <footer className="menuFooter" />
     </main>
   )
 }
