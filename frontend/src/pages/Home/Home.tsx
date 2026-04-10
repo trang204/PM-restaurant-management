@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { fetchPublicSettings } from '../../lib/settings'
+import { fetchPublicSettings, type HomeFeature } from '../../lib/settings'
 import { mediaUrl } from '../../lib/api'
 import './Home.css'
 
-const features = [
+const DEFAULT_FEATURES: HomeFeature[] = [
   {
     title: 'Đặt bàn dễ dàng',
     text: 'Chọn ngày, giờ và số khách — xác nhận nhanh, không cần gọi điện.',
@@ -32,26 +32,67 @@ export default function Home() {
     mode: 'SLIDESHOW',
     showOnHome: true,
   })
+  const [homeContent, setHomeContent] = useState<{
+    heroEyebrow: string
+    heroLead: string
+    heroMeta: string
+    heroPanelTag: string
+    featuresTitle: string
+    featuresDesc: string
+    ctaTitle: string
+    ctaText: string
+    features: HomeFeature[]
+  }>({
+    heroEyebrow: 'Ẩm thực tinh tế · Đặt bàn trực tuyến',
+    heroLead: 'Trải nghiệm đặt bàn hiện đại: xem thực đơn mọi lúc, giữ chỗ chỉ vài bước, và quản lý lịch sử ngay trên trình duyệt.',
+    heroMeta: 'Phục vụ tận nơi · không gian ấm cúng',
+    heroPanelTag: 'Hôm nay còn bàn',
+    featuresTitle: 'Vì sao chọn chúng tôi',
+    featuresDesc: 'Giao diện gọn, thao tác nhanh — phù hợp cả khách lẻ lẫn nhóm bạn.',
+    ctaTitle: 'Sẵn sàng đặt bàn?',
+    ctaText: 'Chỉ mất vài phút — chọn giờ và số khách phù hợp.',
+    features: DEFAULT_FEATURES,
+  })
+
+  const applySettings = (d: Awaited<ReturnType<typeof fetchPublicSettings>>) => {
+    setRestaurantName(d.restaurantName || null)
+    if (d.openTime && d.closeTime) setHours(`${d.openTime} – ${d.closeTime}`)
+    else setHours(null)
+    setBanners(d.bannerUrls ?? [])
+    setBannerCfg({
+      enabled: Boolean(d.banner?.enabled ?? true),
+      mode: String(d.banner?.mode || 'SLIDESHOW').toUpperCase(),
+      showOnHome: Boolean(d.banner?.showOnHome ?? true),
+    })
+    const h = d.home
+    if (h) {
+      setHomeContent((prev) => ({
+        heroEyebrow: h.heroEyebrow || prev.heroEyebrow,
+        heroLead: h.heroLead || prev.heroLead,
+        heroMeta: h.heroMeta || prev.heroMeta,
+        heroPanelTag: h.heroPanelTag || prev.heroPanelTag,
+        featuresTitle: h.featuresTitle || prev.featuresTitle,
+        featuresDesc: h.featuresDesc || prev.featuresDesc,
+        ctaTitle: h.ctaTitle || prev.ctaTitle,
+        ctaText: h.ctaText || prev.ctaText,
+        features: Array.isArray(h.features) && h.features.length > 0 ? h.features : prev.features,
+      }))
+    }
+  }
 
   useEffect(() => {
-    fetchPublicSettings()
-      .then((d) => {
-        setRestaurantName(d.restaurantName || null)
-        if (d.openTime && d.closeTime) setHours(`${d.openTime} – ${d.closeTime}`)
-        else setHours(null)
-        setBanners(d.bannerUrls ?? [])
-        setBannerCfg({
-          enabled: Boolean(d.banner?.enabled ?? true),
-          mode: String(d.banner?.mode || 'SLIDESHOW').toUpperCase(),
-          showOnHome: Boolean(d.banner?.showOnHome ?? true),
-        })
-      })
-      .catch(() => {
-        setRestaurantName(null)
-        setHours(null)
-        setBanners([])
-        setBannerCfg({ enabled: true, mode: 'SLIDESHOW', showOnHome: true })
-      })
+    fetchPublicSettings().then(applySettings).catch(() => {})
+  }, [])
+
+  // Re-fetch khi tab homepage được focus lại (ví dụ: admin vừa lưu settings ở tab khác).
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        fetchPublicSettings().then(applySettings).catch(() => {})
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
   }, [])
 
   useEffect(() => {
@@ -81,12 +122,9 @@ export default function Home() {
       <section className="home-hero">
         <div className="home-hero__inner">
           <div className="home-hero__copy">
-            <p className="home-hero__eyebrow">Ẩm thực tinh tế · Đặt bàn trực tuyến</p>
+            <p className="home-hero__eyebrow">{homeContent.heroEyebrow}</p>
             <h1 className="home-hero__title">{brand}</h1>
-            <p className="home-hero__lead">
-              Trải nghiệm đặt bàn hiện đại: xem thực đơn mọi lúc, giữ chỗ chỉ vài bước, và quản lý lịch sử
-              ngay trên trình duyệt.
-            </p>
+            <p className="home-hero__lead">{homeContent.heroLead}</p>
             <div className="home-hero__actions">
               <Link to="/book" className="home-btn home-btn--primary">
                 Đặt bàn ngay
@@ -97,7 +135,7 @@ export default function Home() {
             </div>
             <ul className="home-hero__meta">
               <li>{hours ? `Giờ mở cửa: ${hours}` : 'Mở cửa hàng ngày'}</li>
-              <li>Phục vụ tận nơi · không gian ấm cúng</li>
+              <li>{homeContent.heroMeta}</li>
             </ul>
           </div>
           <div className="home-hero__panel" aria-hidden="true">
@@ -116,7 +154,7 @@ export default function Home() {
                 />
               ) : null}
             </div>
-            <p className="home-hero__panel-tag">Hôm nay còn bàn</p>
+            <p className="home-hero__panel-tag">{homeContent.heroPanelTag}</p>
           </div>
         </div>
       </section>
@@ -124,17 +162,17 @@ export default function Home() {
       <section className="home-features" aria-labelledby="home-features-heading">
         <div className="home-features__head">
           <h2 id="home-features-heading" className="home-section-title">
-            Vì sao chọn Luxeat
+            {homeContent.featuresTitle}
           </h2>
           <p className="home-section-desc">
-            Giao diện gọn, thao tác nhanh — phù hợp cả khách lẻ lẫn nhóm bạn.
+            {homeContent.featuresDesc}
             {restaurantName ? ` Tại ${restaurantName}.` : ''}
           </p>
         </div>
         <div className="home-features__grid">
-          {features.map((f) => (
-            <article key={f.title} className="home-card">
-              <div className={`home-card__icon home-card__icon--${f.icon}`} aria-hidden />
+          {homeContent.features.map((f, idx) => (
+            <article key={f.title || idx} className="home-card">
+              <div className={`home-card__icon home-card__icon--${f.icon || 'calendar'}`} aria-hidden />
               <h3 className="home-card__title">{f.title}</h3>
               <p className="home-card__text">{f.text}</p>
             </article>
@@ -145,8 +183,8 @@ export default function Home() {
       <section className="home-strip">
         <div className="home-strip__inner">
           <div>
-            <h2 className="home-strip__title">Sẵn sàng đặt bàn?</h2>
-            <p className="home-strip__text">Chỉ mất vài phút — chọn giờ và số khách phù hợp.</p>
+            <h2 className="home-strip__title">{homeContent.ctaTitle}</h2>
+            <p className="home-strip__text">{homeContent.ctaText}</p>
           </div>
           <Link to="/book" className="home-btn home-btn--light">
             Bắt đầu đặt chỗ

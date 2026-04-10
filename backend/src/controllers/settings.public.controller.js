@@ -5,20 +5,15 @@ import { asTextArray } from '../utils/bookingMapper.js'
 /** Thông tin hiển thị công khai (trang chủ, footer, QR). */
 export async function getPublicSettings(req, res, next) {
   try {
-    const r = await query(
-      `
-      SELECT
-        restaurant_name, logo_url, banner_urls,
-        banner_enabled, banner_mode, banner_show_on_home, banner_show_on_auth,
-        header_cta_label, header_cta_url,
-        footer_tagline, footer_copyright, footer_links, social_links,
-        address, phone, email, open_time, close_time
-      FROM settings
-      ORDER BY id
-      LIMIT 1
-    `,
-    )
+    // Dùng SELECT * để tránh lỗi "column does not exist" khi schema chưa migrate xong.
+    const r = await query(`SELECT * FROM settings ORDER BY id LIMIT 1`)
     const s = r.rows[0] || {}
+
+    let homeFeaturesJson = null
+    if (s.home_features_json) {
+      try { homeFeaturesJson = JSON.parse(s.home_features_json) } catch { homeFeaturesJson = null }
+    }
+
     return ok(res, {
       restaurantName: s.restaurant_name ?? null,
       logoUrl: s.logo_url ?? null,
@@ -44,6 +39,17 @@ export async function getPublicSettings(req, res, next) {
       email: s.email ?? null,
       openTime: s.open_time != null ? String(s.open_time).slice(0, 5) : null,
       closeTime: s.close_time != null ? String(s.close_time).slice(0, 5) : null,
+      home: {
+        heroEyebrow: s.hero_eyebrow ?? null,
+        heroLead: s.hero_lead ?? null,
+        heroMeta: s.hero_meta ?? null,
+        heroPanelTag: s.hero_panel_tag ?? null,
+        featuresTitle: s.home_features_title ?? null,
+        featuresDesc: s.home_features_desc ?? null,
+        ctaTitle: s.home_cta_title ?? null,
+        ctaText: s.home_cta_text ?? null,
+        features: Array.isArray(homeFeaturesJson) ? homeFeaturesJson : null,
+      },
     })
   } catch (e) {
     return next(e)

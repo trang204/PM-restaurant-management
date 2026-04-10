@@ -93,6 +93,45 @@ export async function ensureDbSchema() {
     await query(`ALTER TABLE order_items ADD COLUMN kitchen_ack_at TIMESTAMP`)
   }
 
+  // Cột cài đặt thanh toán chuyển khoản (SePay QR).
+  const paymentCols = [
+    ['payment_bank_account', 'TEXT'],
+    ['payment_bank_code', 'TEXT'],
+    ['payment_transfer_content', 'TEXT'],
+    ['payment_qr_template', 'TEXT'],
+  ]
+  for (const [col, type] of paymentCols) {
+    const pc = await query(
+      `SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='settings' AND column_name=$1 LIMIT 1`,
+      [col],
+    )
+    if (!pc.rows.length) {
+      await query(`ALTER TABLE settings ADD COLUMN ${col} ${type}`)
+    }
+  }
+
+  // Các cột nội dung trang chủ (hero, features, CTA).
+  const homeCols = [
+    ['hero_eyebrow',        'TEXT'],
+    ['hero_lead',           'TEXT'],
+    ['hero_meta',           'TEXT'],
+    ['hero_panel_tag',      'TEXT'],
+    ['home_features_title', 'TEXT'],
+    ['home_features_desc',  'TEXT'],
+    ['home_cta_title',      'TEXT'],
+    ['home_cta_text',       'TEXT'],
+    ['home_features_json',  'TEXT'],
+  ]
+  for (const [col, type] of homeCols) {
+    const hc = await query(
+      `SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='settings' AND column_name=$1 LIMIT 1`,
+      [col],
+    )
+    if (!hc.rows.length) {
+      await query(`ALTER TABLE settings ADD COLUMN ${col} ${type}`)
+    }
+  }
+
   // Giá VND thường > 99.999.999 — DECIMAL(10,2) gây overflow; nâng lên 14 chữ số tổng.
   const moneyCols = [
     ['foods', 'price'],
