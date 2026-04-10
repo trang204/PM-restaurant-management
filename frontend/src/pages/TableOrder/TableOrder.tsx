@@ -44,7 +44,10 @@ type PaymentCtx = {
   orderId: number
   total: number
   payment: PaymentRow | null
-  qrContent?: string | null
+  qrUrl?: string | null
+  bankAccount?: string | null
+  bankCode?: string | null
+  transferContent?: string | null
 }
 
 const STATUS_VI: Record<string, string> = {
@@ -566,18 +569,94 @@ export default function TableOrder() {
 
                   {paymentCtx?.payment ? (
                     <div className="tableOrder__payInfo">
-                      <div>Trạng thái: <strong>{paymentCtx.payment.status || 'UNPAID'}</strong></div>
-                      <div>Phương thức: <strong>{paymentCtx.payment.method || '—'}</strong></div>
-                      <div>Số tiền: <strong>{formatPrice(Number(paymentCtx.total || total))}</strong></div>
+                      <div className="tableOrder__payMeta">
+                        <span>
+                          Trạng thái:{' '}
+                          <strong className={String(paymentCtx.payment.status || '').toUpperCase() === 'PAID' ? 'tableOrder__payPaid' : 'tableOrder__payUnpaid'}>
+                            {String(paymentCtx.payment.status || '').toUpperCase() === 'PAID' ? 'Đã thanh toán' : 'Chờ xác nhận'}
+                          </strong>
+                        </span>
+                        <span>
+                          Phương thức:{' '}
+                          <strong>
+                            {paymentCtx.payment.method === 'bank_transfer' ? 'Chuyển khoản' : paymentCtx.payment.method === 'cash' ? 'Tiền mặt' : '—'}
+                          </strong>
+                        </span>
+                        <span>
+                          Số tiền: <strong className="tableOrder__payAmount">{formatPrice(Number(paymentCtx.total || total))}</strong>
+                        </span>
+                      </div>
+
                       {String(paymentCtx.payment.status || '').toUpperCase() !== 'PAID' ? (
                         <p className="tableOrder__payNotify">
-                          Yêu cầu đã gửi tới nhân viên (chuông thông báo trên quầy). Quý khách vui lòng chờ xác nhận.
+                          Yêu cầu đã gửi tới nhân viên. Quý khách vui lòng chờ xác nhận.
                         </p>
                       ) : null}
-                      {paymentCtx.qrContent ? (
-                        <div className="tableOrder__qrBox">
-                          <div className="tableOrder__qrTitle">Mã thanh toán (tạm)</div>
-                          <code className="tableOrder__qrCode">{paymentCtx.qrContent}</code>
+
+                      {paymentCtx.qrUrl && paymentCtx.payment.method === 'bank_transfer' ? (
+                        <div className="tableOrder__qrSection">
+                          <p className="tableOrder__qrLabel">Quét mã QR để chuyển khoản</p>
+                          <div className="tableOrder__qrImgWrap">
+                            <img
+                              src={paymentCtx.qrUrl}
+                              alt="QR chuyển khoản"
+                              className="tableOrder__qrImg"
+                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                            />
+                          </div>
+                          {paymentCtx.bankCode ? (
+                            <div className="tableOrder__qrBankRow">
+                              <img
+                                src={`https://qr.sepay.vn/assets/img/banklogo/${paymentCtx.bankCode}.png`}
+                                alt={paymentCtx.bankCode}
+                                className="tableOrder__qrBankLogo"
+                                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                              />
+                              <span className="tableOrder__qrBankCode">{paymentCtx.bankCode}</span>
+                            </div>
+                          ) : null}
+                          {paymentCtx.bankAccount ? (
+                            <div className="tableOrder__qrInfoRow">
+                              <span className="tableOrder__qrInfoLabel">Số tài khoản</span>
+                              <span className="tableOrder__qrInfoValue">{paymentCtx.bankAccount}</span>
+                              <button
+                                type="button"
+                                className="tableOrder__qrCopy"
+                                onClick={() => navigator.clipboard.writeText(paymentCtx.bankAccount!).then(() => showToast('Đã sao chép STK'))}
+                                title="Sao chép"
+                              >
+                                ⎘
+                              </button>
+                            </div>
+                          ) : null}
+                          {paymentCtx.total > 0 ? (
+                            <div className="tableOrder__qrInfoRow">
+                              <span className="tableOrder__qrInfoLabel">Số tiền</span>
+                              <span className="tableOrder__qrInfoValue tableOrder__payAmount">{formatPrice(Number(paymentCtx.total))}</span>
+                            </div>
+                          ) : null}
+                          {paymentCtx.transferContent ? (
+                            <div className="tableOrder__qrInfoRow">
+                              <span className="tableOrder__qrInfoLabel">Nội dung CK</span>
+                              <span className="tableOrder__qrInfoValue">{paymentCtx.transferContent}</span>
+                              <button
+                                type="button"
+                                className="tableOrder__qrCopy"
+                                onClick={() => navigator.clipboard.writeText(paymentCtx.transferContent!).then(() => showToast('Đã sao chép nội dung'))}
+                                title="Sao chép"
+                              >
+                                ⎘
+                              </button>
+                            </div>
+                          ) : null}
+                          <a
+                            href={paymentCtx.qrUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="tableOrder__qrOpenLink"
+                          >
+                            Mở QR trong tab mới ↗
+                          </a>
                         </div>
                       ) : null}
                     </div>

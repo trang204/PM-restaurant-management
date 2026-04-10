@@ -287,9 +287,55 @@ export async function getPayment(req, res, next) {
 
     const pay = await query(`SELECT * FROM payments WHERE order_id = $1 ORDER BY id DESC LIMIT 1`, [orderId])
     const total = await computeOrderTotal(orderId)
-    return ok(res, { orderId, total, payment: pay.rows[0] || null })
+    const paymentRow = pay.rows[0] || null
+    const isBankTransfer = String(paymentRow?.method || '').toLowerCase() === 'bank_transfer'
+    const bankQr = isBankTransfer ? await buildBankQrUrl(orderId, total) : null
+    return ok(res, {
+      orderId,
+      total,
+      payment: paymentRow,
+      qrUrl: bankQr?.qrUrl ?? null,
+      bankAccount: bankQr?.bankAccount ?? null,
+      bankCode: bankQr?.bankCode ?? null,
+      transferContent: bankQr?.transferContent ?? null,
+    })
   } catch (e) {
     return next(e)
+  }
+}
+
+/** Lấy thông tin ngân hàng từ settings và build URL QR SePay. */
+async function buildBankQrUrl(orderId, total) {
+  try {
+    const sr = await query(
+      `SELECT payment_bank_account, payment_bank_code, payment_transfer_content, payment_qr_template FROM settings ORDER BY id LIMIT 1`,
+    )
+    const s = sr.rows[0] || {}
+    const bankAccount = String(s.payment_bank_account || '').trim()
+    const bankCode = String(s.payment_bank_code || '').trim()
+    if (!bankAccount || !bankCode) return null
+
+    const rawContent = String(s.payment_transfer_content || 'Don {id}').trim()
+    const content = rawContent
+      .replace(/\{id\}/g, String(orderId))
+      .replace(/\{amount\}/g, String(Math.round(total)))
+    const template = String(s.payment_qr_template || '').trim()
+
+    const params = new URLSearchParams()
+    params.set('acc', bankAccount)
+    params.set('bank', bankCode)
+    if (total > 0) params.set('amount', String(Math.round(total)))
+    if (content) params.set('des', content)
+    if (template) params.set('template', template)
+
+    return {
+      qrUrl: `https://qr.sepay.vn/img?${params.toString()}`,
+      bankAccount,
+      bankCode,
+      transferContent: content,
+    }
+  } catch {
+    return null
   }
 }
 
@@ -346,8 +392,16 @@ export async function createPayment(req, res, next) {
       ).catch(() => {})
     }
 
-    const qrContent = m === 'bank_transfer' ? `PAY|ORDER:${orderId}|AMOUNT:${total}` : null
-    const payload = { orderId, total, payment: payRow, qrContent }
+    const bankQr = m === 'bank_transfer' ? await buildBankQrUrl(orderId, total) : null
+    const payload = {
+      orderId,
+      total,
+      payment: payRow,
+      qrUrl: bankQr?.qrUrl ?? null,
+      bankAccount: bankQr?.bankAccount ?? null,
+      bankCode: bankQr?.bankCode ?? null,
+      transferContent: bankQr?.transferContent ?? null,
+    }
     return isUpdate ? ok(res, payload) : created(res, payload)
   } catch (e) {
     return next(e)
