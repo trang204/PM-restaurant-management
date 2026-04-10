@@ -228,7 +228,15 @@ export default function AdminLayout() {
             <NotificationBell />
             <span className="admin-topbar__name">{me?.fullName || me?.email || '...'}</span>
             <div className="admin-topbar__avatar" title={me?.email || 'Admin'} aria-hidden>
-              {(me?.email || 'A').slice(0, 2).toUpperCase()}
+              {me?.avatarUrl ? (
+                <img
+                  src={mediaUrl(me.avatarUrl)}
+                  alt=""
+                  className="admin-topbar__avatarImg"
+                />
+              ) : (
+                <span>{(me?.fullName || me?.email || 'A').slice(0, 2).toUpperCase()}</span>
+              )}
             </div>
             <button type="button" className="admin-topbar__logout" onClick={handleLogout}>
               <LogOut size={14} />

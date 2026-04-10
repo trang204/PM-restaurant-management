@@ -295,6 +295,14 @@
 
 .admin-topbar__avatar:hover { transform: scale(1.05); }
 
+.admin-topbar__avatarImg {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
 .admin-topbar__logout {
   display: inline-flex;
   align-items: center;
