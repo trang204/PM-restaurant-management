@@ -84,6 +84,10 @@
 
 .booking-mgmt__btn--danger { color: #C0392B; border-color: #F5C4C0; }
 .booking-mgmt__btn--danger:hover { background: #FEF3F2; border-color: #F5C4C0; }
+.booking-mgmt__btn--pay { color: #1a6e3c; border-color: #a8d5b8; background: #f0faf4; font-weight: 700; }
+.booking-mgmt__btn--pay:hover:not(:disabled) { background: #d8f0e4; border-color: #6abf8a; }
+.booking-mgmt__btn--qr { color: #6b3fa0; border-color: #d4b8f0; background: #f8f3ff; font-weight: 700; }
+.booking-mgmt__btn--qr:hover:not(:disabled) { background: #ecdffe; border-color: #b48ee0; }
 .booking-mgmt__btn--sm { padding: 6px 13px; font-size: 0.82rem; }
 .booking-mgmt__btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -406,7 +410,9 @@
 }
 
 .booking-mgmt__qr-svg {
-  display: block;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   margin: 0 auto 14px;
   border-radius: 10px;
   border: 1px solid var(--bk-border);
@@ -460,6 +466,92 @@
   background: #fff;
 }
 
+/* ─── Payment QR modal ─── */
+.booking-mgmt__payment-info {
+  background: #f8f5f0;
+  border: 1px solid var(--bk-border);
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.booking-mgmt__payment-info p { margin: 0; }
+
+.booking-mgmt__payment-bank-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 10px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--bk-border);
+}
+
+.booking-mgmt__payment-bank-logo {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  border-radius: 10px;
+  border: 1px solid #ece6de;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.booking-mgmt__payment-bank-name {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--bk-text);
+}
+
+.booking-mgmt__payment-bank-acc {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--bk-muted);
+}
+
+.booking-mgmt__payment-label {
+  font-weight: 600;
+  color: var(--bk-muted);
+  margin-right: 4px;
+}
+
+.booking-mgmt__payment-amount {
+  color: #1a6e3c;
+  font-size: 1.05rem;
+}
+
+.booking-mgmt__payment-note {
+  color: var(--bk-muted);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+.booking-mgmt__payment-qr {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.booking-mgmt__payment-qr-img {
+  max-width: 280px;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--bk-border);
+}
+
+.booking-mgmt__payment-qr-err {
+  color: #C0392B;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 12px;
+}
+
 @media (max-width: 700px) {
   .booking-mgmt__walkInGrid { grid-template-columns: 1fr 1fr; }
+  .booking-mgmt__payment-qr-img { max-width: 240px; }
 }

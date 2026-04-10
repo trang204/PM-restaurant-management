@@ -120,6 +120,11 @@ function assignedTableIsClosed(tables, row) {
   return Boolean(t && String(t.status || '').toUpperCase() === 'CLOSED')
 }
 
+function bankLogoUrl(code) {
+  if (!code) return null
+  return `https://qr.sepay.vn/assets/img/banklogo/${code}.png`
+}
+
 /** @param {{ staffMode?: boolean }} props */
 export default function BookingManagement({ staffMode = false }) {
   const { toast, confirm: askConfirm } = useNotifications()
@@ -143,6 +148,10 @@ export default function BookingManagement({ staffMode = false }) {
   const [walkInPhone, setWalkInPhone] = useState('')
   const [walkInGuests, setWalkInGuests] = useState('2')
   const [walkInBusy, setWalkInBusy] = useState(false)
+  const [paymentSettings, setPaymentSettings] = useState(null)
+  const [paymentModal, setPaymentModal] = useState(null)
+  const [paymentBusy, setPaymentBusy] = useState(false)
+  const [qrBusy, setQrBusy] = useState(false)
 
   function load() {
     setLoading(true)
@@ -164,6 +173,20 @@ export default function BookingManagement({ staffMode = false }) {
 
   useEffect(() => {
     refreshTables()
+  }, [])
+
+  useEffect(() => {
+    apiFetch('/admin/settings')
+      .then((d) => {
+        if (!d) return
+        setPaymentSettings({
+          bankAccount: String(d.payment_bank_account ?? '').trim(),
+          bankCode: String(d.payment_bank_code ?? '').trim(),
+          transferContent: String(d.payment_transfer_content ?? '').trim(),
+          qrTemplate: String(d.payment_qr_template ?? '').trim(),
+        })
+      })
+      .catch(() => {})
   }, [])
 
   /** Đồng bộ dropdown gán bàn với bàn đã lưu trên server (F5 vẫn thấy đúng bàn). */
@@ -363,6 +386,74 @@ export default function BookingManagement({ staffMode = false }) {
     }
   }
 
+  function buildSePayUrl({ bankAccount, bankCode, amount, content, template }) {
+    const base = 'https://qr.sepay.vn/img'
+    const params = new URLSearchParams()
+    params.set('acc', bankAccount)
+    params.set('bank', bankCode)
+    if (amount) params.set('amount', String(Math.round(amount)))
+    if (content) params.set('des', content)
+    if (template) params.set('template', template)
+    return `${base}?${params.toString()}`
+  }
+
+  async function openOrderQr(r) {
+    setQrBusy(true)
+    try {
+      const res = await apiFetch(`/admin/reservations/${r.id}/order-qr`)
+      if (res?.tableSession?.qrSvg && res?.tableSession?.orderUrl) {
+        setQrModal({
+          title: `QR gọi món — ${r.fullName || 'Khách'}`,
+          svg: res.tableSession.qrSvg,
+          url: res.tableSession.orderUrl,
+          note: res.tableSessionNote,
+        })
+      } else if (res?.tableSessionNote) {
+        toast(res.tableSessionNote, { variant: 'info' })
+      } else {
+        toast('Không lấy được QR — kiểm tra bàn đã gán chưa.', { variant: 'info' })
+      }
+    } catch (e) {
+      toast(e.message, { variant: 'error' })
+    } finally {
+      setQrBusy(false)
+    }
+  }
+
+  async function openPaymentQr(r) {
+    if (!paymentSettings?.bankAccount || !paymentSettings?.bankCode) {
+      toast('Chưa cấu hình thông tin ngân hàng. Vào Cài đặt → Thanh toán để nhập.', { variant: 'info' })
+      return
+    }
+    setPaymentBusy(true)
+    try {
+      const data = await apiFetch(`/admin/reservations/${r.id}/order-total`)
+      const amount = Number(data?.amount ?? 0)
+      const rawContent = paymentSettings.transferContent || 'Thanh toan dat ban {id}'
+      const content = rawContent.replace('{id}', String(r.id)).replace('{amount}', String(Math.round(amount)))
+      const qrUrl = buildSePayUrl({
+        bankAccount: paymentSettings.bankAccount,
+        bankCode: paymentSettings.bankCode,
+        amount,
+        content,
+        template: paymentSettings.qrTemplate,
+      })
+      setPaymentModal({
+        bookingId: r.id,
+        guestName: r.fullName,
+        amount,
+        content,
+        qrUrl,
+        bankAccount: paymentSettings.bankAccount,
+        bankCode: paymentSettings.bankCode,
+      })
+    } catch (e) {
+      toast(e.message, { variant: 'error' })
+    } finally {
+      setPaymentBusy(false)
+    }
+  }
+
   return (
     <div className="booking-mgmt">
       <header className="booking-mgmt__header">
@@ -495,7 +586,7 @@ export default function BookingManagement({ staffMode = false }) {
             <h2 id="qr-title" className="booking-mgmt__modal-title">
               {qrModal.title}
             </h2>
-            {qrModal.note ? <p className="booking-mgmt__modal-note">{qrModal.note}</p> : null}
+            {qrModal.note ? <p className="">{qrModal.note}</p> : null}
             <div
               className="booking-mgmt__qr-svg"
               dangerouslySetInnerHTML={{ __html: qrModal.svg }}
@@ -619,6 +710,80 @@ export default function BookingManagement({ staffMode = false }) {
                 onClick={() => setCloseTableModal(null)}
               >
                 Hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {paymentModal ? (
+        <div className="booking-mgmt__modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="payment-qr-title">
+          <div className="booking-mgmt__modal booking-mgmt__modal--wide">
+            <h2 id="payment-qr-title" className="booking-mgmt__modal-title">
+              QR Thanh toán chuyển khoản
+            </h2>
+            <div className="booking-mgmt__payment-info">
+              {(() => {
+                const logo = bankLogoUrl(paymentModal.bankCode)
+                return (
+                  <div className="booking-mgmt__payment-bank-row">
+                    {logo ? (
+                      <img src={logo} alt={paymentModal.bankCode} className="booking-mgmt__payment-bank-logo" />
+                    ) : null}
+                    <div>
+                      <p className="booking-mgmt__payment-bank-name">{paymentModal.bankCode}</p>
+                      <p className="booking-mgmt__payment-bank-acc">STK: <strong>{paymentModal.bankAccount}</strong></p>
+                    </div>
+                  </div>
+                )
+              })()}
+              <p>
+                <span className="booking-mgmt__payment-label">Khách:</span> {paymentModal.guestName} &nbsp;|&nbsp;
+                <span className="booking-mgmt__payment-label">Đơn #:</span> {paymentModal.bookingId}
+              </p>
+              <p>
+                <span className="booking-mgmt__payment-label">Nội dung CK:</span> {paymentModal.content}
+              </p>
+              {paymentModal.amount > 0 ? (
+                <p>
+                  <span className="booking-mgmt__payment-label">Số tiền:</span>{' '}
+                  <strong className="booking-mgmt__payment-amount">
+                    {paymentModal.amount.toLocaleString('vi-VN')} ₫
+                  </strong>
+                </p>
+              ) : (
+                <p className="booking-mgmt__payment-note">Chưa có món — số tiền bằng 0. Khách có thể nhập tay khi quét QR.</p>
+              )}
+            </div>
+            <div className="booking-mgmt__payment-qr">
+              <img
+                src={paymentModal.qrUrl}
+                alt="QR thanh toán chuyển khoản"
+                className="booking-mgmt__payment-qr-img"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                  e.currentTarget.nextElementSibling?.removeAttribute('hidden')
+                }}
+              />
+              <p hidden className="booking-mgmt__payment-qr-err">
+                Không tải được ảnh QR. Kiểm tra lại số tài khoản và mã ngân hàng trong Cài đặt.
+              </p>
+            </div>
+            <div className="booking-mgmt__modal-actions">
+              <a
+                href={paymentModal.qrUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="booking-mgmt__btn booking-mgmt__btn--secondary"
+              >
+                Mở QR mới
+              </a>
+              <button
+                type="button"
+                className="booking-mgmt__btn booking-mgmt__btn--ghost"
+                onClick={() => setPaymentModal(null)}
+              >
+                Đóng
               </button>
             </div>
           </div>
@@ -770,6 +935,27 @@ export default function BookingManagement({ staffMode = false }) {
                         <div className="booking-mgmt__actions">
                           <button
                             type="button"
+                            className="booking-mgmt__btn booking-mgmt__btn--qr"
+                            disabled={
+                              qrBusy ||
+                              !r.assignedTableId ||
+                              r.status === 'CANCELLED' ||
+                              r.status === 'COMPLETED' ||
+                              r.status === 'PENDING'
+                            }
+                            title={
+                              !r.assignedTableId
+                                ? 'Chưa gán bàn'
+                                : r.status === 'PENDING'
+                                  ? 'Cần xác nhận đơn trước'
+                                  : 'Xem / in QR gọi món cho khách'
+                            }
+                            onClick={() => openOrderQr(r)}
+                          >
+                            QR gọi món
+                          </button>
+                          <button
+                            type="button"
                             className="booking-mgmt__btn booking-mgmt__btn--primary"
                             disabled={r.status !== 'PENDING' || tableClosed}
                             title={
@@ -784,26 +970,42 @@ export default function BookingManagement({ staffMode = false }) {
                           <button
                             type="button"
                             className="booking-mgmt__btn booking-mgmt__btn--secondary"
-                            disabled={
-                              r.status === 'CANCELLED' || r.status === 'COMPLETED' || tableClosed
-                            }
+                            disabled={r.status !== 'CONFIRMED' || tableClosed}
                             title={
-                              tableClosed
-                                ? 'Bàn đang đóng — chuyển khách sang bàn khác hoặc mở lại bàn trước'
-                                : undefined
+                              r.status === 'PENDING'
+                                ? 'Cần Xác nhận đơn trước khi Check-in'
+                                : r.status === 'CHECKED_IN'
+                                  ? 'Khách đã check-in'
+                                  : tableClosed
+                                    ? 'Bàn đang đóng — chuyển khách sang bàn khác hoặc mở lại bàn trước'
+                                    : undefined
                             }
                             onClick={() => checkIn(r.id)}
                           >
                             Check-in
                           </button>
-                            <button
-                              type="button"
-                              className="booking-mgmt__btn booking-mgmt__btn--danger"
-                              disabled={r.status === 'CANCELLED' || r.status === 'COMPLETED'}
-                              onClick={() => cancelBooking(r.id)}
-                            >
-                              Hủy
-                            </button>
+                          <button
+                            type="button"
+                            className="booking-mgmt__btn booking-mgmt__btn--pay"
+                            disabled={paymentBusy || r.status === 'CANCELLED' || r.status === 'COMPLETED'}
+                            title="Tạo QR chuyển khoản thanh toán cho đơn này"
+                            onClick={() => openPaymentQr(r)}
+                          >
+                            QR CK
+                          </button>
+                          <button
+                            type="button"
+                            className="booking-mgmt__btn booking-mgmt__btn--danger"
+                            disabled={
+                              r.status === 'CANCELLED' ||
+                              r.status === 'COMPLETED' ||
+                              r.status === 'CHECKED_IN'
+                            }
+                            title={r.status === 'CHECKED_IN' ? 'Khách đang check-in — không thể hủy' : undefined}
+                            onClick={() => cancelBooking(r.id)}
+                          >
+                            Hủy
+                          </button>
                             <button
                               type="button"
                               className="booking-mgmt__btn booking-mgmt__btn--ghost"

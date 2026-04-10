@@ -145,6 +145,20 @@ async function tableSessionPayload(bookingId, bookingStatus) {
   }
 }
 
+/** Lấy (hoặc tạo) QR gọi món cho một booking đang hoạt động. */
+export async function getOrderQr(req, res, next) {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
+    const b = await query(`SELECT id, status FROM bookings WHERE id = $1`, [id])
+    if (!b.rows.length) throw notFound('Không tìm thấy đơn')
+    const payload = await tableSessionPayload(id, b.rows[0].status)
+    return ok(res, payload)
+  } catch (e) {
+    return next(e)
+  }
+}
+
 export async function list(req, res, next) {
   try {
     const r = await query(
@@ -358,6 +372,15 @@ export async function confirm(req, res, next) {
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
 
+    const cur = await query('SELECT id, status FROM bookings WHERE id = $1', [id])
+    if (!cur.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
+    const curStatus = String(cur.rows[0].status || '').toUpperCase()
+    if (curStatus !== 'PENDING') {
+      throw badRequest(`Không thể xác nhận đơn ở trạng thái "${curStatus}".`)
+    }
+
+    await assertAssignedTableNotClosed(id, 'xác nhận')
+
     const r = await query(`UPDATE bookings SET status = 'CONFIRMED' WHERE id = $1 RETURNING *`, [id])
     if (!r.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
     const payload = await tableSessionPayload(id, r.rows[0].status)
@@ -371,6 +394,17 @@ export async function checkIn(req, res, next) {
   try {
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
+
+    // Chỉ cho phép check-in khi đã CONFIRMED
+    const cur = await query('SELECT id, status FROM bookings WHERE id = $1', [id])
+    if (!cur.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
+    const curStatus = String(cur.rows[0].status || '').toUpperCase()
+    if (curStatus === 'PENDING') {
+      throw badRequest('Đơn chưa được xác nhận — vui lòng Xác nhận đơn trước khi Check-in.')
+    }
+    if (curStatus === 'CANCELLED') throw badRequest('Đơn đã hủy, không thể check-in.')
+    if (curStatus === 'COMPLETED') throw badRequest('Đơn đã hoàn tất, không thể check-in.')
+    if (curStatus === 'CHECKED_IN') throw badRequest('Khách đã check-in rồi.')
 
     await assertAssignedTableNotClosed(id, 'check-in')
 
@@ -428,6 +462,34 @@ export async function confirmOnlinePayment(req, res, next) {
     })
 
     return ok(res, { reservationId: bookingId, status: 'PAID', paymentId: pay.id })
+  } catch (e) {
+    return next(e)
+  }
+}
+
+/** Lấy tổng tiền order của một đặt bàn (dùng cho hiển thị QR thanh toán). */
+export async function getOrderTotal(req, res, next) {
+  try {
+    const bookingId = Number(req.params.id)
+    if (!Number.isFinite(bookingId)) throw badRequest('id không hợp lệ')
+
+    const r = await query(
+      `
+      SELECT
+        o.id AS order_id,
+        COALESCE(SUM(oi.price * oi.quantity), 0)::numeric AS total
+      FROM orders o
+      LEFT JOIN order_items oi ON oi.order_id = o.id
+      WHERE o.booking_id = $1
+      GROUP BY o.id
+      ORDER BY o.id DESC
+      LIMIT 1
+      `,
+      [bookingId],
+    )
+
+    const amount = r.rows.length ? Number(r.rows[0].total) : 0
+    return ok(res, { bookingId, amount })
   } catch (e) {
     return next(e)
   }
