@@ -348,6 +348,119 @@
   color: var(--rr-muted);
 }
 
+/* ─── Main Tabs (Theo kỳ / Theo bàn) ─── */
+.rev-report__mainTabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.rev-report__mainTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--rr-border);
+  background: #fff;
+  color: var(--rr-muted);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--rr-ease);
+}
+
+.rev-report__mainTab:hover { border-color: rgba(184,147,90,0.35); color: var(--rr-text); }
+
+.rev-report__mainTab--on {
+  background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 3px 12px rgba(184,147,90,0.3);
+}
+
+/* ─── Table breakdown (by-table tab) ─── */
+.rev-report__tableGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.rev-report__tableBlock {
+  background: var(--rr-card);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-radius);
+  overflow: hidden;
+  box-shadow: var(--rr-shadow);
+}
+
+.rev-report__tableBlockHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 18px;
+  background: #FDFAF7;
+  border: none;
+  cursor: pointer;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  text-align: left;
+  transition: background var(--rr-ease);
+}
+
+.rev-report__tableBlockHead:hover { background: #F4ECE0; }
+.rev-report__tableBlockHead--open { background: #F4ECE0; border-bottom: 1px solid var(--rr-border); }
+
+.rev-report__tableBlockLeft {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--rr-text);
+  min-width: 0;
+}
+
+.rev-report__tableBlockName {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--rr-text);
+  white-space: nowrap;
+}
+
+.rev-report__tableBlockBadge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(184,147,90,0.12);
+  color: #8B6E41;
+  white-space: nowrap;
+}
+
+.rev-report__tableBlockTotal {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--rr-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.rev-report__tableBlockBody {
+  padding: 14px 18px;
+  background: #fff;
+}
+
+.rev-report__tableBlockBody .rev-report__invoiceList {
+  gap: 10px;
+}
+
 @media (max-width: 600px) {
   .rev-report__filters { flex-direction: column; align-items: stretch; }
+  .rev-report__mainTabs { flex-wrap: wrap; }
+  .rev-report__tableBlockHead { padding: 12px 14px; }
+  .rev-report__tableBlockBody { padding: 12px 14px; }
 }
