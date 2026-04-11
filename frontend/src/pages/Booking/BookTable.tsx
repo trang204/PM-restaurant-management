@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { apiFetch, mediaUrl } from '../../lib/api'
 import './BookTable.css'
 
-type Table = { id: string; name: string; capacity: number; status: string; zone?: string }
+type Table = { id: string; name: string; capacity: number; status: string; zone?: string; image_url?: string }
 type MenuRow = {
   id: string
   name: string
@@ -27,6 +27,12 @@ const vnd = new Intl.NumberFormat('vi-VN', {
   currency: 'VND',
   maximumFractionDigits: 0,
 })
+
+const tablePlaceholder =
+  'data:image/svg+xml,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260" viewBox="0 0 400 260"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f5efe6"/><stop offset="100%" stop-color="#eadcca"/></linearGradient></defs><rect width="400" height="260" fill="url(#g)"/><text x="200" y="132" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" fill="#7b6450">Chưa có ảnh góc nhìn</text></svg>`,
+  )
 
 export default function BookTable() {
   const navigate = useNavigate()
@@ -225,7 +231,7 @@ export default function BookTable() {
                 <input type="time" required value={time} onChange={(e) => setTime(e.target.value)} />
               </label>
             </div>
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: 16, marginLeft: 26, marginBottom: 16 }}>
               <label className="bookField bookField--guest">
                 <span>Số khách *</span>
                 <div className="bookQty" style={{ maxWidth: 160 }}>
@@ -261,6 +267,7 @@ export default function BookTable() {
               </button>
               {tables.map((t) => {
                 const ok = isTableSelectable(t)
+                const img = t.image_url ? mediaUrl(t.image_url) : tablePlaceholder
                 return (
                   <button
                     key={t.id}
@@ -269,6 +276,9 @@ export default function BookTable() {
                     className={`bookTableBtn${selectedTableId === t.id ? ' bookTableBtn--active' : ''}`}
                     onClick={() => ok && setSelectedTableId(t.id)}
                   >
+                    <span className="bookTableBtn__imageWrap" aria-hidden>
+                      <img className="bookTableBtn__image" src={img} alt="" />
+                    </span>
                     <span className="bookTableBtn__name">{t.name || `Bàn ${t.id}`}</span>
                     <span className="bookTableBtn__meta">{t.capacity} chỗ ngồi</span>
                     <span className="bookTableBtn__badge">{ok ? 'Còn trống' : t.status}</span>
@@ -376,6 +386,16 @@ export default function BookTable() {
                     : '—'}
               </li>
             </ul>
+            {selectedTable ? (
+              <div className="bookSummary__tablePreview">
+                <div className="bookSummary__tableLabel">Góc nhìn bàn đã chọn</div>
+                <img
+                  className="bookSummary__tableImg"
+                  src={selectedTable.image_url ? mediaUrl(selectedTable.image_url) : tablePlaceholder}
+                  alt={`Góc nhìn ${selectedTable.name}`}
+                />
+              </div>
+            ) : null}
             <div>
               <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--book-muted)', marginBottom: 6 }}>
                 Món gợi ý trước
