@@ -65,10 +65,10 @@ export default function StaffLayout() {
               <ChefHat size={14} />
               Bếp & gọi món
             </NavLink>
-            <NavLink to="/staff/reports" className="staff-topbar__navLink">
+            {/* <NavLink to="/staff/reports" className="staff-topbar__navLink">
               <BarChart3 size={14} />
               Doanh thu
-            </NavLink>
+            </NavLink> */}
           </nav>
         </div>
         <div className="staff-topbar__right">

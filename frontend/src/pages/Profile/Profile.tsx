@@ -8,6 +8,8 @@ const ROLE_LABELS: Record<string, string> = {
   STAFF: 'Nhân viên',
   ADMIN: 'Quản trị viên',
 }
+
+export default function Profile() {
   const navigate = useNavigate()
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const [me, setMe] = useState<{
@@ -222,7 +224,7 @@ const ROLE_LABELS: Record<string, string> = {
                 </div>
                 <div className="profileInfo__row">
                   <span>Vai trò</span>
-                  <strong>{ROLE_LABELS[me.role] || me.role || 'Khách hàng'}</strong>
+                  <strong>{ROLE_LABELS[me?.role ?? ''] || me?.role || 'Khách hàng'}</strong>
                 </div>
                 <div className="profileInfo__row">
                   <span>Mã</span>

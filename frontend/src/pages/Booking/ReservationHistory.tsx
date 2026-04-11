@@ -17,6 +17,8 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELLED: 'Đã hủy',
   PAID: 'Đã thanh toán',
 }
+
+export default function ReservationHistory() {
   const [rows, setRows] = useState<ReservationRow[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
