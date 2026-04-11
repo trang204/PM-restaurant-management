@@ -4,6 +4,15 @@ import { apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import { normalizeReservation, type ReservationRow } from '../../lib/reservation'
 
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Chờ xác nhận',
+  CONFIRMED: 'Đã xác nhận',
+  CHECKED_IN: 'Đã vào bàn',
+  COMPLETED: 'Hoàn thành',
+  CANCELLED: 'Đã hủy',
+  PAID: 'Đã thanh toán',
+}
+
 export default function ReservationDetail() {
   const { toast, confirm } = useNotifications()
   const { id } = useParams()
@@ -83,7 +92,7 @@ export default function ReservationDetail() {
             <p>
               {data.date} · {data.time} · {data.guestCount} khách
             </p>
-            <p>Trạng thái: {data.status}</p>
+            <p>Trạng thái: {STATUS_LABELS[data.status] || data.status}</p>
             {data.tables?.length ? (
               <p>Bàn: {data.tables.join(', ')}</p>
             ) : data.assignedTableId ? (
@@ -93,7 +102,7 @@ export default function ReservationDetail() {
             {data.tableOrderToken ? (
               <p style={{ marginTop: 12 }}>
                 <Link to={`/order/table/${encodeURIComponent(data.tableOrderToken)}`}>
-                  Gọi món tại bàn (web)
+                  Gọi món tại bàn
                 </Link>
               </p>
             ) : null}

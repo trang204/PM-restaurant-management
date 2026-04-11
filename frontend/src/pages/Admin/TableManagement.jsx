@@ -9,7 +9,7 @@ function statusMeta(status) {
   if (s === 'RESERVED') return { className: 'table-card__status table-card__status--yellow', label: 'Đã giữ' }
   if (s === 'OCCUPIED') return { className: 'table-card__status table-card__status--red', label: 'Có khách' }
   if (s === 'CLOSED') return { className: 'table-card__status table-card__status--muted', label: 'Đóng' }
-  if (s === 'IN_USE' || s === 'IN USE') return { className: 'table-card__status table-card__status--red', label: 'In Use' }
+  if (s === 'IN_USE' || s === 'IN USE') return { className: 'table-card__status table-card__status--red', label: 'Đang sử dụng' }
   return { className: 'table-card__status', label: status }
 }
 

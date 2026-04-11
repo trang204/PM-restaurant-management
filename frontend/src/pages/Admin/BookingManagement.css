@@ -554,4 +554,10 @@
 @media (max-width: 700px) {
   .booking-mgmt__walkInGrid { grid-template-columns: 1fr 1fr; }
   .booking-mgmt__payment-qr-img { max-width: 240px; }
+  .booking-mgmt__header { flex-direction: column; align-items: stretch; }
+  .booking-mgmt__headRight { flex-wrap: wrap; }
+}
+
+@media (max-width: 480px) {
+  .booking-mgmt__walkInGrid { grid-template-columns: 1fr; }
 }

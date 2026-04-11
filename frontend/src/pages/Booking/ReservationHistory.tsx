@@ -3,7 +3,20 @@ import { Link } from 'react-router-dom'
 import { apiFetch } from '../../lib/api'
 import { normalizeReservation, type ReservationRow } from '../../lib/reservation'
 
-export default function ReservationHistory() {
+const ROLE_LABELS: Record<string, string> = {
+  CUSTOMER: 'Khách hàng',
+  STAFF: 'Nhân viên',
+  ADMIN: 'Quản trị viên',
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Chờ xác nhận',
+  CONFIRMED: 'Đã xác nhận',
+  CHECKED_IN: 'Đã vào bàn',
+  COMPLETED: 'Hoàn thành',
+  CANCELLED: 'Đã hủy',
+  PAID: 'Đã thanh toán',
+}
   const [rows, setRows] = useState<ReservationRow[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -56,7 +69,7 @@ export default function ReservationHistory() {
             <li key={r.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 12, marginBottom: 10 }}>
               <strong>{r.fullName}</strong> · {r.phone}
               <br />
-              {r.date} lúc {r.time} · {r.guestCount} khách · <span>{r.status}</span>
+              {r.date} lúc {r.time} · {r.guestCount} khách · <span>{STATUS_LABELS[r.status] || r.status}</span>
               {r.tables?.length ? (
                 <>
                   <br />

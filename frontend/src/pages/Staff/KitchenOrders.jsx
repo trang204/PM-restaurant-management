@@ -286,7 +286,7 @@ export default function KitchenOrders() {
                   Mở trang gọi món khách (xem trước)
                 </a>
                 <span className="kitchen__muted"> · </span>
-                <span className="kitchen__muted">Quay lại {base === '/admin' ? 'Admin' : 'Nhân viên'} từ menu.</span>
+                <span className="kitchen__muted">Quay lại {base === '/admin' ? 'Quản trị' : 'Nhân viên'} từ menu.</span>
               </p>
             </>
           )}

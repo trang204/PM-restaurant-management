@@ -1,6 +1,38 @@
 import { createServer } from './app.js'
 import { ensureDbSchema, query } from './config/db.js'
 
+// ─── Kiểm tra biến môi trường bắt buộc ───────────────────────────────────────
+function validateEnv() {
+  const errors = []
+
+  const appSecret = process.env.APP_SECRET?.trim()
+  if (!appSecret || appSecret.length < 32) {
+    errors.push('APP_SECRET: chưa đặt hoặc quá ngắn (tối thiểu 32 ký tự). Thêm vào file .env.')
+  }
+
+  const jwtSecret = process.env.JWT_SECRET?.trim()
+  if (!jwtSecret || jwtSecret.length < 32) {
+    errors.push('JWT_SECRET: chưa đặt hoặc quá ngắn (tối thiểu 32 ký tự). Thêm vào file .env.')
+  }
+  if (jwtSecret === 'your_secret' || jwtSecret === 'secret' || jwtSecret === 'changeme') {
+    errors.push('JWT_SECRET: đang dùng giá trị mặc định không an toàn. Hãy đổi thành chuỗi ngẫu nhiên mạnh.')
+  }
+
+  if (errors.length > 0) {
+    // eslint-disable-next-line no-console
+    console.error('\n❌  Không thể khởi động backend — thiếu cấu hình bảo mật:\n')
+    for (const e of errors) {
+      // eslint-disable-next-line no-console
+      console.error(`   • ${e}`)
+    }
+    // eslint-disable-next-line no-console
+    console.error('\nTham khảo file .env.example để biết cách cấu hình.\n')
+    process.exit(1)
+  }
+}
+
+validateEnv()
+
 const app = createServer()
 
 const PORT = Number(process.env.PORT || 5000)

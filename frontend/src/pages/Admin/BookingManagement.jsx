@@ -13,6 +13,15 @@ function badgeClass(status) {
   return 'book-badge'
 }
 
+const STATUS_LABELS = {
+  PENDING: 'Chờ xác nhận',
+  CONFIRMED: 'Đã xác nhận',
+  CHECKED_IN: 'Đã vào bàn',
+  COMPLETED: 'Hoàn thành',
+  CANCELLED: 'Đã hủy',
+  PAID: 'Đã thanh toán',
+}
+
 function normDate(d) {
   if (d == null || d === '') return ''
   return String(d).slice(0, 10)
@@ -267,7 +276,7 @@ export default function BookingManagement({ staffMode = false }) {
       load()
       if (res?.tableSession?.qrSvg && res?.tableSession?.orderUrl) {
         setQrModal({
-          title: 'Check-in — QR gọi món',
+          title: 'Vào bàn — QR gọi món',
           svg: res.tableSession.qrSvg,
           url: res.tableSession.orderUrl,
           note: res.tableSessionNote,
@@ -457,11 +466,11 @@ export default function BookingManagement({ staffMode = false }) {
       <header className="booking-mgmt__header">
         <div>
           <h1 className="booking-mgmt__title">
-            {staffMode ? 'Tiếp đón & check-in' : 'Đặt bàn'}
+            {staffMode ? 'Tiếp đón & quản lý bàn' : 'Đặt bàn'}
           </h1>
           <p className="booking-mgmt__subtitle">
             {staffMode
-              ? 'Khách vãng lai: mở bàn nhanh (form bên dưới). Đặt trước: gán bàn → Xác nhận → Check-in → QR gọi món. Danh sách theo ngày.'
+              ? 'Khách vãng lai: mở bàn nhanh (form bên dưới). Đặt trước: gán bàn → Xác nhận → Vào bàn → QR gọi món. Danh sách theo ngày.'
               : 'Khách vãng lai: mở bàn nhanh. Đặt trước: xác nhận đơn → QR gọi món (đã gán bàn). Danh sách theo ngày.'}
           </p>
         </div>
@@ -476,7 +485,7 @@ export default function BookingManagement({ staffMode = false }) {
             Mở bàn — khách vãng lai
           </h2>
           <p className="booking-mgmt__walkInHint">
-            Tạo đơn không cần tài khoản, check-in ngay, bàn chuyển sang đang có khách và hiển thị QR/link gọi món.
+            Tạo đơn không cần tài khoản, vào bàn ngay, bàn chuyển sang đang có khách và hiển thị QR/link gọi món.
           </p>
           <div className="booking-mgmt__walkInGrid">
             <label className="booking-mgmt__field">
@@ -599,7 +608,7 @@ export default function BookingManagement({ staffMode = false }) {
                 Gọi món cho khách
               </a>
               <button type="button" className="booking-mgmt__btn booking-mgmt__btn--primary" onClick={() => copyUrl(qrModal.url)}>
-                Copy link
+                Sao chép link
               </button>
               <button type="button" className="booking-mgmt__btn booking-mgmt__btn--ghost" onClick={() => setQrModal(null)}>
                 Đóng
@@ -930,7 +939,7 @@ export default function BookingManagement({ staffMode = false }) {
                         </div>
                       </td>
                       <td data-label="Trạng thái">
-                        <span className={badgeClass(r.status)}>{r.status}</span>
+                        <span className={badgeClass(r.status)}>{STATUS_LABELS[r.status] || r.status}</span>
                       </td>
                       <td data-label="Thao tác">
                         <div className="booking-mgmt__actions">
@@ -953,16 +962,16 @@ export default function BookingManagement({ staffMode = false }) {
                             disabled={r.status !== 'CONFIRMED' || tableClosed}
                             title={
                               r.status === 'PENDING'
-                                ? 'Cần Xác nhận đơn trước khi Check-in'
+                                ? 'Cần xác nhận đơn trước khi khách vào bàn'
                                 : r.status === 'CHECKED_IN'
-                                  ? 'Khách đã check-in'
+                                  ? 'Khách đã vào bàn rồi'
                                   : tableClosed
                                     ? 'Bàn đang đóng — chuyển khách sang bàn khác hoặc mở lại bàn trước'
                                     : undefined
                             }
                             onClick={() => checkIn(r.id)}
                           >
-                            Check-in
+                            Vào bàn
                           </button>
                           <button
                             type="button"
@@ -1001,7 +1010,7 @@ export default function BookingManagement({ staffMode = false }) {
                               r.status === 'COMPLETED' ||
                               r.status === 'CHECKED_IN'
                             }
-                            title={r.status === 'CHECKED_IN' ? 'Khách đang check-in — không thể hủy' : undefined}
+                            title={r.status === 'CHECKED_IN' ? 'Khách đang ngồi tại bàn — không thể hủy' : undefined}
                             onClick={() => cancelBooking(r.id)}
                           >
                             Hủy

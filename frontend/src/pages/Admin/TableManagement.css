@@ -167,8 +167,8 @@
   background: #4A7C59;
 }
 
-.table-card[data-status="OCCUPIED"]::before,
-.table-card[data-status="occupied"]::before {
+.table-card[data-status="ĐÃ CÓ KHÁCH"]::before,
+.table-card[data-status="ĐÃ CÓ KHÁCH"]::before {
   content: '';
   position: absolute;
   top: 0;

@@ -380,7 +380,7 @@ export default function Settings() {
       <header className="settings-page__header">
         <h1 className="settings-page__title">Cài đặt nhà hàng</h1>
         <p className="settings-page__subtitle">
-          Cập nhật thông tin hiển thị trên website và khu quản trị. Chỉ tài khoản Admin mới sửa được.
+          Cập nhật thông tin hiển thị trên website và khu quản trị. Chỉ tài khoản Quản trị viên mới sửa được.
         </p>
       </header>
 
@@ -452,10 +452,10 @@ export default function Settings() {
                 />
               </label>
               <label className="settings-field">
-                <span>Template QR</span>
+                <span>Mẫu QR thanh toán</span>
                 <select name="paymentQrTemplate" value={form.paymentQrTemplate} onChange={onChange}>
-                  <option value="compact">Compact (có logo ngân hàng)</option>
-                  <option value="qronly">QR only (chỉ mã QR)</option>
+                  <option value="compact">Thu gọn (có logo ngân hàng)</option>
+                  <option value="qronly">Chỉ mã QR</option>
                   <option value="">Mặc định</option>
                 </select>
               </label>
@@ -470,7 +470,7 @@ export default function Settings() {
             </p>
             <div className="settings-card__grid" style={{ marginTop: 8 }}>
               <label className="settings-field settings-field--full">
-                <span>Tiêu đề phụ (eyebrow)</span>
+                <span>Tiêu đề phụ</span>
                 <input
                   name="heroEyebrow"
                   value={homeForm.heroEyebrow}
@@ -480,7 +480,7 @@ export default function Settings() {
                 />
               </label>
               <label className="settings-field settings-field--full">
-                <span>Đoạn giới thiệu (lead)</span>
+                <span>Đoạn giới thiệu</span>
                 <textarea
                   name="heroLead"
                   value={homeForm.heroLead}
@@ -532,7 +532,7 @@ export default function Settings() {
                 />
               </label>
               <label className="settings-field">
-                <span>Tiêu đề CTA cuối trang</span>
+                <span>Tiêu đề kêu gọi hành động cuối trang</span>
                 <input
                   name="ctaTitle"
                   value={homeForm.ctaTitle}
@@ -542,7 +542,7 @@ export default function Settings() {
                 />
               </label>
               <label className="settings-field">
-                <span>Mô tả CTA cuối trang</span>
+                <span>Mô tả kêu gọi hành động cuối trang</span>
                 <input
                   name="ctaText"
                   value={homeForm.ctaText}
@@ -571,7 +571,7 @@ export default function Settings() {
           </div>
 
           <div className="settings-logo settings-field--full">
-            <span className="settings-logo__label">Logo (Admin)</span>
+            <span className="settings-logo__label">Logo nhà hàng</span>
             <div className="settings-logo__row">
               <label className="settings-logo__upload">
                 <input type="file" accept="image/*" onChange={onLogoChange} />
@@ -586,7 +586,7 @@ export default function Settings() {
           </div>
 
           <div className="settings-logo settings-field--full">
-            <span className="settings-logo__label">Banner / Slideshow (Admin)</span>
+            <span className="settings-logo__label">Banner / Trình chiếu</span>
             <div className="settings-logo__row">
               <label className="settings-logo__upload">
                 <input type="file" accept="image/*" multiple onChange={onBannersChange} />
@@ -606,7 +606,7 @@ export default function Settings() {
               <label className="settings-select">
                 <span>Chế độ</span>
                 <select value={bannerMode} onChange={(e) => setBannerMode(e.target.value)}>
-                  <option value="SLIDESHOW">Slideshow</option>
+                  <option value="SLIDESHOW">Trình chiếu</option>
                   <option value="SINGLE">Một ảnh (ảnh đầu tiên)</option>
                 </select>
               </label>
@@ -623,7 +623,7 @@ export default function Settings() {
                 ))}
               </div>
             ) : (
-              <p style={{ margin: 0, opacity: 0.8 }}>Chưa có banner. Tải lên để hiển thị slideshow ở trang chủ.</p>
+              <p style={{ margin: 0, opacity: 0.8 }}>Chưa có banner. Tải lên để hiển thị trình chiếu ở trang chủ.</p>
             )}
           </div>
         </div>
