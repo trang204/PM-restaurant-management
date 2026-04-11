@@ -3,7 +3,7 @@ import { badRequest, notFound } from '../../utils/httpError.js'
 import { query } from '../../config/db.js'
 
 /**
- * Đóng bàn (sự cố / bảo trì). Không cho đóng khi đang có khách CHECKED_IN hoặc phiên ACTIVE.
+ * Đóng bàn (sự cố / bảo trì). Staff/admin có thể đóng kể cả khi đang có khách.
  * Body: { reason?: string }
  */
 export async function closeTable(req, res, next) {
@@ -17,25 +17,6 @@ export async function closeTable(req, res, next) {
     if (!t.rows.length) throw notFound('Không tìm thấy bàn')
     if (String(t.rows[0].status || '').toUpperCase() === 'CLOSED') {
       return ok(res, { tableId: id, status: 'CLOSED', message: 'Bàn đã ở trạng thái đóng' })
-    }
-
-    const guest = await query(
-      `
-      SELECT 1
-      FROM booking_tables bt
-      JOIN bookings b ON b.id = bt.booking_id
-      WHERE bt.table_id = $1 AND b.status = 'CHECKED_IN'
-      LIMIT 1
-    `,
-      [id],
-    )
-    if (guest.rows.length) {
-      throw badRequest('Đang có khách tại bàn — chuyển khách sang bàn khác trước khi đóng bàn.')
-    }
-
-    const sess = await query(`SELECT 1 FROM table_sessions WHERE table_id = $1 AND status = 'ACTIVE' LIMIT 1`, [id])
-    if (sess.rows.length) {
-      throw badRequest('Còn phiên gọi món đang mở — chuyển khách sang bàn khác trước khi đóng bàn.')
     }
 
     const upd = await query(

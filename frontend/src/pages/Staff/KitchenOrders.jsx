@@ -196,54 +196,56 @@ export default function KitchenOrders() {
                   {busy === -1 ? 'Đang xử lý…' : 'Xác nhận tất cả còn lại'}
                 </button>
               </div>
-              <table className="kitchen__table">
-                <thead>
-                  <tr>
-                    <th>Món</th>
-                    <th>SL</th>
-                    <th>Đơn giá</th>
-                    <th>Trạng thái bếp</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {(detail.items || []).map((it) => {
-                    const ack = String(it.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
-                    return (
-                      <tr key={it.id}>
-                        <td>{it.food_name || `Món #${it.food_id}`}</td>
-                        <td>{it.quantity}</td>
-                        <td>{formatPrice(it.price)}</td>
-                        <td>
-                          {ack ? (
-                            <span className="kitchen__pill kitchen__pill--ok">Đã nhận lên</span>
-                          ) : (
-                            <span className="kitchen__pill kitchen__pill--warn">Chưa xác nhận</span>
-                          )}
-                        </td>
-                        <td>
-                          {!ack ? (
-                            <button
-                              type="button"
-                              className="kitchen__btn kitchen__btn--primary"
-                              disabled={busy === it.id}
-                              onClick={() => ackLine(it.id)}
-                            >
-                              {busy === it.id ? '…' : 'Đã nhận'}
-                            </button>
-                          ) : (
-                            <span className="kitchen__muted">
-                              {it.kitchen_ack_at
-                                ? new Date(it.kitchen_ack_at).toLocaleTimeString('vi-VN')
-                                : '—'}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+              <div className="kitchen__tableWrap">
+                <table className="kitchen__table">
+                  <thead>
+                    <tr>
+                      <th>Món</th>
+                      <th>SL</th>
+                      <th>Đơn giá</th>
+                      <th>Trạng thái bếp</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(detail.items || []).map((it) => {
+                      const ack = String(it.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
+                      return (
+                        <tr key={it.id}>
+                          <td>{it.food_name || `Món #${it.food_id}`}</td>
+                          <td>{it.quantity}</td>
+                          <td>{formatPrice(it.price)}</td>
+                          <td>
+                            {ack ? (
+                              <span className="kitchen__pill kitchen__pill--ok">Đã nhận lên</span>
+                            ) : (
+                              <span className="kitchen__pill kitchen__pill--warn">Chưa xác nhận</span>
+                            )}
+                          </td>
+                          <td>
+                            {!ack ? (
+                              <button
+                                type="button"
+                                className="kitchen__btn kitchen__btn--primary"
+                                disabled={busy === it.id}
+                                onClick={() => ackLine(it.id)}
+                              >
+                                {busy === it.id ? '…' : 'Đã nhận'}
+                              </button>
+                            ) : (
+                              <span className="kitchen__muted">
+                                {it.kitchen_ack_at
+                                  ? new Date(it.kitchen_ack_at).toLocaleTimeString('vi-VN')
+                                  : '—'}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
               <div className="kitchen__pay">
                 <h3 className="kitchen__h3">Thanh toán</h3>

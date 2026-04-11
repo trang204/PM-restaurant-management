@@ -29,7 +29,7 @@ export async function listTableOrders(req, res, next) {
       INNER JOIN tables t ON t.id = ts.table_id
       INNER JOIN bookings b ON b.id = o.booking_id
       LEFT JOIN order_items oi ON oi.order_id = o.id
-      WHERE o.status IN ('PENDING', 'SERVING')
+      WHERE o.status = 'SERVING'
       GROUP BY o.id, o.status, o.created_at, ts.id, ts.qr_token, t.id, t.name, b.id
       HAVING COUNT(oi.id) > 0
       ORDER BY o.id DESC

@@ -472,7 +472,8 @@
   border: 1px solid var(--to-border);
   border-radius: var(--to-radius);
   box-shadow: var(--to-shadow);
-  overflow: hidden;
+  overflow-y: auto;
+  max-height: calc(100vh - 48px);
 }
 
 .tableOrder__cartHead {
@@ -578,7 +579,24 @@
 .tableOrder__payBox {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
+}
+
+/* Full-width button variant */
+.tableOrder__btn--full {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Outline variant (cho nút Yêu cầu thanh toán) */
+.tableOrder__btn--outline {
+  background: transparent;
+  border: 1.5px solid var(--to-gold);
+  color: var(--to-gold-d);
+  font-weight: 600;
+}
+.tableOrder__btn--outline:hover:not(:disabled) {
+  background: var(--to-gold-s);
 }
 
 .tableOrder__payRow {
@@ -744,13 +762,225 @@
   border-top: 1px solid var(--to-border);
 }
 
+/* ─── Order group label ─── */
+.tableOrder__orderLabel {
+  padding: 6px 18px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--to-muted);
+  background: #F5F2ED;
+  border-top: 1px solid var(--to-border);
+  border-bottom: 1px solid var(--to-border);
+}
+
+/* ─── Kitchen status ─── */
+.tableOrder__kitchenOk {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #22863a;
+  margin-top: 3px;
+}
+
+.tableOrder__kitchenWait {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #b45309;
+  margin-top: 3px;
+}
+
+/* ─── Mobile bar (fixed bottom) ─── */
+.tableOrder__mobileBar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 18px;
+  background: #1C1713;
+  border-top: 1px solid rgba(184,147,90,0.25);
+  z-index: 100;
+  gap: 0;
+}
+
+.tableOrder__mobileBarBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tableOrder__mobileBarLabel { font-weight: 700; }
+
+.tableOrder__mobileBarMeta {
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+
+/* ─── Mobile drawer ─── */
+.tableOrder__drawerBack {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(28,23,19,0.55);
+  z-index: 200;
+  backdrop-filter: blur(2px);
+}
+
+.tableOrder__drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 201;
+  background: #FAF8F4;
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -8px 40px rgba(28,23,19,0.18);
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  max-height: 90svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.tableOrder__drawer--open {
+  transform: translateY(0);
+}
+
+.tableOrder__drawerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--to-border);
+  background: #FDFAF7;
+  border-radius: 18px 18px 0 0;
+  flex-shrink: 0;
+}
+
+.tableOrder__drawerClose {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--to-border);
+  background: #fff;
+  font-size: 1.1rem;
+  color: var(--to-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tableOrder__drawerBody {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tableOrder__drawerFoot {
+  border-top: 1px solid var(--to-border);
+  padding: 16px 18px;
+  background: #FDFAF7;
+  flex-shrink: 0;
+  overflow-y: auto;
+  max-height: 60svh;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─── Payment Panel (section riêng bên dưới layout) ─── */
+.tableOrder__payPanel {
+  background: #fff;
+  border-top: 2px solid var(--to-border);
+  margin-top: 32px;
+}
+
+.tableOrder__payPanelInner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px clamp(14px, 3vw, 28px) 48px;
+}
+
+.tableOrder__payPanelTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--to-text);
+  margin: 0 0 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--to-border);
+}
+
+.tableOrder__payPanelBody {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 32px;
+  align-items: start;
+}
+
+.tableOrder__payPanelLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 420px;
+}
+
+.tableOrder__payPanelSub {
+  font-size: 0.95rem;
+  color: var(--to-muted);
+  margin: 0;
+}
+
+.tableOrder__payPanelRight {
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .tableOrder__payPanelBody {
+    grid-template-columns: 1fr;
+  }
+  .tableOrder__payPanelRight {
+    display: flex;
+    justify-content: center;
+  }
+}
+
 /* ─── Responsive ─── */
 @media (max-width: 900px) {
-  .tableOrder__layout { grid-template-columns: 1fr; }
-  .tableOrder__cart { position: static; }
+  .tableOrder__layout {
+    grid-template-columns: 1fr;
+    padding-bottom: 24px;
+  }
+  /* Hiện cart inline, không dùng drawer */
+  .tableOrder__cart {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+  /* Ẩn drawer + mobileBar — dùng inline cart thay thế */
+  .tableOrder__mobileBar { display: none !important; }
+  .tableOrder__drawer { display: none !important; }
+  .tableOrder__drawerBack { display: none !important; }
+  /* Giới hạn max-height lines để không chiếm quá nhiều */
+  .tableOrder__lines { max-height: none; }
 }
 
 @media (max-width: 600px) {
   .tableOrder__heroInner { flex-direction: column; align-items: flex-start; }
   .tableOrder__grid { grid-template-columns: 1fr; }
+  .tableOrder__cart { border-radius: var(--to-radius); }
 }

@@ -403,15 +403,13 @@ export default function BookingManagement({ staffMode = false }) {
       const res = await apiFetch(`/admin/reservations/${r.id}/order-qr`)
       if (res?.tableSession?.qrSvg && res?.tableSession?.orderUrl) {
         setQrModal({
-          title: `QR gọi món — ${r.fullName || 'Khách'}`,
+          title: `QR gọi món — ${r.fullName || `Đơn #${r.id}`}`,
           svg: res.tableSession.qrSvg,
           url: res.tableSession.orderUrl,
           note: res.tableSessionNote,
         })
-      } else if (res?.tableSessionNote) {
-        toast(res.tableSessionNote, { variant: 'info' })
       } else {
-        toast('Không lấy được QR — kiểm tra bàn đã gán chưa.', { variant: 'info' })
+        toast(res?.tableSessionNote || 'Chưa có phiên gọi món. Hãy gán bàn và xác nhận đơn trước.', { variant: 'info' })
       }
     } catch (e) {
       toast(e.message, { variant: 'error' })
@@ -586,17 +584,20 @@ export default function BookingManagement({ staffMode = false }) {
             <h2 id="qr-title" className="booking-mgmt__modal-title">
               {qrModal.title}
             </h2>
-            {qrModal.note ? <p className="">{qrModal.note}</p> : null}
+            {qrModal.note ? <p className="booking-mgmt__modal-note">{qrModal.note}</p> : null}
             <div
               className="booking-mgmt__qr-svg"
               dangerouslySetInnerHTML={{ __html: qrModal.svg }}
             />
-            <p className="booking-mgmt__modal-url">
-              <a href={qrModal.url} target="_blank" rel="noreferrer">
-                Mở trang gọi món
-              </a>
-            </p>
             <div className="booking-mgmt__modal-actions">
+              <a
+                href={qrModal.url}
+                target="_blank"
+                rel="noreferrer"
+                className="booking-mgmt__btn booking-mgmt__btn--qr"
+              >
+                Gọi món cho khách
+              </a>
               <button type="button" className="booking-mgmt__btn booking-mgmt__btn--primary" onClick={() => copyUrl(qrModal.url)}>
                 Copy link
               </button>
@@ -935,27 +936,6 @@ export default function BookingManagement({ staffMode = false }) {
                         <div className="booking-mgmt__actions">
                           <button
                             type="button"
-                            className="booking-mgmt__btn booking-mgmt__btn--qr"
-                            disabled={
-                              qrBusy ||
-                              !r.assignedTableId ||
-                              r.status === 'CANCELLED' ||
-                              r.status === 'COMPLETED' ||
-                              r.status === 'PENDING'
-                            }
-                            title={
-                              !r.assignedTableId
-                                ? 'Chưa gán bàn'
-                                : r.status === 'PENDING'
-                                  ? 'Cần xác nhận đơn trước'
-                                  : 'Xem / in QR gọi món cho khách'
-                            }
-                            onClick={() => openOrderQr(r)}
-                          >
-                            QR gọi món
-                          </button>
-                          <button
-                            type="button"
                             className="booking-mgmt__btn booking-mgmt__btn--primary"
                             disabled={r.status !== 'PENDING' || tableClosed}
                             title={
@@ -983,6 +963,26 @@ export default function BookingManagement({ staffMode = false }) {
                             onClick={() => checkIn(r.id)}
                           >
                             Check-in
+                          </button>
+                          <button
+                            type="button"
+                            className="booking-mgmt__btn booking-mgmt__btn--qr"
+                            disabled={
+                              qrBusy ||
+                              !r.assignedTableId ||
+                              r.status === 'CANCELLED' ||
+                              r.status === 'COMPLETED'
+                            }
+                            title={
+                              !r.assignedTableId
+                                ? 'Cần gán bàn trước'
+                                : r.status === 'CANCELLED' || r.status === 'COMPLETED'
+                                  ? 'Đơn đã kết thúc'
+                                  : 'Xem QR gọi món / vào trang order cho khách'
+                            }
+                            onClick={() => openOrderQr(r)}
+                          >
+                            QR gọi món
                           </button>
                           <button
                             type="button"

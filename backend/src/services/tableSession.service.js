@@ -145,3 +145,27 @@ export async function getOrCreateOrderForSession(sessionRow) {
   )
   return ins.rows[0]
 }
+
+/**
+ * Lấy hoặc tạo một order PENDING cho session.
+ * Nếu order hiện tại đang SERVING (đã xác nhận), tạo một order PENDING mới
+ * để khách có thể gọi thêm (đợt 2, 3...).
+ */
+export async function getOrCreatePendingOrderForSession(sessionRow) {
+  const bookingId = sessionRow.booking_id
+  const sessionId = sessionRow.session_id
+
+  // Ưu tiên lấy PENDING order gần nhất
+  const pending = await query(
+    `SELECT id, status FROM orders WHERE table_session_id = $1 AND status = 'PENDING' ORDER BY id DESC LIMIT 1`,
+    [sessionId],
+  )
+  if (pending.rows.length) return pending.rows[0]
+
+  // Không có PENDING → tạo mới (kể cả khi đang có SERVING)
+  const ins = await query(
+    `INSERT INTO orders (booking_id, status, table_session_id) VALUES ($1, 'PENDING', $2) RETURNING id, status`,
+    [bookingId, sessionId],
+  )
+  return ins.rows[0]
+}
