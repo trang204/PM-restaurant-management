@@ -1,13 +1,31 @@
+import path from 'node:path'
+import fs from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
+
 import { ok, created } from '../utils/response.js'
 import { badRequest, notFound } from '../utils/httpError.js'
 import { query } from '../config/db.js'
 
 const ALLOWED_STATUS = new Set(['AVAILABLE', 'RESERVED', 'OCCUPIED', 'CLOSED'])
+const IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const UPLOAD_DIR = path.resolve(__dirname, '../../uploads')
+
+async function removeUploadFileIfSafe(publicPath) {
+  const raw = String(publicPath || '').trim()
+  if (!raw.startsWith('/uploads/')) return
+  const rel = raw.replace(/^\/uploads\//, '')
+  if (!rel || rel.includes('..')) return
+  const full = path.join(UPLOAD_DIR, rel)
+  if (!full.startsWith(UPLOAD_DIR)) return
+  await fs.unlink(full).catch(() => {})
+}
 
 export async function listTables(req, res, next) {
   try {
     const r = await query(
-      'SELECT id, name, capacity, status, status_note, pos_x, pos_y, created_at FROM tables ORDER BY id ASC',
+      'SELECT id, name, capacity, image_url, status, status_note, pos_x, pos_y, created_at FROM tables ORDER BY id ASC',
     )
     return ok(res, r.rows)
   } catch (e) {
@@ -21,7 +39,7 @@ export async function getTable(req, res, next) {
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
 
     const r = await query(
-      'SELECT id, name, capacity, status, status_note, pos_x, pos_y, created_at FROM tables WHERE id = $1',
+      'SELECT id, name, capacity, image_url, status, status_note, pos_x, pos_y, created_at FROM tables WHERE id = $1',
       [id],
     )
     if (!r.rows.length) throw notFound('Không tìm thấy bàn')
@@ -47,7 +65,7 @@ export async function createTable(req, res, next) {
       `
       INSERT INTO tables (name, capacity, status, pos_x, pos_y)
       VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, name, capacity, status, status_note, pos_x, pos_y, created_at
+      RETURNING id, name, capacity, image_url, status, status_note, pos_x, pos_y, created_at
     `,
       [
         String(name),
@@ -86,7 +104,7 @@ export async function updateTable(req, res, next) {
         pos_x = COALESCE($4, pos_x),
         pos_y = COALESCE($5, pos_y)
       WHERE id = $6
-      RETURNING id, name, capacity, status, status_note, pos_x, pos_y, created_at
+      RETURNING id, name, capacity, image_url, status, status_note, pos_x, pos_y, created_at
     `,
       [
         name ? String(name) : null,
@@ -104,16 +122,45 @@ export async function updateTable(req, res, next) {
   }
 }
 
+export async function uploadImage(req, res, next) {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
+
+    const file = req.file
+    if (!file) throw badRequest('Cần file ảnh')
+    const mime = String(file.mimetype || '').toLowerCase()
+    if (!IMAGE_MIME.has(mime)) throw badRequest('Chỉ chấp nhận ảnh JPEG, PNG, WebP hoặc GIF')
+
+    const cur = await query('SELECT id, image_url FROM tables WHERE id = $1', [id])
+    if (!cur.rows.length) throw notFound('Không tìm thấy bàn')
+    const prevUrl = cur.rows[0].image_url
+
+    await fs.mkdir(UPLOAD_DIR, { recursive: true })
+    const ext = mime === 'image/jpeg' ? 'jpg' : mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'gif'
+    const safeName = `table_${id}_${Date.now()}_${Math.random().toString(16).slice(2)}.${ext}`
+    await fs.writeFile(path.join(UPLOAD_DIR, safeName), file.buffer)
+
+    const publicUrl = `/uploads/${safeName}`
+    const r = await query(`UPDATE tables SET image_url = $1 WHERE id = $2 RETURNING id, image_url`, [publicUrl, id])
+    if (prevUrl && prevUrl !== publicUrl) await removeUploadFileIfSafe(prevUrl)
+    return ok(res, { id: r.rows[0].id, image_url: r.rows[0].image_url })
+  } catch (e) {
+    return next(e)
+  }
+}
+
 export async function deleteTable(req, res, next) {
   try {
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
 
     const r = await query(
-      'DELETE FROM tables WHERE id = $1 RETURNING id, name, capacity, status, pos_x, pos_y, created_at',
+      'DELETE FROM tables WHERE id = $1 RETURNING id, name, capacity, image_url, status, pos_x, pos_y, created_at',
       [id],
     )
     if (!r.rows.length) throw notFound('Không tìm thấy bàn')
+    if (r.rows[0].image_url) await removeUploadFileIfSafe(r.rows[0].image_url)
     return ok(res, r.rows[0])
   } catch (e) {
     return next(e)

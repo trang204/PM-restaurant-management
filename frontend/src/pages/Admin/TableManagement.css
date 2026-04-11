@@ -80,6 +80,20 @@
   overflow: hidden;
 }
 
+.table-card__imageWrap {
+  margin: -20px -18px 14px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #f4ece0;
+}
+
+.table-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .table-card:hover { box-shadow: 0 6px 24px rgba(28,23,19,0.1); transform: translateY(-2px); }
 
 .table-card__top {
@@ -240,6 +254,11 @@
   background: #fff;
 }
 
+.table-mgmt__field input[type="file"] {
+  padding: 9px;
+  background: #fff;
+}
+
 .table-mgmt__textarea,
 .table-mgmt__field textarea {
   width: 100%;
@@ -278,6 +297,20 @@
   color: var(--tm-muted);
   line-height: 1.5;
   margin-bottom: 14px;
+}
+
+.table-mgmt__preview {
+  border: 1px solid var(--tm-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f8f4ee;
+}
+
+.table-mgmt__previewImg {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  display: block;
 }
 
 @media (max-width: 600px) {

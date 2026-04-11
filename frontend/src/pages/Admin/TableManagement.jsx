@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { apiFetch } from '../../lib/api'
+import { useEffect, useMemo, useState } from 'react'
+import { apiFetch, mediaUrl, uploadTableImage } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import './TableManagement.css'
 
@@ -13,12 +13,24 @@ function statusMeta(status) {
   return { className: 'table-card__status', label: status }
 }
 
+const placeholderImg =
+  'data:image/svg+xml,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260" viewBox="0 0 400 260"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f5efe6"/><stop offset="100%" stop-color="#e5d5bf"/></linearGradient></defs><rect width="400" height="260" fill="url(#g)"/><text x="200" y="132" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" fill="#6b5640">Ảnh view bàn</text></svg>`,
+  )
+
+const emptyForm = { name: '', capacity: '4', imageUrl: '', image: placeholderImg }
+const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+
 export default function TableManagement() {
   const { toast, confirm } = useNotifications()
   const [tables, setTables] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
-  const [editModal, setEditModal] = useState(null)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [form, setForm] = useState(emptyForm)
+  const [imageFile, setImageFile] = useState(null)
   const [closeModal, setCloseModal] = useState(null)
   const [closeReason, setCloseReason] = useState('')
 
@@ -34,47 +46,71 @@ export default function TableManagement() {
     load()
   }, [])
 
-  async function addTable() {
-    const n = tables.length + 1
-    try {
-      await apiFetch('/tables', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: `Bàn ${n}`,
-          capacity: 4,
-          zone: 'A',
-          status: 'AVAILABLE',
-        }),
-      })
-      load()
-    } catch (e) {
-      toast(e.message, { variant: 'error' })
-    }
-  }
-
-  function openEdit(id) {
-    const t = tables.find((x) => x.id === id)
-    if (!t) return
-    setEditModal({
-      id,
-      name: t.name ?? '',
-      capacity: String(t.capacity ?? 4),
+  function openAdd() {
+    setEditingId(null)
+    setImageFile(null)
+    setForm({
+      ...emptyForm,
+      name: `Bàn ${tables.length + 1}`,
+      capacity: '4',
     })
+    setModalOpen(true)
   }
 
-  async function submitEdit() {
-    if (!editModal) return
-    const capNum = Number.parseInt(editModal.capacity, 10)
-    const t = tables.find((x) => x.id === editModal.id)
+  function openEdit(table) {
+    setEditingId(table.id)
+    setImageFile(null)
+    const img = table.image_url || ''
+    setForm({
+      name: table.name ?? '',
+      capacity: String(table.capacity ?? 4),
+      imageUrl: img,
+      image: img ? mediaUrl(img) : placeholderImg,
+    })
+    setModalOpen(true)
+  }
+
+  function closeFormModal() {
+    setModalOpen(false)
+    setEditingId(null)
+    setImageFile(null)
+    setForm(emptyForm)
+  }
+
+  async function submitForm(e) {
+    e.preventDefault()
+    const capNum = Number.parseInt(form.capacity, 10)
+    if (!Number.isFinite(capNum) || capNum <= 0) {
+      toast('Chọn số khách hợp lệ cho bàn.', { variant: 'info' })
+      return
+    }
+
     try {
-      await apiFetch(`/tables/${editModal.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          name: editModal.name.trim() || t?.name,
-          capacity: Number.isFinite(capNum) ? capNum : t?.capacity,
-        }),
-      })
-      setEditModal(null)
+      if (editingId) {
+        await apiFetch(`/tables/${editingId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            name: form.name.trim() || `Bàn ${editingId}`,
+            capacity: capNum,
+          }),
+        })
+        if (imageFile) {
+          await uploadTableImage(editingId, imageFile)
+        }
+      } else {
+        const created = await apiFetch('/tables', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: form.name.trim() || `Bàn ${tables.length + 1}`,
+            capacity: capNum,
+            status: 'AVAILABLE',
+          }),
+        })
+        if (imageFile && created?.id != null) {
+          await uploadTableImage(Number(created.id), imageFile)
+        }
+      }
+      closeFormModal()
       load()
     } catch (e) {
       toast(e.message, { variant: 'error' })
@@ -123,6 +159,34 @@ export default function TableManagement() {
     }
   }
 
+  function onFileChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!allowedImageTypes.includes(file.type)) {
+      toast('Chỉ chấp nhận ảnh JPEG, PNG, WebP hoặc GIF (tối đa 5MB).', { variant: 'error' })
+      e.target.value = ''
+      return
+    }
+    setImageFile(file)
+    setForm((prev) => ({
+      ...prev,
+      imageUrl: '',
+      image: URL.createObjectURL(file),
+    }))
+  }
+
+  const seatOptions = useMemo(
+    () => Array.from({ length: 20 }, (_, idx) => String(idx + 1)),
+    [],
+  )
+
+  const previewSrc =
+    form.image && String(form.image).startsWith('data:')
+      ? form.image
+      : form.imageUrl
+        ? mediaUrl(form.imageUrl)
+        : form.image || placeholderImg
+
   return (
     <div className="table-mgmt">
       <header className="table-mgmt__header">
@@ -130,7 +194,7 @@ export default function TableManagement() {
           <h1 className="table-mgmt__title">Bàn</h1>
           <p className="table-mgmt__subtitle">Quản lý sơ đồ bàn, sức chứa và trạng thái.</p>
         </div>
-        <button type="button" className="table-mgmt__add" onClick={addTable}>
+        <button type="button" className="table-mgmt__add" onClick={openAdd}>
           Thêm bàn
         </button>
       </header>
@@ -142,7 +206,12 @@ export default function TableManagement() {
         {tables.map((t) => {
           const st = statusMeta(t.status)
           return (
-            <article key={t.id} className="table-card">
+            <article key={t.id} className="table-card" data-status={t.status}>
+              {t.image_url ? (
+                <div className="table-card__imageWrap">
+                  <img className="table-card__image" src={mediaUrl(t.image_url)} alt={`View của ${t.name}`} />
+                </div>
+              ) : null}
               <div className="table-card__top">
                 <h2 className="table-card__name">{t.name}</h2>
                 <span className={st.className}>{st.label}</span>
@@ -173,7 +242,7 @@ export default function TableManagement() {
                     Đóng bàn
                   </button>
                 )}
-                <button type="button" className="table-card__btn table-card__btn--secondary" onClick={() => openEdit(t.id)}>
+                <button type="button" className="table-card__btn table-card__btn--secondary" onClick={() => openEdit(t)}>
                   Sửa
                 </button>
                 <button type="button" className="table-card__btn table-card__btn--danger" onClick={() => deleteTable(t.id)}>
@@ -185,44 +254,52 @@ export default function TableManagement() {
         })}
       </div>
 
-      {editModal ? (
+      {modalOpen ? (
         <div
           className="table-mgmt__backdrop"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="table-edit-title"
-          onClick={() => setEditModal(null)}
+          aria-labelledby="table-form-title"
+          onClick={closeFormModal}
         >
-          <div className="table-mgmt__dialog" onClick={(e) => e.stopPropagation()}>
-            <h2 id="table-edit-title" className="table-mgmt__dialogTitle">
-              Sửa bàn
+          <form className="table-mgmt__dialog" onSubmit={submitForm} onClick={(e) => e.stopPropagation()}>
+            <h2 id="table-form-title" className="table-mgmt__dialogTitle">
+              {editingId ? 'Sửa bàn' : 'Thêm bàn mới'}
             </h2>
             <label className="table-mgmt__field">
               <span>Tên bàn</span>
               <input
                 type="text"
-                value={editModal.name}
-                onChange={(e) => setEditModal((m) => (m ? { ...m, name: e.target.value } : m))}
+                value={form.name}
+                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
               />
             </label>
             <label className="table-mgmt__field">
-              <span>Sức chứa</span>
-              <input
-                type="number"
-                min={1}
-                value={editModal.capacity}
-                onChange={(e) => setEditModal((m) => (m ? { ...m, capacity: e.target.value } : m))}
-              />
+              <span>Số khách / bàn</span>
+              <select value={form.capacity} onChange={(e) => setForm((prev) => ({ ...prev, capacity: e.target.value }))}>
+                {seatOptions.map((seat) => (
+                  <option key={seat} value={seat}>
+                    {seat} người
+                  </option>
+                ))}
+              </select>
             </label>
+            <label className="table-mgmt__field">
+              <span>Ảnh view bàn</span>
+              <input type="file" accept="image/*" onChange={onFileChange} />
+            </label>
+            <div className="table-mgmt__preview">
+              <img className="table-mgmt__previewImg" src={previewSrc} alt="Xem trước ảnh bàn" />
+            </div>
             <div className="table-mgmt__dialogActions">
-              <button type="button" className="table-card__btn table-card__btn--secondary" onClick={() => setEditModal(null)}>
+              <button type="button" className="table-card__btn table-card__btn--secondary" onClick={closeFormModal}>
                 Hủy
               </button>
-              <button type="button" className="table-card__btn table-card__btn--primary" onClick={submitEdit}>
+              <button type="submit" className="table-card__btn table-card__btn--primary">
                 Lưu
               </button>
             </div>
-          </div>
+          </form>
         </div>
       ) : null}
 

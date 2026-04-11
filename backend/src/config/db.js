@@ -64,6 +64,20 @@ export async function ensureDbSchema() {
     await query(`ALTER TABLE tables ADD COLUMN status_note TEXT`)
   }
 
+  const ti = await query(
+    `
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'tables'
+      AND column_name = 'image_url'
+    LIMIT 1
+    `,
+  )
+  if (!ti.rows.length) {
+    await query(`ALTER TABLE tables ADD COLUMN image_url TEXT`)
+  }
+
   const u = await query(
     `
     SELECT 1
