@@ -70,8 +70,8 @@
 }
 
 .admin-sidebar__brand-logo {
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   border-radius: 8px;
   object-fit: cover;
   border: 1px solid rgba(184,147,90,0.25);
