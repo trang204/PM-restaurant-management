@@ -83,6 +83,22 @@ export async function uploadFoodImage(itemId: number, file: File): Promise<{ id:
   throw new Error(json.error?.message || 'Upload ảnh thất bại')
 }
 
+/** Upload ảnh bàn (admin). Trả về `image_url` lưu trong DB (/uploads/...). */
+export async function uploadTableImage(tableId: number, file: File): Promise<{ id: number; image_url: string }> {
+  const token = getToken()
+  const fd = new FormData()
+  fd.append('image', file)
+  const res = await fetch(`${API_BASE}/tables/${tableId}/image`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: fd,
+  })
+  const json = (await res.json().catch(() => null)) as ApiResponse<{ id: number; image_url: string }> | null
+  if (!json) throw new Error('Invalid API response')
+  if (json.success) return json.data
+  throw new Error(json.error?.message || 'Upload ảnh thất bại')
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken()
   const headers: Record<string, string> = {

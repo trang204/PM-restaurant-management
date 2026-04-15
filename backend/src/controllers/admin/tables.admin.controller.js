@@ -21,7 +21,7 @@ export async function closeTable(req, res, next) {
 
     const upd = await query(
       `UPDATE tables SET status = 'CLOSED', status_note = $2 WHERE id = $1
-       RETURNING id, name, capacity, status, status_note, pos_x, pos_y, created_at`,
+       RETURNING id, name, capacity, image_url, status, status_note, pos_x, pos_y, created_at`,
       [id, note],
     )
     return ok(res, upd.rows[0])
@@ -44,7 +44,7 @@ export async function reopenTable(req, res, next) {
 
     const upd = await query(
       `UPDATE tables SET status = 'AVAILABLE', status_note = NULL WHERE id = $1
-       RETURNING id, name, capacity, status, status_note, pos_x, pos_y, created_at`,
+       RETURNING id, name, capacity, image_url, status, status_note, pos_x, pos_y, created_at`,
       [id],
     )
     return ok(res, upd.rows[0])

@@ -254,21 +254,22 @@
 /* ─── Table selection ─── */
 .bookTables {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
   padding: 18px 22px;
 }
 
 /* table button class is applied dynamically */
 [class*="bookTableBtn"] {
-  padding: 12px 10px;
+  padding: 10px;
   border-radius: 10px;
   border: 1.5px solid var(--bk2-border);
   background: #FDFAF7;
   cursor: pointer;
-  text-align: center;
+  text-align: left;
   font-family: 'DM Sans', system-ui, sans-serif;
   transition: all var(--bk2-ease);
+  overflow: hidden;
 }
 
 [class*="bookTableBtn"]:hover:not(:disabled) {
@@ -282,6 +283,24 @@
   font-size: 0.88rem;
   color: var(--bk2-text);
   margin-bottom: 4px;
+}
+
+.bookTableBtn__imageWrap {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  background: #f4ece0;
+  border: 1px solid rgba(226,217,204,0.9);
+}
+
+.bookTableBtn__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .bookTableBtn__meta {
@@ -423,6 +442,27 @@
 }
 
 .bookSummary__list li:not(:last-child) { border-bottom: 1px solid rgba(226,217,204,0.5); }
+
+.bookSummary__tablePreview {
+  margin: 0 0 16px;
+}
+
+.bookSummary__tableLabel {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--bk2-muted);
+  margin-bottom: 8px;
+}
+
+.bookSummary__tableImg {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  display: block;
+  border-radius: 10px;
+  border: 1px solid var(--bk2-border);
+  background: #f5f2ed;
+}
 
 .bookSummary__pre {
   font: inherit;
