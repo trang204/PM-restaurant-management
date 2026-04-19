@@ -235,32 +235,30 @@
 .menu-card__btn--danger:hover { background: #FEF3F2; border-color: #F5C4C0; }
 
 /* ─── Modal ─── */
-.menu-modal__backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  background: rgba(28,23,19,0.5);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-
-/* Legacy .menu-modal wraps backdrop */
+/* Lưu ý: backdrop phải có z-index thấp hơn panel — nếu cả hai cùng z-index cao, lớp nền trống sẽ che form. */
 .menu-modal {
   position: fixed;
   inset: 0;
-  z-index: 200;
-  background: rgba(28,23,19,0.5);
-  backdrop-filter: blur(4px);
+  z-index: 300;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
+  background: transparent;
+  isolation: isolate;
+}
+
+.menu-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: rgba(28,23,19,0.5);
+  backdrop-filter: blur(4px);
 }
 
 .menu-modal__panel {
+  position: relative;
+  z-index: 1;
   background: #fff;
   border-radius: 16px;
   box-shadow: 0 24px 64px rgba(28,23,19,0.18);
@@ -318,12 +316,19 @@
 
 .menu-modal__preview {
   width: 100%;
-  max-height: 160px;
-  object-fit: cover;
   border-radius: 9px;
   border: 1px solid var(--mn-border);
   display: block;
   background: #F4ECE0;
+  overflow: hidden;
+}
+
+.menu-modal__preview img {
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  display: block;
+  vertical-align: middle;
 }
 
 .menu-modal__footer {

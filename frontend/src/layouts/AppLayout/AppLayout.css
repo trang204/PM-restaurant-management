@@ -1,13 +1,13 @@
 /* ─── App Shell (Public Site) ─── */
 .appShell {
-  --text: var(--charcoal, #3D3530);
-  --text-h: var(--espresso, #1C1713);
+  --text: var(--charcoal, #3d3530);
+  --text-h: var(--espresso, #1c1713);
   min-height: 100svh;
   display: grid;
   grid-template-rows: auto 1fr auto;
   color: var(--text);
   text-align: left;
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: var(--font-body);
 }
 
 /* ─── Header ─── */
@@ -15,9 +15,9 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(250,248,244,0.92);
+  background: var(--app-header-bg);
   backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(184,147,90,0.18);
+  border-bottom: 1px solid var(--app-header-border);
   box-shadow: 0 1px 0 rgba(255,255,255,0.8) inset, 0 2px 12px rgba(28,23,19,0.05);
 }
 
@@ -47,8 +47,8 @@
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
-  box-shadow: 0 3px 10px rgba(184,147,90,0.35);
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-dark) 100%);
+  box-shadow: 0 3px 10px rgba(184, 147, 90, 0.35);
   flex-shrink: 0;
 }
 
@@ -63,7 +63,7 @@
 }
 
 .brand__text {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: var(--font-heading);
   font-weight: 700;
   font-size: 1.2rem;
   letter-spacing: -0.01em;

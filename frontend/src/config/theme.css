@@ -1,0 +1,105 @@
+/**
+ * Cấu hình giao diện toàn app — chỉnh file này để đổi font, màu nền, accent, v.v.
+ *
+ * Gợi ý đổi font: sửa URL @import bên dưới (Google Fonts) rồi đổi --font-heading / --font-body.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* ─── Typography — đổi font family tại đây (khớp với font đã import) ─── */
+  --font-heading: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-body: 'DM Sans', system-ui, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, Consolas, 'Cascadia Code', monospace;
+
+  --font-size-root: 16px;
+  --line-height-base: 1.6;
+  --letter-spacing-base: 0.01em;
+
+  /* ─── Nền trang & vùng ─── */
+  --color-page-bg: #faf8f4;
+  --color-page-bg-alt: #fffef9;
+  --color-admin-bg: #f5f2ed;
+  --color-card: #ffffff;
+  --color-overlay: rgba(28, 23, 19, 0.45);
+
+  /* ─── Chữ ─── */
+  --color-text: #3d3530;
+  --color-text-strong: #1c1713;
+  --color-text-muted: #7a7069;
+  --color-text-soft: #9e9590;
+
+  /* ─── Accent (vàng đồng — đổi để đổi “tone” thương hiệu) ─── */
+  --color-accent: #b8935a;
+  --color-accent-dark: #8b6e41;
+  --color-accent-light: #f4ece0;
+  --color-accent-soft: rgba(184, 147, 90, 0.12);
+  --color-accent-border: rgba(184, 147, 90, 0.3);
+
+  /* ─── Viền & tách ─── */
+  --color-border: #e2d9cc;
+  --color-border-soft: rgba(28, 23, 19, 0.08);
+
+  /* ─── Trạng thái ─── */
+  --color-success: #4a7c59;
+  --color-success-bg: #eff6f1;
+  --color-error: #c0392b;
+  --color-error-bg: #fef3f2;
+
+  /* ─── Đổ bóng ─── */
+  --shadow-sm: 0 2px 8px rgba(28, 23, 19, 0.06);
+  --shadow-md: 0 4px 20px rgba(28, 23, 19, 0.09);
+  --shadow-lg: 0 12px 40px rgba(28, 23, 19, 0.12);
+  --shadow: var(--shadow-md);
+
+  /* ─── Bo góc ─── */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* ─── Chuyển động ─── */
+  --ease: 0.2s ease;
+
+  /* ─── Header công khai (AppLayout) — có thể chỉnh độ mờ nền ─── */
+  --app-header-bg: rgba(250, 248, 244, 0.92);
+  --app-header-border: rgba(184, 147, 90, 0.18);
+
+  /* ─── Linh tinh (trang mẫu / utility) ─── */
+  --social-bg: rgba(28, 23, 19, 0.04);
+
+  /* ─── Tên ngắn — alias để file CSS cũ vẫn chạy ─── */
+  --cream: var(--color-page-bg);
+  --ivory: var(--color-page-bg-alt);
+  --espresso: var(--color-text-strong);
+  --charcoal: var(--color-text);
+  --muted: var(--color-text-muted);
+  --warm-gray: var(--color-text-soft);
+  --gold: var(--color-accent);
+  --gold-dark: var(--color-accent-dark);
+  --gold-light: var(--color-accent-light);
+  --gold-soft: var(--color-accent-soft);
+  --sage: var(--color-success);
+  --sage-light: var(--color-success-bg);
+  --error: var(--color-error);
+  --error-bg: var(--color-error-bg);
+  --border: var(--color-border);
+  --border-soft: var(--color-border-soft);
+
+  --text: var(--muted);
+  --text-h: var(--espresso);
+  --bg: var(--cream);
+  --accent: var(--gold);
+  --accent-bg: var(--gold-soft);
+  --accent-border: var(--color-accent-border);
+
+  font: var(--font-size-root) / var(--line-height-base) var(--font-body);
+  letter-spacing: var(--letter-spacing-base);
+  color: var(--charcoal);
+  background: var(--cream);
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
