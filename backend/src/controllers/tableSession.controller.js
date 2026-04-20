@@ -27,7 +27,7 @@ export async function getMyActiveSession(req, res, next) {
       JOIN tables t ON t.id = ts.table_id
       WHERE ts.status = 'ACTIVE'
         AND b.user_id = $1
-        AND b.status IN ('CONFIRMED', 'CHECKED_IN')
+        AND b.status = 'CHECKED_IN'
       ORDER BY ts.id DESC
       LIMIT 1
     `,

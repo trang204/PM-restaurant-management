@@ -820,27 +820,7 @@ export default function BookingManagement({ staffMode = false }) {
 
       {!loading && !err && totalDayPages > 0 ? (
         <nav className="booking-mgmt__pager" aria-label="Phân trang theo ngày">
-          <div className="booking-mgmt__pagerMain">
-            <button
-              type="button"
-              className="booking-mgmt__btn booking-mgmt__btn--ghost booking-mgmt__btn--sm"
-              disabled={dayPage <= 0}
-              onClick={() => setDayPage((p) => Math.max(0, p - 1))}
-            >
-              ← Trước
-            </button>
-            <span className="booking-mgmt__pagerLabel">
-              Trang <strong>{dayPage + 1}</strong> / {totalDayPages}
-            </span>
-            <button
-              type="button"
-              className="booking-mgmt__btn booking-mgmt__btn--ghost booking-mgmt__btn--sm"
-              disabled={dayPage >= totalDayPages - 1}
-              onClick={() => setDayPage((p) => Math.min(totalDayPages - 1, p + 1))}
-            >
-              Sau →
-            </button>
-          </div>
+          
           <div className="booking-mgmt__pagerPick">
             <label className="booking-mgmt__pagerSelectLabel" htmlFor="booking-day-page">
               Chọn ngày
@@ -1055,6 +1035,29 @@ export default function BookingManagement({ staffMode = false }) {
                   })}
               </tbody>
             </table>
+          </div>
+          <div className="booking-mgmt__pagerMain">
+            <button
+              type="button"
+              className="booking-mgmt__btn booking-mgmt__btn--ghost booking-mgmt__btn--sm"
+              disabled={dayPage <= 0}
+              onClick={() => setDayPage((p) => Math.max(0, p - 1))}
+            >
+              ← Trước
+            </button>
+            <div style={{ marginTop:'10px', marginBottom:'10px',padding:'10px', textAlign:'center', display:'flex', alignItems:'center', justifyContent:'between' }}>
+            <span className="booking-mgmt__pagerLabel" style={{ marginRight:'30px' }}>
+              Trang <strong>{dayPage + 1}</strong> / {totalDayPages}
+            </span>
+            <button
+              type="button"
+              className="booking-mgmt__btn booking-mgmt__btn--ghost booking-mgmt__btn--sm"
+              disabled={dayPage >= totalDayPages - 1}
+              onClick={() => setDayPage((p) => Math.min(totalDayPages - 1, p + 1))}
+            >
+              Sau →
+            </button>
+          </div>
           </div>
         </section>
       ) : !loading && !err && rows.length === 0 ? (

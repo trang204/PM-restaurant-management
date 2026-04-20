@@ -208,7 +208,7 @@ export async function getReservationDetail(req, res, next) {
     if (
       Number.isFinite(userId) &&
       booking.user_id === userId &&
-      ['CONFIRMED', 'CHECKED_IN'].includes(booking.status)
+      String(booking.status || '').toUpperCase() === 'CHECKED_IN'
     ) {
       const sess = await query(
         `SELECT qr_token FROM table_sessions WHERE booking_id = $1 AND status = 'ACTIVE' LIMIT 1`,

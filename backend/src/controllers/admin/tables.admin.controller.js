@@ -19,11 +19,25 @@ export async function closeTable(req, res, next) {
       return ok(res, { tableId: id, status: 'CLOSED', message: 'Bàn đã ở trạng thái đóng' })
     }
 
-    const upd = await query(
-      `UPDATE tables SET status = 'CLOSED', status_note = $2 WHERE id = $1
-       RETURNING id, name, capacity, image_url, status, status_note, pos_x, pos_y, created_at`,
-      [id, note],
-    )
+    let upd
+    try {
+      upd = await query(
+        `UPDATE tables SET status = 'CLOSED', status_note = $2 WHERE id = $1
+         RETURNING id, name, capacity, image_url, status, status_note, pos_x, pos_y, created_at`,
+        [id, note],
+      )
+    } catch (dbErr) {
+      const code = dbErr && typeof dbErr === 'object' && 'code' in dbErr ? String(dbErr.code) : ''
+      const msg = dbErr && typeof dbErr === 'object' && 'message' in dbErr ? String(dbErr.message) : String(dbErr)
+      // 23514: check_violation — thường do CHECK/ENUM DB cũ không có CLOSED
+      if (code === '23514' || /CLOSED|check constraint|enum/i.test(msg)) {
+        throw badRequest(
+          'Không lưu được trạng thái Đóng bàn — cột status trên database có thể thiếu giá trị CLOSED. Khởi động lại backend để chạy migrate (ensureDbSchema) hoặc cập nhật thủ công cột/ENUM.',
+        )
+      }
+      throw dbErr
+    }
+    if (!upd.rows.length) throw notFound('Không tìm thấy bàn')
     return ok(res, upd.rows[0])
   } catch (e) {
     return next(e)

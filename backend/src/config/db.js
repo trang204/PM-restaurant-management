@@ -78,6 +78,42 @@ export async function ensureDbSchema() {
     await query(`ALTER TABLE tables ADD COLUMN image_url TEXT`)
   }
 
+  /** DB cũ: status quá ngắn hoặc ENUM thiếu nhãn CLOSED → đóng bàn không lưu được. */
+  const stCol = await query(
+    `
+    SELECT data_type, udt_name, character_maximum_length
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'tables'
+      AND column_name = 'status'
+    LIMIT 1
+    `,
+  )
+  if (stCol.rows.length) {
+    const row = stCol.rows[0]
+    const len = row.character_maximum_length
+    if (
+      (row.data_type === 'character varying' || row.data_type === 'character') &&
+      len != null &&
+      Number(len) > 0 &&
+      Number(len) < 10
+    ) {
+      await query(`ALTER TABLE tables ALTER COLUMN status TYPE VARCHAR(32)`)
+    }
+    if (row.data_type === 'USER-DEFINED' && row.udt_name && /^[a-z_][a-z0-9_]*$/i.test(String(row.udt_name))) {
+      const typ = String(row.udt_name)
+      try {
+        await query(`ALTER TYPE ${typ} ADD VALUE IF NOT EXISTS 'CLOSED'`)
+      } catch {
+        try {
+          await query(`ALTER TYPE ${typ} ADD VALUE 'CLOSED'`)
+        } catch {
+          /* đã có giá trị hoặc PG cũ — bỏ qua */
+        }
+      }
+    }
+  }
+
   const u = await query(
     `
     SELECT 1
