@@ -1,983 +1,292 @@
+-- NOTE
+-- File này được chuẩn hoá để tương thích với backend hiện tại.
+-- Tránh DROP toàn bộ (dễ làm mất dữ liệu). Nếu bạn muốn reset DB, hãy chạy thủ công lệnh DROP.
 
+-- ----- Vai trò -----
 BEGIN;
 
-CREATE OR REPLACE FUNCTION set_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- ========== ROLES + USERS ==========
+-- ----- Vai trò -----
 CREATE TABLE IF NOT EXISTS roles (
-  id         BIGSERIAL PRIMARY KEY,
-  name       TEXT NOT NULL UNIQUE CHECK (name IN ('CUSTOMER', 'STAFF', 'ADMIN')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL CHECK (name IN ('ADMIN','STAFF','CUSTOMER'))
 );
 
+-- ----- Người dùng -----
 CREATE TABLE IF NOT EXISTS users (
-  id         BIGSERIAL PRIMARY KEY,
-  name       TEXT NOT NULL,
-  email      TEXT NOT NULL UNIQUE,
-  password   TEXT NOT NULL, -- bcrypt hash
-  phone      TEXT,
-  role_id    BIGINT NOT NULL REFERENCES roles(id),
-  avatar_url TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    phone VARCHAR(20),
+    avatar_url TEXT,
+    role_id INT REFERENCES roles (id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-DO $$ BEGIN
-  CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON users
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
--- ========== SETTINGS ==========
+-- ----- Cấu hình nhà hàng (thường 1 dòng id = 1) -----
 CREATE TABLE IF NOT EXISTS settings (
-  id                       BIGINT PRIMARY KEY,
-  restaurant_name          TEXT,
-  logo_url                 TEXT,
-  banner_urls              TEXT[],
-  banner_enabled           BOOLEAN DEFAULT true,
-  social_links             JSONB,
-  total_tables             INT,
-  address                  TEXT,
-  phone                    TEXT,
-  email                    TEXT,
-  open_time                TEXT,
+    id SERIAL PRIMARY KEY,
+    restaurant_name VARCHAR(150),
+    logo_url TEXT,
+    banner_urls TEXT[] DEFAULT '{}'::text[],
+    banner_enabled BOOLEAN DEFAULT TRUE,
+    banner_mode VARCHAR(20) DEFAULT 'SLIDESHOW', -- SLIDESHOW | SINGLE
+    banner_show_on_home BOOLEAN DEFAULT TRUE,
+    banner_show_on_auth BOOLEAN DEFAULT TRUE,
+    header_cta_label VARCHAR(80),
+    header_cta_url TEXT,
+    footer_tagline TEXT,
+    footer_copyright TEXT,
+    footer_links JSONB DEFAULT '[]'::jsonb,
+    social_links JSONB DEFAULT '[]'::jsonb,
+    total_tables INT,
+    address TEXT,
+    phone VARCHAR(20),
+    email VARCHAR(100),
+    open_time TIME,
+    close_time TIME,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-  payment_bank_account     TEXT,
-  payment_bank_code        TEXT,
-  payment_transfer_content TEXT,
-  payment_qr_template      TEXT,
+    -- QR/Bank transfer (backend dùng)
+    payment_bank_account TEXT,
+    payment_bank_code TEXT,
+    payment_transfer_content TEXT,
+    payment_qr_template TEXT,
 
-  hero_eyebrow             TEXT,
-  hero_lead                TEXT,
-  hero_meta                TEXT,
-  hero_panel_tag           TEXT,
-  home_features_title      TEXT,
-  home_features_desc       TEXT,
-  home_cta_title           TEXT,
-  home_cta_text            TEXT,
-  home_features_json       TEXT,
-
-  created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at               TIMESTAMPTZ NOT NULL DEFAULT now()
+    -- Nội dung trang chủ (backend ensureDbSchema dùng)
+    hero_eyebrow TEXT,
+    hero_lead TEXT,
+    hero_meta TEXT,
+    hero_panel_tag TEXT,
+    home_features_title TEXT,
+    home_features_desc TEXT,
+    home_cta_title TEXT,
+    home_cta_text TEXT,
+    home_features_json TEXT
 );
 
-DO $$ BEGIN
-  CREATE TRIGGER trg_settings_updated_at BEFORE UPDATE ON settings
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
--- ========== TABLES ==========
+-- ----- Bàn (status: AVAILABLE | RESERVED | OCCUPIED | CLOSED | …) -----
 CREATE TABLE IF NOT EXISTS tables (
-  id          BIGSERIAL PRIMARY KEY,
-  name        TEXT NOT NULL,
-  capacity    INT NOT NULL DEFAULT 2,
-  status      VARCHAR(32) NOT NULL DEFAULT 'AVAILABLE'
-              CHECK (status IN ('AVAILABLE', 'RESERVED', 'OCCUPIED', 'CLOSED')),
-  status_note TEXT,
-  image_url   TEXT,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    capacity INT NOT NULL,
+    status VARCHAR(20) DEFAULT 'AVAILABLE',
+    status_note TEXT,
+    pos_x INT,
+    pos_y INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    image_url TEXT
 );
 
-DO $$ BEGIN
-  CREATE TRIGGER trg_tables_updated_at BEFORE UPDATE ON tables
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
--- ========== BOOKINGS + BOOKING_TABLES ==========
-CREATE TABLE IF NOT EXISTS bookings (
-  id              BIGSERIAL PRIMARY KEY,
-  user_id         BIGINT REFERENCES users(id) ON DELETE SET NULL,
-  booking_date    DATE NOT NULL,
-  booking_time    TIME NOT NULL,
-  guests          INT NOT NULL DEFAULT 2,
-  status          VARCHAR(24) NOT NULL DEFAULT 'PENDING'
-                  CHECK (status IN ('PENDING', 'HOLD', 'CONFIRMED', 'CHECKED_IN', 'CANCELLED', 'COMPLETED')),
-  note            TEXT,
-  guest_name      TEXT,
-  guest_phone     TEXT,
-  hold_expires_at TIMESTAMPTZ,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_bookings_updated_at BEFORE UPDATE ON bookings
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-CREATE TABLE IF NOT EXISTS booking_tables (
-  id         BIGSERIAL PRIMARY KEY,
-  booking_id BIGINT NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
-  table_id   BIGINT REFERENCES tables(id) ON DELETE SET NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_booking_tables_booking_id ON booking_tables(booking_id);
-CREATE INDEX IF NOT EXISTS idx_booking_tables_table_id ON booking_tables(table_id);
-CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
-CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
-CREATE INDEX IF NOT EXISTS idx_bookings_date_time ON bookings(booking_date, booking_time);
-
--- ========== TABLE SESSIONS ==========
-CREATE TABLE IF NOT EXISTS table_sessions (
-  id         BIGSERIAL PRIMARY KEY,
-  booking_id BIGINT NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
-  table_id   BIGINT NOT NULL REFERENCES tables(id) ON DELETE CASCADE,
-  qr_token   TEXT NOT NULL UNIQUE,
-  status     VARCHAR(16) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'CLOSED')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_table_sessions_updated_at BEFORE UPDATE ON table_sessions
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-CREATE INDEX IF NOT EXISTS idx_table_sessions_booking_id ON table_sessions(booking_id);
-CREATE INDEX IF NOT EXISTS idx_table_sessions_table_id ON table_sessions(table_id);
-
--- ========== MENU ==========
 CREATE TABLE IF NOT EXISTS categories (
-  id         BIGSERIAL PRIMARY KEY,
-  name       TEXT NOT NULL UNIQUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
 );
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_categories_updated_at BEFORE UPDATE ON categories
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE TABLE IF NOT EXISTS foods (
-  id          BIGSERIAL PRIMARY KEY,
-  name        TEXT NOT NULL,
-  price       DECIMAL(14,2) NOT NULL DEFAULT 0,
-  description TEXT,
-  image_url   TEXT,
-  category_id BIGINT REFERENCES categories(id) ON DELETE SET NULL,
-  status      VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE' CHECK (status IN ('AVAILABLE', 'UNAVAILABLE')),
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    price DECIMAL(14, 2) NOT NULL,
+    description TEXT,
+    image_url TEXT,
+    category_id INT REFERENCES categories (id),
+    status VARCHAR(20) DEFAULT 'AVAILABLE',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-DO $$ BEGIN
-  CREATE TRIGGER trg_foods_updated_at BEFORE UPDATE ON foods
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+CREATE TABLE IF NOT EXISTS bookings (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users (id),
+    booking_date DATE NOT NULL,
+    booking_time TIME NOT NULL,
+    guests INT,
+    status VARCHAR(20) DEFAULT 'PENDING',
+    hold_expires_at TIMESTAMP,
+    note TEXT,
+    guest_name VARCHAR(100),
+    guest_phone VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
--- ========== ORDERS ==========
+CREATE TABLE IF NOT EXISTS booking_tables (
+    id SERIAL PRIMARY KEY,
+    booking_id INT REFERENCES bookings (id) ON DELETE CASCADE,
+    table_id INT REFERENCES tables (id)
+);
+
+CREATE TABLE IF NOT EXISTS table_sessions (
+    id SERIAL PRIMARY KEY,
+    table_id INT NOT NULL REFERENCES tables (id),
+    booking_id INT REFERENCES bookings (id) ON DELETE SET NULL,
+    qr_token VARCHAR(96) UNIQUE NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    closed_at TIMESTAMP
+);
+
+CREATE INDEX idx_table_sessions_token ON table_sessions (qr_token);
+CREATE INDEX idx_table_sessions_booking_active ON table_sessions (booking_id) WHERE status = 'ACTIVE';
+
 CREATE TABLE IF NOT EXISTS orders (
-  id               BIGSERIAL PRIMARY KEY,
-  booking_id       BIGINT REFERENCES bookings(id) ON DELETE SET NULL,
-  table_session_id BIGINT REFERENCES table_sessions(id) ON DELETE SET NULL,
-  status           VARCHAR(16) NOT NULL DEFAULT 'PENDING'
-                  CHECK (status IN ('PENDING', 'SERVING', 'DONE', 'CANCELLED')),
-  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    id SERIAL PRIMARY KEY,
+    booking_id INT REFERENCES bookings (id),
+    table_session_id INT REFERENCES table_sessions (id),
+    status VARCHAR(20) DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-DO $$ BEGIN
-  CREATE TRIGGER trg_orders_updated_at BEFORE UPDATE ON orders
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-CREATE INDEX IF NOT EXISTS idx_orders_booking_id ON orders(booking_id);
-CREATE INDEX IF NOT EXISTS idx_orders_session_id ON orders(table_session_id);
-
-CREATE TABLE IF NOT EXISTS order_items (
-  id             BIGSERIAL PRIMARY KEY,
-  order_id       BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-  food_id        BIGINT REFERENCES foods(id) ON DELETE SET NULL,
-  quantity       INT NOT NULL DEFAULT 1,
-  price          DECIMAL(14,2) NOT NULL DEFAULT 0,
-  kitchen_status VARCHAR(20) DEFAULT 'PENDING',
-  kitchen_ack_at TIMESTAMP,
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+CREATE TABLE order_items (
+    id SERIAL PRIMARY KEY,
+    order_id INT REFERENCES orders (id) ON DELETE CASCADE,
+    food_id INT REFERENCES foods (id),
+    quantity INT NOT NULL,
+    price DECIMAL(14, 2) NOT NULL,
+    kitchen_status VARCHAR(20) DEFAULT 'PENDING',
+    kitchen_ack_at TIMESTAMP
 );
 
-DO $$ BEGIN
-  CREATE TRIGGER trg_order_items_updated_at BEFORE UPDATE ON order_items
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
-
--- ========== PAYMENTS ==========
 CREATE TABLE IF NOT EXISTS payments (
-  id         BIGSERIAL PRIMARY KEY,
-  order_id   BIGINT REFERENCES orders(id) ON DELETE SET NULL,
-  amount     DECIMAL(14,2) NOT NULL DEFAULT 0,
-  method     VARCHAR(32),
-  status     VARCHAR(16) NOT NULL DEFAULT 'UNPAID' CHECK (status IN ('UNPAID', 'PAID')),
-  paid_at    TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id SERIAL PRIMARY KEY,
+    order_id INT REFERENCES orders (id),
+    amount DECIMAL(14, 2),
+    method VARCHAR(50),
+    status VARCHAR(20),
+    paid_at TIMESTAMP
 );
 
-DO $$ BEGIN
-  CREATE TRIGGER trg_payments_updated_at BEFORE UPDATE ON payments
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-CREATE INDEX IF NOT EXISTS idx_payments_order_id ON payments(order_id);
-CREATE INDEX IF NOT EXISTS idx_payments_status_paid_at ON payments(status, paid_at);
-
--- ========== NOTIFICATIONS ==========
 CREATE TABLE IF NOT EXISTS notifications (
-  id         BIGSERIAL PRIMARY KEY,
-  user_id    BIGINT REFERENCES users(id) ON DELETE CASCADE,
-  title      TEXT,
-  message    TEXT,
-  is_read    BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  read_at    TIMESTAMPTZ
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users (id),
+    message TEXT,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_notifications_user_id_read ON notifications(user_id, is_read);
-
--- ========== SEED DATA (đủ dùng) ==========
-
--- Roles
+-- ----- Dữ liệu mẫu -----
+-- Mật khẩu mẫu (bcrypt cost 10): 123456
 INSERT INTO roles (name)
 SELECT x.name
-FROM (VALUES ('CUSTOMER'), ('STAFF'), ('ADMIN')) AS x(name)
+FROM (VALUES ('ADMIN'), ('STAFF'), ('CUSTOMER')) AS x(name)
 WHERE NOT EXISTS (SELECT 1 FROM roles);
 
--- Settings (id=1)
-INSERT INTO settings (
-  id, restaurant_name, address, phone, email, open_time,
-  banner_urls, banner_enabled, social_links,
-  payment_bank_account, payment_bank_code, payment_transfer_content, payment_qr_template,
-  hero_eyebrow, hero_lead, hero_meta, hero_panel_tag,
-  home_features_title, home_features_desc, home_cta_title, home_cta_text, home_features_json
-)
-SELECT
-  1, 'Luxeat Restaurant', '123 Đường ABC, Quận 1', '0900 000 000', 'contact@luxeat.local', '08:00',
-  ARRAY['/uploads/banner1.jpg','/uploads/banner2.jpg']::text[], true, '[]'::jsonb,
-  '0123456789', 'VCB', 'Thanh toan don {id}', 'compact2',
-  'Ẩm thực tinh tế', 'Đặt bàn nhanh, gọi món tiện, quản lý gọn.', 'Mở cửa 8:00 - 22:00', 'Nhận bàn nhanh trong vài phút.',
-  'Vì sao chọn chúng tôi', 'Không gian đẹp, phục vụ nhanh, món ngon mỗi ngày.', 'Đặt bàn ngay', 'Chọn giờ, chọn bàn và xác nhận.',
-  '[{\"title\":\"Đặt bàn\",\"desc\":\"Chọn bàn trên sơ đồ\"},{\"title\":\"Gọi món QR\",\"desc\":\"Quét QR tại bàn\"}]'
-WHERE NOT EXISTS (SELECT 1 FROM settings WHERE id = 1);
-
--- Users (mật khẩu: admin123 / staff123 / customer123)
--- Hash được tạo bằng bcrypt cost=10.
-WITH r AS (
-  SELECT
-    (SELECT id FROM roles WHERE name='ADMIN')    AS admin_id,
-    (SELECT id FROM roles WHERE name='STAFF')    AS staff_id,
-    (SELECT id FROM roles WHERE name='CUSTOMER') AS cust_id
-)
 INSERT INTO users (name, email, password, phone, role_id)
 SELECT x.name, x.email, x.password, x.phone, x.role_id
-FROM r,
-LATERAL (
+FROM (
   VALUES
-    ('Admin',    'admin@luxeat.local',    '$2b$10$ll6GMnLKhEfAIZfHGlGmyOyEBs91ytqFJJbNQ9AN3dUB6EHJrbu.e', '0900000001', r.admin_id),
-    ('Staff',    'staff@luxeat.local',    '$2b$10$b1E9TkWIPsO6lzht7kGJKupg3ujjw.SGBQy0RjG8yrXQxYRrvWjwC', '0900000002', r.staff_id),
-    ('Customer', 'customer@luxeat.local', '$2b$10$mS4FUefjxOkQreDWWlg6Cu1T7/UO4R6YwlA2Gr9I7f8T0CasN1Nt6', '0900000003', r.cust_id)
+    ('Admin', 'admin@gmail.com', '$2b$10$UU7uJJcEYrSQZ9wdcYWlg.8B.9KP2Hy0aDp2VeedipG1Rm6MfBwRC', '0900000001', 1),
+    ('Nhân viên 1', 'staff1@gmail.com', '$2b$10$UU7uJJcEYrSQZ9wdcYWlg.8B.9KP2Hy0aDp2VeedipG1Rm6MfBwRC', '0900000002', 2),
+    ('Nguyễn Văn A', 'user1@gmail.com', '$2b$10$UU7uJJcEYrSQZ9wdcYWlg.8B.9KP2Hy0aDp2VeedipG1Rm6MfBwRC', '0900000003', 3),
+    ('Trần Thị B', 'user2@gmail.com', '$2b$10$UU7uJJcEYrSQZ9wdcYWlg.8B.9KP2Hy0aDp2VeedipG1Rm6MfBwRC', '0900000004', 3)
 ) AS x(name, email, password, phone, role_id)
 WHERE NOT EXISTS (SELECT 1 FROM users);
 
--- Categories
-INSERT INTO categories (name)
-SELECT x.name
-FROM (VALUES ('Khai vị'), ('Món chính'), ('Tráng miệng'), ('Đồ uống')) AS x(name)
-WHERE NOT EXISTS (SELECT 1 FROM categories);
-
--- Foods (mỗi danh mục vài món)
-INSERT INTO foods (name, price, description, category_id, status, image_url)
-SELECT f.name, f.price, f.description, c.id, 'AVAILABLE', f.image_url
-FROM categories c
-JOIN LATERAL (
-  VALUES
-    ('Gỏi cuốn', 35000, 'Tôm thịt, rau sống, nước chấm.', '/uploads/goi-cuon.jpg', 'Khai vị'),
-    ('Súp hải sản', 45000, 'Súp nóng, nhiều hải sản.', '/uploads/sup-hai-san.jpg', 'Khai vị'),
-    ('Cơm chiên hải sản', 65000, 'Cơm chiên thơm, tôm mực.', '/uploads/com-chien.jpg', 'Món chính'),
-    ('Bò lúc lắc', 89000, 'Bò mềm, sốt đậm vị.', '/uploads/bo-luc-lac.jpg', 'Món chính'),
-    ('Bánh flan', 25000, 'Flan béo mịn.', '/uploads/flan.jpg', 'Tráng miệng'),
-    ('Chè khúc bạch', 30000, 'Chè mát, thơm.', '/uploads/che.jpg', 'Tráng miệng'),
-    ('Trà đào', 32000, 'Trà đào thơm.', '/uploads/tra-dao.jpg', 'Đồ uống'),
-    ('Cà phê sữa', 28000, 'Cà phê đậm vị.', '/uploads/cafe-sua.jpg', 'Đồ uống')
-) AS f(name, price, description, image_url, cat_name)
-  ON f.cat_name = c.name
-WHERE NOT EXISTS (SELECT 1 FROM foods);
-
--- Tables (10 bàn)
-INSERT INTO tables (name, capacity, status)
-SELECT x.name, x.capacity, 'AVAILABLE'
-FROM (VALUES
-  ('Bàn 1', 2), ('Bàn 2', 2), ('Bàn 3', 4), ('Bàn 4', 4), ('Bàn 5', 4),
-  ('Bàn 6', 6), ('Bàn 7', 6), ('Bàn 8', 8), ('Bàn 9', 8), ('Bàn 10', 10)
-) AS x(name, capacity)
-WHERE NOT EXISTS (SELECT 1 FROM tables);
-
--- Bookings mẫu (1 CONFIRMED, 1 HOLD, 1 CHECKED_IN)
-WITH u AS (SELECT id FROM users WHERE email='customer@luxeat.local' LIMIT 1),
-ins AS (
-  INSERT INTO bookings (user_id, booking_date, booking_time, guests, status, note, guest_name, guest_phone, hold_expires_at)
-  SELECT
-    u.id,
-    CURRENT_DATE,
-    '19:00'::time,
-    2,
-    'CONFIRMED',
-    'Bàn gần cửa sổ',
-    'Customer',
-    '0900000003',
-    NULL
-  FROM u
-  WHERE NOT EXISTS (SELECT 1 FROM bookings)
-  RETURNING id
+INSERT INTO settings (
+    id,
+    restaurant_name,
+    total_tables,
+    address,
+    phone,
+    email,
+    open_time,
+    close_time,
+    banner_enabled,
+    banner_mode,
+    banner_show_on_home,
+    banner_show_on_auth
 )
-SELECT 1;
-
--- Gán bàn cho booking (booking_tables) + cập nhật trạng thái bàn RESERVED/OCCUPIED theo booking status
-DO $$
-DECLARE
-  b_confirmed BIGINT;
-  b_hold BIGINT;
-  b_checkedin BIGINT;
-  t3 BIGINT;
-  t4 BIGINT;
-  t6 BIGINT;
-BEGIN
-  SELECT id INTO b_confirmed FROM bookings WHERE status='CONFIRMED' ORDER BY id ASC LIMIT 1;
-  SELECT id INTO b_hold FROM bookings WHERE status='HOLD' ORDER BY id ASC LIMIT 1;
-  SELECT id INTO b_checkedin FROM bookings WHERE status='CHECKED_IN' ORDER BY id ASC LIMIT 1;
-
-  SELECT id INTO t3 FROM tables WHERE name='Bàn 3' LIMIT 1;
-  SELECT id INTO t4 FROM tables WHERE name='Bàn 4' LIMIT 1;
-  SELECT id INTO t6 FROM tables WHERE name='Bàn 6' LIMIT 1;
-
-  -- Nếu chưa có booking HOLD/CHECKED_IN thì tạo thêm để demo
-  IF b_hold IS NULL THEN
-    INSERT INTO bookings (user_id, booking_date, booking_time, guests, status, note, guest_name, guest_phone, hold_expires_at)
-    SELECT (SELECT id FROM users WHERE email='customer@luxeat.local' LIMIT 1), CURRENT_DATE, '20:00'::time, 4, 'HOLD',
-           'Giữ bàn 15 phút', 'Customer', '0900000003', now() + interval '15 minutes'
-    RETURNING id INTO b_hold;
-  END IF;
-
-  IF b_checkedin IS NULL THEN
-    INSERT INTO bookings (user_id, booking_date, booking_time, guests, status, note, guest_name, guest_phone, hold_expires_at)
-    SELECT (SELECT id FROM users WHERE email='customer@luxeat.local' LIMIT 1), CURRENT_DATE, '18:00'::time, 4, 'CHECKED_IN',
-           'Đã vào bàn', 'Customer', '0900000003', NULL
-    RETURNING id INTO b_checkedin;
-  END IF;
-
-  -- Gán bàn cho từng booking (idempotent)
-  IF b_confirmed IS NOT NULL AND t3 IS NOT NULL THEN
-    IF NOT EXISTS (SELECT 1 FROM booking_tables WHERE booking_id=b_confirmed) THEN
-      INSERT INTO booking_tables (booking_id, table_id) VALUES (b_confirmed, t3);
-    END IF;
-    UPDATE tables SET status='RESERVED' WHERE id=t3 AND status='AVAILABLE';
-  END IF;
-
-  IF b_hold IS NOT NULL AND t4 IS NOT NULL THEN
-    IF NOT EXISTS (SELECT 1 FROM booking_tables WHERE booking_id=b_hold) THEN
-      INSERT INTO booking_tables (booking_id, table_id) VALUES (b_hold, t4);
-    END IF;
-    UPDATE tables SET status='RESERVED' WHERE id=t4 AND status='AVAILABLE';
-  END IF;
-
-  IF b_checkedin IS NOT NULL AND t6 IS NOT NULL THEN
-    IF NOT EXISTS (SELECT 1 FROM booking_tables WHERE booking_id=b_checkedin) THEN
-      INSERT INTO booking_tables (booking_id, table_id) VALUES (b_checkedin, t6);
-    END IF;
-    UPDATE tables SET status='OCCUPIED' WHERE id=t6;
-  END IF;
-END $$;
-
--- Table session + order + items + payment cho booking CHECKED_IN
-DO $$
-DECLARE
-  b BIGINT;
-  t BIGINT;
-  sess_id BIGINT;
-  ord_id BIGINT;
-  food1 BIGINT;
-  food2 BIGINT;
-  pay_id BIGINT;
-BEGIN
-  SELECT b2.id INTO b
-  FROM bookings b2
-  WHERE b2.status='CHECKED_IN'
-  ORDER BY b2.id DESC LIMIT 1;
-
-  SELECT bt.table_id INTO t FROM booking_tables bt WHERE bt.booking_id=b LIMIT 1;
-
-  IF b IS NULL OR t IS NULL THEN
-    RETURN;
-  END IF;
-
-  -- session
-  IF NOT EXISTS (SELECT 1 FROM table_sessions WHERE booking_id=b AND status='ACTIVE') THEN
-    INSERT INTO table_sessions (booking_id, table_id, qr_token, status)
-    VALUES (b, t, 'demo-token-001', 'ACTIVE')
-    RETURNING id INTO sess_id;
-  ELSE
-    SELECT id INTO sess_id FROM table_sessions WHERE booking_id=b AND status='ACTIVE' ORDER BY id DESC LIMIT 1;
-  END IF;
-
-  -- order
-  IF NOT EXISTS (SELECT 1 FROM orders WHERE table_session_id=sess_id AND status IN ('PENDING','SERVING') ) THEN
-    INSERT INTO orders (booking_id, table_session_id, status) VALUES (b, sess_id, 'SERVING')
-    RETURNING id INTO ord_id;
-  ELSE
-    SELECT id INTO ord_id FROM orders WHERE table_session_id=sess_id AND status IN ('PENDING','SERVING') ORDER BY id DESC LIMIT 1;
-  END IF;
-
-  -- foods
-  SELECT id INTO food1 FROM foods ORDER BY id ASC LIMIT 1;
-  SELECT id INTO food2 FROM foods ORDER BY id DESC LIMIT 1;
-
-  -- items
-  IF NOT EXISTS (SELECT 1 FROM order_items WHERE order_id=ord_id) THEN
-    INSERT INTO order_items (order_id, food_id, quantity, price, kitchen_status)
-    VALUES
-      (ord_id, food1, 2, 35000, 'ACKNOWLEDGED'),
-      (ord_id, food2, 1, 32000, 'PENDING');
-  END IF;
-
-  -- payment UNPAID
-  IF NOT EXISTS (SELECT 1 FROM payments WHERE order_id=ord_id) THEN
-    INSERT INTO payments (order_id, amount, method, status)
-    VALUES (ord_id, 102000, 'cash', 'UNPAID')
-    RETURNING id INTO pay_id;
-  END IF;
-END $$;
-
--- Notifications mẫu cho staff/admin
-INSERT INTO notifications (user_id, title, message, is_read)
-SELECT u.id, 'Đơn mới tại bàn', 'Có đơn mới cần xác nhận ở khu vực bếp.', false
-FROM users u
-JOIN roles r ON r.id = u.role_id
-WHERE r.name IN ('ADMIN','STAFF')
-  AND NOT EXISTS (SELECT 1 FROM notifications);
-
-COMMIT;
-
--- qlnhahang database.sql (PostgreSQL)
--- Bản này được điều chỉnh để KHỚP với backend hiện tại:
--- - users dùng (name,email,password,phone,role_id) + bảng roles
--- - bookings dùng (booking_date, booking_time, guests, guest_name, guest_phone, status có HOLD, hold_expires_at)
--- - mapping bàn qua booking_tables (array table_ids)
--- - tables có status (AVAILABLE/RESERVED/OCCUPIED/CLOSED), status_note, image_url
--- - orders status: PENDING/SERVING/DONE/CANCELLED
--- - payments status: UNPAID/PAID
--- - order_items có price + kitchen_status/kitchen_ack_at
--- - settings có các cột mở rộng (banner, socials, QR template, home content)
-
-BEGIN;
-
--- ========== UTIL ==========
-CREATE OR REPLACE FUNCTION set_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- ========== ROLES + USERS ==========
-CREATE TABLE IF NOT EXISTS roles (
-  id         BIGSERIAL PRIMARY KEY,
-  name       TEXT NOT NULL UNIQUE CHECK (name IN ('CUSTOMER', 'STAFF', 'ADMIN')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+VALUES (
+    1,
+    'Luxeat Restaurant',
+    10,
+    'Hà Nội',
+    '0123456789',
+    'luxeat@gmail.com',
+    '08:00',
+    '22:00',
+    TRUE,
+    'SLIDESHOW',
+    TRUE,
+    TRUE
 );
-
-CREATE TABLE IF NOT EXISTS users (
-  id         BIGSERIAL PRIMARY KEY,
-  name       TEXT NOT NULL,
-  email      TEXT NOT NULL UNIQUE,
-  password   TEXT NOT NULL, -- bcrypt hash
-  phone      TEXT,
-  role_id    BIGINT NOT NULL REFERENCES roles(id),
-  avatar_url TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON users
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
--- ========== SETTINGS ==========
-CREATE TABLE IF NOT EXISTS settings (
-  id                       BIGINT PRIMARY KEY,
-  restaurant_name          TEXT,
-  logo_url                 TEXT,
-  banner_urls              TEXT[],
-  banner_enabled           BOOLEAN DEFAULT true,
-  social_links             JSONB,
-  total_tables             INT,
-  address                  TEXT,
-  phone                    TEXT,
-  email                    TEXT,
-  open_time                TEXT,
-
-  -- QR/Bank transfer (SePay template)
-  payment_bank_account     TEXT,
-  payment_bank_code        TEXT,
-  payment_transfer_content TEXT,
-  payment_qr_template      TEXT,
-
-  -- Nội dung trang chủ
-  hero_eyebrow             TEXT,
-  hero_lead                TEXT,
-  hero_meta                TEXT,
-  hero_panel_tag           TEXT,
-  home_features_title      TEXT,
-  home_features_desc       TEXT,
-  home_cta_title           TEXT,
-  home_cta_text            TEXT,
-  home_features_json       TEXT,
-
-  created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at               TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_settings_updated_at BEFORE UPDATE ON settings
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
--- ========== TABLES ==========
-CREATE TABLE IF NOT EXISTS tables (
-  id          BIGSERIAL PRIMARY KEY,
-  name        TEXT NOT NULL,
-  capacity    INT NOT NULL DEFAULT 2,
-  status      VARCHAR(32) NOT NULL DEFAULT 'AVAILABLE'
-              CHECK (status IN ('AVAILABLE', 'RESERVED', 'OCCUPIED', 'CLOSED')),
-  status_note TEXT,
-  image_url   TEXT,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_tables_updated_at BEFORE UPDATE ON tables
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
--- ========== BOOKINGS + BOOKING_TABLES ==========
-CREATE TABLE IF NOT EXISTS bookings (
-  id              BIGSERIAL PRIMARY KEY,
-  user_id         BIGINT REFERENCES users(id) ON DELETE SET NULL,
-  booking_date    DATE NOT NULL,
-  booking_time    TIME NOT NULL,
-  guests          INT NOT NULL DEFAULT 2,
-  status          VARCHAR(24) NOT NULL DEFAULT 'PENDING'
-                  CHECK (status IN ('PENDING', 'HOLD', 'CONFIRMED', 'CHECKED_IN', 'CANCELLED', 'COMPLETED')),
-  note            TEXT,
-  guest_name      TEXT,
-  guest_phone     TEXT,
-  hold_expires_at TIMESTAMPTZ,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_bookings_updated_at BEFORE UPDATE ON bookings
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-CREATE TABLE IF NOT EXISTS booking_tables (
-  id         BIGSERIAL PRIMARY KEY,
-  booking_id BIGINT NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
-  table_id   BIGINT REFERENCES tables(id) ON DELETE SET NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_booking_tables_booking_id ON booking_tables(booking_id);
-CREATE INDEX IF NOT EXISTS idx_booking_tables_table_id ON booking_tables(table_id);
-CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
-CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
-CREATE INDEX IF NOT EXISTS idx_bookings_date_time ON bookings(booking_date, booking_time);
-
--- ========== TABLE SESSIONS ==========
-CREATE TABLE IF NOT EXISTS table_sessions (
-  id         BIGSERIAL PRIMARY KEY,
-  booking_id BIGINT NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
-  table_id   BIGINT NOT NULL REFERENCES tables(id) ON DELETE CASCADE,
-  qr_token   TEXT NOT NULL UNIQUE,
-  status     VARCHAR(16) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'CLOSED')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_table_sessions_updated_at BEFORE UPDATE ON table_sessions
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-CREATE INDEX IF NOT EXISTS idx_table_sessions_booking_id ON table_sessions(booking_id);
-CREATE INDEX IF NOT EXISTS idx_table_sessions_table_id ON table_sessions(table_id);
-
--- ========== MENU ==========
-CREATE TABLE IF NOT EXISTS categories (
-  id         BIGSERIAL PRIMARY KEY,
-  name       TEXT NOT NULL UNIQUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_categories_updated_at BEFORE UPDATE ON categories
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-CREATE TABLE IF NOT EXISTS foods (
-  id          BIGSERIAL PRIMARY KEY,
-  name        TEXT NOT NULL,
-  price       DECIMAL(14,2) NOT NULL DEFAULT 0,
-  description TEXT,
-  image_url   TEXT,
-  category_id BIGINT REFERENCES categories(id) ON DELETE SET NULL,
-  status      VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE' CHECK (status IN ('AVAILABLE', 'UNAVAILABLE')),
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_foods_updated_at BEFORE UPDATE ON foods
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
--- ========== ORDERS ==========
-CREATE TABLE IF NOT EXISTS orders (
-  id               BIGSERIAL PRIMARY KEY,
-  booking_id       BIGINT REFERENCES bookings(id) ON DELETE SET NULL,
-  table_session_id BIGINT REFERENCES table_sessions(id) ON DELETE SET NULL,
-  status           VARCHAR(16) NOT NULL DEFAULT 'PENDING'
-                  CHECK (status IN ('PENDING', 'SERVING', 'DONE', 'CANCELLED')),
-  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_orders_updated_at BEFORE UPDATE ON orders
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-CREATE INDEX IF NOT EXISTS idx_orders_booking_id ON orders(booking_id);
-CREATE INDEX IF NOT EXISTS idx_orders_session_id ON orders(table_session_id);
-
-CREATE TABLE IF NOT EXISTS order_items (
-  id             BIGSERIAL PRIMARY KEY,
-  order_id       BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-  food_id        BIGINT REFERENCES foods(id) ON DELETE SET NULL,
-  quantity       INT NOT NULL DEFAULT 1,
-  price          DECIMAL(14,2) NOT NULL DEFAULT 0,
-  kitchen_status VARCHAR(20) DEFAULT 'PENDING',
-  kitchen_ack_at TIMESTAMP,
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_order_items_updated_at BEFORE UPDATE ON order_items
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
-
--- ========== PAYMENTS ==========
-CREATE TABLE IF NOT EXISTS payments (
-  id         BIGSERIAL PRIMARY KEY,
-  order_id   BIGINT REFERENCES orders(id) ON DELETE SET NULL,
-  amount     DECIMAL(14,2) NOT NULL DEFAULT 0,
-  method     VARCHAR(32), -- 'cash' | 'bank_transfer' | ...
-  status     VARCHAR(16) NOT NULL DEFAULT 'UNPAID' CHECK (status IN ('UNPAID', 'PAID')),
-  paid_at    TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_payments_updated_at BEFORE UPDATE ON payments
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-CREATE INDEX IF NOT EXISTS idx_payments_order_id ON payments(order_id);
-CREATE INDEX IF NOT EXISTS idx_payments_status_paid_at ON payments(status, paid_at);
-
--- ========== NOTIFICATIONS ==========
-CREATE TABLE IF NOT EXISTS notifications (
-  id         BIGSERIAL PRIMARY KEY,
-  user_id    BIGINT REFERENCES users(id) ON DELETE CASCADE,
-  title      TEXT,
-  message    TEXT,
-  is_read    BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  read_at    TIMESTAMPTZ
-);
-
-CREATE INDEX IF NOT EXISTS idx_notifications_user_id_read ON notifications(user_id, is_read);
-
--- ========== SEED ==========
-INSERT INTO roles (name)
-SELECT x.name
-FROM (VALUES ('CUSTOMER'), ('STAFF'), ('ADMIN')) AS x(name)
-WHERE NOT EXISTS (SELECT 1 FROM roles);
-
-INSERT INTO settings (id, restaurant_name, address, phone, banner_urls, banner_enabled, social_links)
-SELECT 1, 'Nhà hàng', 'Chưa cập nhật', 'Chưa cập nhật', ARRAY[]::text[], true, '[]'::jsonb
-WHERE NOT EXISTS (SELECT 1 FROM settings WHERE id = 1);
-
-INSERT INTO categories (name)
-SELECT x.name
-FROM (VALUES ('Khai vị'), ('Món chính'), ('Tráng miệng'), ('Đồ uống')) AS x(name)
-WHERE NOT EXISTS (SELECT 1 FROM categories);
 
 INSERT INTO tables (name, capacity, status)
-SELECT x.name, x.capacity, 'AVAILABLE'
-FROM (VALUES ('Bàn 1', 2), ('Bàn 2', 4), ('Bàn 3', 4), ('Bàn 4', 6)) AS x(name, capacity)
-WHERE NOT EXISTS (SELECT 1 FROM tables);
-
-COMMIT;
-
-BEGIN;
-
-DO $$ BEGIN
-  CREATE TYPE user_role AS ENUM ('CUSTOMER', 'STAFF', 'ADMIN');
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TYPE booking_status AS ENUM ('PENDING', 'CONFIRMED', 'CANCELLED', 'CHECKED_IN', 'COMPLETED');
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TYPE table_session_status AS ENUM ('ACTIVE', 'CLOSED');
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TYPE order_status AS ENUM ('PENDING', 'SERVING', 'PAID', 'CANCELLED');
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TYPE payment_status AS ENUM ('PENDING', 'PAID', 'FAILED', 'CANCELLED');
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TYPE food_status AS ENUM ('AVAILABLE', 'UNAVAILABLE');
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
--- ========== TABLES ==========
-
-CREATE TABLE IF NOT EXISTS users (
-  id            BIGSERIAL PRIMARY KEY,
-  email         TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  full_name     TEXT,
-  role          user_role NOT NULL DEFAULT 'CUSTOMER',
-  avatar_url    TEXT,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS settings (
-  id              BIGSERIAL PRIMARY KEY,
-  restaurant_name TEXT,
-  logo_url        TEXT,
-  address         TEXT,
-  phone           TEXT,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS tables (
-  id          BIGSERIAL PRIMARY KEY,
-  name        TEXT NOT NULL,
-  capacity    INT NOT NULL DEFAULT 2,
-  image_url   TEXT,
-  is_closed   BOOLEAN NOT NULL DEFAULT false,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS bookings (
-  id              BIGSERIAL PRIMARY KEY,
-  user_id         BIGINT REFERENCES users(id) ON DELETE SET NULL,
-  customer_name   TEXT,
-  customer_phone  TEXT,
-  customer_email  TEXT,
-  note            TEXT,
-  people          INT NOT NULL DEFAULT 2,
-  booking_time    TIMESTAMPTZ NOT NULL,
-  status          booking_status NOT NULL DEFAULT 'PENDING',
-  table_id        BIGINT REFERENCES tables(id) ON DELETE SET NULL,
-  hold_until      TIMESTAMPTZ,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS table_sessions (
-  id         BIGSERIAL PRIMARY KEY,
-  booking_id BIGINT NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
-  table_id   BIGINT NOT NULL REFERENCES tables(id) ON DELETE CASCADE,
-  qr_token   TEXT NOT NULL UNIQUE,
-  status     table_session_status NOT NULL DEFAULT 'ACTIVE',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS categories (
-  id         BIGSERIAL PRIMARY KEY,
-  name       TEXT NOT NULL UNIQUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS foods (
-  id          BIGSERIAL PRIMARY KEY,
-  name        TEXT NOT NULL,
-  price       NUMERIC(12,2) NOT NULL DEFAULT 0,
-  description TEXT,
-  image_url   TEXT,
-  category_id BIGINT REFERENCES categories(id) ON DELETE SET NULL,
-  status      food_status NOT NULL DEFAULT 'AVAILABLE',
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS orders (
-  id               BIGSERIAL PRIMARY KEY,
-  booking_id       BIGINT REFERENCES bookings(id) ON DELETE SET NULL,
-  table_session_id BIGINT REFERENCES table_sessions(id) ON DELETE CASCADE,
-  status           order_status NOT NULL DEFAULT 'PENDING',
-  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS order_items (
-  id          BIGSERIAL PRIMARY KEY,
-  order_id    BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-  food_id     BIGINT REFERENCES foods(id) ON DELETE SET NULL,
-  quantity    INT NOT NULL DEFAULT 1,
-  unit_price  NUMERIC(12,2) NOT NULL DEFAULT 0,
-  note        TEXT,
-  acked_at    TIMESTAMPTZ,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS payments (
-  id          BIGSERIAL PRIMARY KEY,
-  order_id    BIGINT REFERENCES orders(id) ON DELETE SET NULL,
-  booking_id  BIGINT REFERENCES bookings(id) ON DELETE SET NULL,
-  amount      NUMERIC(12,2) NOT NULL DEFAULT 0,
-  status      payment_status NOT NULL DEFAULT 'PENDING',
-  method      TEXT, -- CASH / ONLINE / OTHER
-  paid_at     TIMESTAMPTZ,
-  meta        JSONB,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS notifications (
-  id         BIGSERIAL PRIMARY KEY,
-  user_id    BIGINT REFERENCES users(id) ON DELETE CASCADE,
-  title      TEXT,
-  message    TEXT,
-  is_read    BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  read_at    TIMESTAMPTZ
-);
-
--- ========== INDEXES ==========
-CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
-CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
-CREATE INDEX IF NOT EXISTS idx_bookings_time ON bookings(booking_time);
-CREATE INDEX IF NOT EXISTS idx_table_sessions_booking_id ON table_sessions(booking_id);
-CREATE INDEX IF NOT EXISTS idx_table_sessions_table_id ON table_sessions(table_id);
-CREATE INDEX IF NOT EXISTS idx_orders_session_id ON orders(table_session_id);
-CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
-CREATE INDEX IF NOT EXISTS idx_payments_status_paid_at ON payments(status, paid_at);
-CREATE INDEX IF NOT EXISTS idx_notifications_user_id_read ON notifications(user_id, is_read);
-
--- ========== TRIGGERS (updated_at) ==========
-CREATE OR REPLACE FUNCTION set_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON users
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_settings_updated_at BEFORE UPDATE ON settings
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_tables_updated_at BEFORE UPDATE ON tables
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_bookings_updated_at BEFORE UPDATE ON bookings
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_table_sessions_updated_at BEFORE UPDATE ON table_sessions
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_categories_updated_at BEFORE UPDATE ON categories
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_foods_updated_at BEFORE UPDATE ON foods
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_orders_updated_at BEFORE UPDATE ON orders
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_order_items_updated_at BEFORE UPDATE ON order_items
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-DO $$ BEGIN
-  CREATE TRIGGER trg_payments_updated_at BEFORE UPDATE ON payments
-  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
--- ========== SEED (tối thiểu) ==========
-INSERT INTO settings (restaurant_name, address, phone)
-SELECT 'Nhà hàng', 'Chưa cập nhật', 'Chưa cập nhật'
-WHERE NOT EXISTS (SELECT 1 FROM settings);
+VALUES
+    ('Bàn 1', 2, 'AVAILABLE'),
+    ('Bàn 2', 4, 'AVAILABLE'),
+    ('Bàn 3', 4, 'AVAILABLE'),
+    ('Bàn 4', 6, 'AVAILABLE'),
+    ('Bàn 5', 8, 'AVAILABLE'),
+    ('Bàn 6', 2, 'AVAILABLE');
 
 INSERT INTO categories (name)
-SELECT x.name
-FROM (VALUES ('Khai vị'), ('Món chính'), ('Tráng miệng'), ('Đồ uống')) AS x(name)
-WHERE NOT EXISTS (SELECT 1 FROM categories);
+VALUES
+    ('Khai vị'),
+    ('Món chính'),
+    ('Đồ uống'),
+    ('Tráng miệng');
 
-INSERT INTO tables (name, capacity)
-SELECT x.name, x.capacity
-FROM (VALUES ('Bàn 1', 2), ('Bàn 2', 4), ('Bàn 3', 4), ('Bàn 4', 6)) AS x(name, capacity)
-WHERE NOT EXISTS (SELECT 1 FROM tables);
+INSERT INTO foods (name, price, category_id)
+VALUES
+    ('Salad', 50000, 1),
+    ('Súp gà', 60000, 1),
+    ('Pizza Hải Sản', 120000, 2),
+    ('Bò bít tết', 200000, 2),
+    ('Cơm chiên', 80000, 2),
+    ('Coca Cola', 20000, 3),
+    ('Nước cam', 30000, 3),
+    ('Bánh ngọt', 40000, 4);
+
+INSERT INTO bookings (user_id, booking_date, booking_time, guests, status, guest_name, guest_phone)
+VALUES
+    (3, '2026-04-10', '18:00', 2, 'PENDING', 'Khách walk-in A', '0911111111'),
+    (4, '2026-04-10', '19:00', 4, 'CONFIRMED', NULL, NULL),
+    (3, '2026-04-11', '20:00', 3, 'COMPLETED', NULL, NULL);
+
+INSERT INTO booking_tables (booking_id, table_id)
+VALUES
+    (1, 1),
+    (2, 2),
+    (3, 3);
+
+INSERT INTO orders (booking_id, table_session_id, status)
+VALUES
+    (2, NULL, 'DONE'),
+    (3, NULL, 'DONE');
+
+INSERT INTO order_items (order_id, food_id, quantity, price)
+VALUES
+    (1, 3, 1, 120000),
+    (1, 6, 2, 20000),
+    (2, 4, 1, 200000),
+    (2, 7, 1, 30000);
+
+INSERT INTO payments (order_id, amount, method, status)
+VALUES
+    (1, 160000, 'cash', 'PAID'),
+    (2, 230000, 'bank', 'PAID');
+
+INSERT INTO notifications (user_id, message)
+VALUES
+    (3, 'Đặt bàn thành công'),
+    (4, 'Đơn của bạn đã được xác nhận');
+
+-- ----- Đồng bộ sequence (INSERT thủ công / restore) -----
+SELECT setval(pg_get_serial_sequence('roles', 'id'), COALESCE((SELECT MAX(id) FROM roles), 1));
+SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE((SELECT MAX(id) FROM users), 1));
+SELECT setval(pg_get_serial_sequence('settings', 'id'), COALESCE((SELECT MAX(id) FROM settings), 1));
+SELECT setval(pg_get_serial_sequence('tables', 'id'), COALESCE((SELECT MAX(id) FROM tables), 1));
+SELECT setval(pg_get_serial_sequence('categories', 'id'), COALESCE((SELECT MAX(id) FROM categories), 1));
+SELECT setval(pg_get_serial_sequence('foods', 'id'), COALESCE((SELECT MAX(id) FROM foods), 1));
+SELECT setval(pg_get_serial_sequence('bookings', 'id'), COALESCE((SELECT MAX(id) FROM bookings), 1));
+SELECT setval(pg_get_serial_sequence('booking_tables', 'id'), COALESCE((SELECT MAX(id) FROM booking_tables), 1));
+SELECT setval(
+    pg_get_serial_sequence('table_sessions', 'id'),
+    GREATEST((SELECT COALESCE(MAX(id), 0) FROM table_sessions), 1),
+    (SELECT EXISTS (SELECT 1 FROM table_sessions))
+);
+SELECT setval(pg_get_serial_sequence('orders', 'id'), COALESCE((SELECT MAX(id) FROM orders), 1));
+SELECT setval(pg_get_serial_sequence('order_items', 'id'), COALESCE((SELECT MAX(id) FROM order_items), 1));
+SELECT setval(pg_get_serial_sequence('payments', 'id'), COALESCE((SELECT MAX(id) FROM payments), 1));
+SELECT setval(pg_get_serial_sequence('notifications', 'id'), COALESCE((SELECT MAX(id) FROM notifications), 1));
 
 COMMIT;

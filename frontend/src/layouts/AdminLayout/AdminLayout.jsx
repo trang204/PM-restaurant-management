@@ -138,8 +138,8 @@ export default function AdminLayout() {
               className="admin-sidebar__brand-logo"
               src={mediaUrl(brand.logoUrl)}
               alt=""
-              width={34}
-              height={34}
+              width={40}
+              height={40}
             />
           ) : (
             <span className="admin-sidebar__brand-mark" aria-hidden />
