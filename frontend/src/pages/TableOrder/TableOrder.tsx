@@ -10,6 +10,7 @@ type MenuItem = {
   description?: string | null
   image_url?: string | null
   category_name?: string | null
+  status?: string | null
 }
 
 type OrderItem = {
@@ -520,7 +521,7 @@ export default function TableOrder() {
               <input
                 className="tableOrder__search"
                 type="search"
-                placeholder="Tìm món, ví dụ: pizza, salad…"
+                placeholder="Tìm theo tên món"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 autoComplete="off"
@@ -565,10 +566,15 @@ export default function TableOrder() {
                     const fid = Number(m.id)
                     const inCart = itemsByFoodId.get(fid)
                     const busy = adding === fid
+                    const foodStatus = String(m.status || 'AVAILABLE').toUpperCase()
+                    const isAvailable = foodStatus === 'AVAILABLE'
                     // item có trong giỏ và thuộc PENDING order → cho phép sửa số lượng trực tiếp
                     const inCartPending = inCart && String(inCart.order_status ?? 'PENDING').toUpperCase() !== 'SERVING'
                     return (
-                      <article key={String(m.id)} className="tableOrder__card">
+                      <article
+                        key={String(m.id)}
+                        className={`tableOrder__card${!isAvailable ? ' tableOrder__card--unavailable' : ''}`}
+                      >
                         <div
                           className="tableOrder__img"
                           style={
@@ -578,7 +584,16 @@ export default function TableOrder() {
                           }
                         />
                         <div className="tableOrder__cardBody">
-                          <p className="tableOrder__catLabel">{m.category_name || 'Món'}</p>
+                          <div className="tableOrder__cardMeta">
+                            <p className="tableOrder__catLabel">{m.category_name || 'Món'}</p>
+                            <span
+                              className={`tableOrder__foodStatus ${
+                                isAvailable ? 'tableOrder__foodStatus--ok' : 'tableOrder__foodStatus--off'
+                              }`}
+                            >
+                              {isAvailable ? 'Còn món' : 'Hết món'}
+                            </span>
+                          </div>
                           <h3 className="tableOrder__name">{m.name}</h3>
                           {m.description ? <p className="tableOrder__desc">{m.description}</p> : null}
                           <div className="tableOrder__row">
@@ -613,7 +628,7 @@ export default function TableOrder() {
                               <button
                                 type="button"
                                 className="tableOrder__add"
-                                disabled={busy || !canOrder}
+                                disabled={busy || !canOrder || !isAvailable}
                                 onClick={() => addToCart(fid, 1)}
                               >
                                 {busy ? '…' : inCart ? 'Gọi thêm' : 'Thêm'}

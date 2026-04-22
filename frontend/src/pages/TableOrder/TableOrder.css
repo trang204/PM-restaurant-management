@@ -61,6 +61,41 @@
   flex-shrink: 0;
 }
 
+/* ─── Food availability badge ─── */
+.tableOrder__cardMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tableOrder__foodStatus {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.tableOrder__foodStatus--ok {
+  color: #155724;
+  background: #d4edda;
+  border: 1px solid rgba(21,87,36,0.18);
+}
+
+.tableOrder__foodStatus--off {
+  color: #7f1d1d;
+  background: #fee2e2;
+  border: 1px solid rgba(127,29,29,0.18);
+}
+
+.tableOrder__card--unavailable {
+  opacity: 0.85;
+}
+
 .tableOrder__eyebrow {
   font-size: 0.72rem;
   font-weight: 700;

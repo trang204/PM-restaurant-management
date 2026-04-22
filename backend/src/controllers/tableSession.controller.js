@@ -82,11 +82,11 @@ export async function getSessionContext(req, res, next) {
         f.price,
         f.description,
         f.image_url,
+        COALESCE(f.status, 'AVAILABLE') AS status,
         f.category_id,
         c.name AS category_name
       FROM foods f
       LEFT JOIN categories c ON c.id = f.category_id
-      WHERE COALESCE(f.status, 'AVAILABLE') = 'AVAILABLE'
       ORDER BY c.name, f.name
     `,
     )
