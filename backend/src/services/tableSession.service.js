@@ -22,10 +22,17 @@ export async function closeActiveSessionsForTable(tableId) {
 }
 
 /**
- * Tạo / tái sử dụng phiên gọi món cho booking đã CONFIRMED hoặc CHECKED_IN và đã gán bàn.
- * Trả về { session, order, orderUrl } hoặc null nếu thiếu bàn.
+ * Tạo / tái sử dụng phiên gọi món cho booking đã CHECKED_IN và đã gán bàn.
+ * Trả về { session, order, orderUrl } hoặc null nếu thiếu bàn / chưa vào bàn.
  */
 export async function ensureTableSessionForBooking(bookingId) {
+  const booking = await query(
+    `SELECT id, status FROM bookings WHERE id = $1 LIMIT 1`,
+    [bookingId],
+  )
+  if (!booking.rows.length) return null
+  if (String(booking.rows[0].status || '').toUpperCase() !== 'CHECKED_IN') return null
+
   const bt = await query(
     `SELECT bt.table_id FROM booking_tables bt WHERE bt.booking_id = $1 LIMIT 1`,
     [bookingId],
@@ -127,7 +134,7 @@ export async function loadActiveSessionByToken(token) {
   )
   if (!r.rows.length) return null
   const row = r.rows[0]
-  if (!['CONFIRMED', 'CHECKED_IN'].includes(row.booking_status)) return null
+  if (String(row.booking_status || '').toUpperCase() !== 'CHECKED_IN') return null
   return row
 }
 
@@ -139,6 +146,30 @@ export async function getOrCreateOrderForSession(sessionRow) {
     [sessionId],
   )
   if (order.rows.length) return order.rows[0]
+  const ins = await query(
+    `INSERT INTO orders (booking_id, status, table_session_id) VALUES ($1, 'PENDING', $2) RETURNING id, status`,
+    [bookingId, sessionId],
+  )
+  return ins.rows[0]
+}
+
+/**
+ * Lấy hoặc tạo một order PENDING cho session.
+ * Nếu order hiện tại đang SERVING (đã xác nhận), tạo một order PENDING mới
+ * để khách có thể gọi thêm (đợt 2, 3...).
+ */
+export async function getOrCreatePendingOrderForSession(sessionRow) {
+  const bookingId = sessionRow.booking_id
+  const sessionId = sessionRow.session_id
+
+  // Ưu tiên lấy PENDING order gần nhất
+  const pending = await query(
+    `SELECT id, status FROM orders WHERE table_session_id = $1 AND status = 'PENDING' ORDER BY id DESC LIMIT 1`,
+    [sessionId],
+  )
+  if (pending.rows.length) return pending.rows[0]
+
+  // Không có PENDING → tạo mới (kể cả khi đang có SERVING)
   const ins = await query(
     `INSERT INTO orders (booking_id, status, table_session_id) VALUES ($1, 'PENDING', $2) RETURNING id, status`,
     [bookingId, sessionId],

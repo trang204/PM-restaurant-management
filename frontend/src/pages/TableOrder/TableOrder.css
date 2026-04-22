@@ -46,8 +46,8 @@
 }
 
 .tableOrder__logo {
-  width: 40px;
-  height: 40px;
+  width: 45px;
+  height: 45px;
   border-radius: 9px;
   object-fit: cover;
   border: 1px solid rgba(184,147,90,0.25);
@@ -59,6 +59,41 @@
   border-radius: 9px;
   background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
   flex-shrink: 0;
+}
+
+/* ─── Food availability badge ─── */
+.tableOrder__cardMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tableOrder__foodStatus {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.tableOrder__foodStatus--ok {
+  color: #155724;
+  background: #d4edda;
+  border: 1px solid rgba(21,87,36,0.18);
+}
+
+.tableOrder__foodStatus--off {
+  color: #7f1d1d;
+  background: #fee2e2;
+  border: 1px solid rgba(127,29,29,0.18);
+}
+
+.tableOrder__card--unavailable {
+  opacity: 0.85;
 }
 
 .tableOrder__eyebrow {
@@ -472,7 +507,8 @@
   border: 1px solid var(--to-border);
   border-radius: var(--to-radius);
   box-shadow: var(--to-shadow);
-  overflow: hidden;
+  overflow-y: auto;
+  max-height: calc(100vh - 48px);
 }
 
 .tableOrder__cartHead {
@@ -578,7 +614,24 @@
 .tableOrder__payBox {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
+}
+
+/* Full-width button variant */
+.tableOrder__btn--full {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Outline variant (cho nút Yêu cầu thanh toán) */
+.tableOrder__btn--outline {
+  background: transparent;
+  border: 1.5px solid var(--to-gold);
+  color: var(--to-gold-d);
+  font-weight: 600;
+}
+.tableOrder__btn--outline:hover:not(:disabled) {
+  background: var(--to-gold-s);
 }
 
 .tableOrder__payRow {
@@ -600,39 +653,139 @@
 
 .tableOrder__radio input { accent-color: var(--to-gold); cursor: pointer; }
 
-.tableOrder__payInfo { padding: 10px 0; }
+.tableOrder__payInfo { padding: 10px 0; display: flex; flex-direction: column; gap: 6px; }
+
+.tableOrder__payMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.875rem;
+  color: var(--to-text);
+}
+
+.tableOrder__payMeta span { display: flex; gap: 5px; align-items: baseline; }
+
+.tableOrder__payPaid { color: #22863a; }
+.tableOrder__payUnpaid { color: #b45309; }
+.tableOrder__payAmount { color: var(--to-gold-d); font-size: 1rem; }
 
 .tableOrder__payNotify {
   font-size: 0.82rem;
   color: var(--to-muted);
-  margin: 0 0 10px;
+  margin: 0;
   line-height: 1.5;
+  padding: 8px 10px;
+  background: #FEF9F0;
+  border-left: 3px solid var(--to-gold);
+  border-radius: 0 6px 6px 0;
 }
 
-.tableOrder__qrBox {
-  background: #F5F2ED;
-  border-radius: 9px;
-  padding: 12px;
+/* ─── QR Section ─── */
+.tableOrder__qrSection {
+  margin-top: 4px;
+  background: #FFFFFF;
   border: 1px solid var(--to-border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 
-.tableOrder__qrTitle {
-  font-size: 0.72rem;
+.tableOrder__qrLabel {
+  font-size: 0.82rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--to-muted);
-  margin-bottom: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
 }
 
-.tableOrder__qrCode {
-  font-family: ui-monospace, Consolas, monospace;
-  font-size: 0.85rem;
-  color: var(--to-text);
-  word-break: break-all;
-  background: transparent;
-  padding: 0;
+.tableOrder__qrImgWrap {
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px;
+  border: 1px solid var(--to-border);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
 }
+
+.tableOrder__qrImg {
+  display: block;
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+}
+
+.tableOrder__qrBankRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tableOrder__qrBankLogo {
+  height: 24px;
+  width: auto;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.tableOrder__qrBankCode {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--to-text);
+}
+
+.tableOrder__qrInfoRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  font-size: 0.875rem;
+  flex-wrap: wrap;
+}
+
+.tableOrder__qrInfoLabel {
+  color: var(--to-muted);
+  font-size: 0.78rem;
+  min-width: 96px;
+  flex-shrink: 0;
+}
+
+.tableOrder__qrInfoValue {
+  font-weight: 600;
+  color: var(--to-text);
+  flex: 1;
+  word-break: break-all;
+}
+
+.tableOrder__qrCopy {
+  background: none;
+  border: 1px solid var(--to-border);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: var(--to-muted);
+  transition: background var(--to-ease), color var(--to-ease);
+  flex-shrink: 0;
+}
+
+.tableOrder__qrCopy:hover {
+  background: var(--to-gold-s);
+  color: var(--to-gold-d);
+}
+
+.tableOrder__qrOpenLink {
+  font-size: 0.8rem;
+  color: var(--to-gold-d);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--to-gold);
+  padding-bottom: 1px;
+  transition: color var(--to-ease);
+}
+
+.tableOrder__qrOpenLink:hover { color: var(--to-gold); }
 
 .tableOrder__legal {
   font-size: 0.78rem;
@@ -644,13 +797,225 @@
   border-top: 1px solid var(--to-border);
 }
 
+/* ─── Order group label ─── */
+.tableOrder__orderLabel {
+  padding: 6px 18px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--to-muted);
+  background: #F5F2ED;
+  border-top: 1px solid var(--to-border);
+  border-bottom: 1px solid var(--to-border);
+}
+
+/* ─── Kitchen status ─── */
+.tableOrder__kitchenOk {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #22863a;
+  margin-top: 3px;
+}
+
+.tableOrder__kitchenWait {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #b45309;
+  margin-top: 3px;
+}
+
+/* ─── Mobile bar (fixed bottom) ─── */
+.tableOrder__mobileBar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 18px;
+  background: #1C1713;
+  border-top: 1px solid rgba(184,147,90,0.25);
+  z-index: 100;
+  gap: 0;
+}
+
+.tableOrder__mobileBarBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tableOrder__mobileBarLabel { font-weight: 700; }
+
+.tableOrder__mobileBarMeta {
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+
+/* ─── Mobile drawer ─── */
+.tableOrder__drawerBack {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(28,23,19,0.55);
+  z-index: 200;
+  backdrop-filter: blur(2px);
+}
+
+.tableOrder__drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 201;
+  background: #FAF8F4;
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -8px 40px rgba(28,23,19,0.18);
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  max-height: 90svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.tableOrder__drawer--open {
+  transform: translateY(0);
+}
+
+.tableOrder__drawerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--to-border);
+  background: #FDFAF7;
+  border-radius: 18px 18px 0 0;
+  flex-shrink: 0;
+}
+
+.tableOrder__drawerClose {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--to-border);
+  background: #fff;
+  font-size: 1.1rem;
+  color: var(--to-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tableOrder__drawerBody {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tableOrder__drawerFoot {
+  border-top: 1px solid var(--to-border);
+  padding: 16px 18px;
+  background: #FDFAF7;
+  flex-shrink: 0;
+  overflow-y: auto;
+  max-height: 60svh;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─── Payment Panel (section riêng bên dưới layout) ─── */
+.tableOrder__payPanel {
+  background: #fff;
+  border-top: 2px solid var(--to-border);
+  margin-top: 32px;
+}
+
+.tableOrder__payPanelInner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px clamp(14px, 3vw, 28px) 48px;
+}
+
+.tableOrder__payPanelTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--to-text);
+  margin: 0 0 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--to-border);
+}
+
+.tableOrder__payPanelBody {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 32px;
+  align-items: start;
+}
+
+.tableOrder__payPanelLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 420px;
+}
+
+.tableOrder__payPanelSub {
+  font-size: 0.95rem;
+  color: var(--to-muted);
+  margin: 0;
+}
+
+.tableOrder__payPanelRight {
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .tableOrder__payPanelBody {
+    grid-template-columns: 1fr;
+  }
+  .tableOrder__payPanelRight {
+    display: flex;
+    justify-content: center;
+  }
+}
+
 /* ─── Responsive ─── */
 @media (max-width: 900px) {
-  .tableOrder__layout { grid-template-columns: 1fr; }
-  .tableOrder__cart { position: static; }
+  .tableOrder__layout {
+    grid-template-columns: 1fr;
+    padding-bottom: 24px;
+  }
+  /* Hiện cart inline, không dùng drawer */
+  .tableOrder__cart {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+  /* Ẩn drawer + mobileBar — dùng inline cart thay thế */
+  .tableOrder__mobileBar { display: none !important; }
+  .tableOrder__drawer { display: none !important; }
+  .tableOrder__drawerBack { display: none !important; }
+  /* Giới hạn max-height lines để không chiếm quá nhiều */
+  .tableOrder__lines { max-height: none; }
 }
 
 @media (max-width: 600px) {
   .tableOrder__heroInner { flex-direction: column; align-items: flex-start; }
   .tableOrder__grid { grid-template-columns: 1fr; }
+  .tableOrder__cart { border-radius: var(--to-radius); }
 }

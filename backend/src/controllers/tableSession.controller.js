@@ -3,6 +3,7 @@ import { badRequest, notFound } from '../utils/httpError.js'
 import { query } from '../config/db.js'
 import {
   getOrCreateOrderForSession,
+  getOrCreatePendingOrderForSession,
   loadActiveSessionByToken,
   publicOrderUrl,
 } from '../services/tableSession.service.js'
@@ -26,7 +27,7 @@ export async function getMyActiveSession(req, res, next) {
       JOIN tables t ON t.id = ts.table_id
       WHERE ts.status = 'ACTIVE'
         AND b.user_id = $1
-        AND b.status IN ('CONFIRMED', 'CHECKED_IN')
+        AND b.status = 'CHECKED_IN'
       ORDER BY ts.id DESC
       LIMIT 1
     `,
@@ -58,15 +59,19 @@ export async function getSessionContext(req, res, next) {
     const orderRow = await getOrCreateOrderForSession(row)
     const orderId = orderRow.id
 
+    // Lấy items từ tất cả orders đang active (PENDING + SERVING) của session
     const itemsRes = await query(
       `
-      SELECT oi.*, f.name AS food_name
+      SELECT oi.*, f.name AS food_name,
+             o.id AS order_id, o.status AS order_status
       FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id
       LEFT JOIN foods f ON f.id = oi.food_id
-      WHERE oi.order_id = $1
-      ORDER BY oi.id ASC
+      WHERE o.table_session_id = $1
+        AND o.status IN ('PENDING', 'SERVING')
+      ORDER BY o.id ASC, oi.id ASC
     `,
-      [orderId],
+      [row.session_id],
     )
 
     const menuRes = await query(
@@ -77,11 +82,11 @@ export async function getSessionContext(req, res, next) {
         f.price,
         f.description,
         f.image_url,
+        COALESCE(f.status, 'AVAILABLE') AS status,
         f.category_id,
         c.name AS category_name
       FROM foods f
       LEFT JOIN categories c ON c.id = f.category_id
-      WHERE COALESCE(f.status, 'AVAILABLE') = 'AVAILABLE'
       ORDER BY c.name, f.name
     `,
     )
@@ -123,10 +128,11 @@ export async function addItem(req, res, next) {
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
 
-    const orderRow = await getOrCreateOrderForSession(row)
+    // Luôn lấy/tạo PENDING order — nếu đang SERVING thì tạo đợt mới
+    const orderRow = await getOrCreatePendingOrderForSession(row)
     const orderId = orderRow.id
     const st = String(orderRow.status || '').toUpperCase()
-    if (!['PENDING', 'SERVING'].includes(st)) throw badRequest('Đơn không thể thêm món ở trạng thái này')
+    if (st !== 'PENDING') throw badRequest('Đơn không thể thêm món ở trạng thái này')
 
     const foodRes = await query(
       `SELECT id, name, price FROM foods WHERE id = $1 AND COALESCE(status, 'AVAILABLE') = 'AVAILABLE'`,
@@ -181,17 +187,15 @@ export async function updateItem(req, res, next) {
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
 
-    const orderRow = await getOrCreateOrderForSession(row)
-    const st = String(orderRow.status || '').toUpperCase()
-    if (!['PENDING', 'SERVING'].includes(st)) throw badRequest('Đơn không thể sửa ở trạng thái này')
-
     const sessionId = row.session_id
+    // Chỉ cho phép sửa items thuộc PENDING orders
     const r = await query(
       `
       UPDATE order_items oi
       SET quantity = $1
       FROM orders o
       WHERE oi.id = $2 AND oi.order_id = o.id AND o.table_session_id = $3
+        AND o.status = 'PENDING'
       RETURNING oi.*
     `,
       [qty, itemId, sessionId],
@@ -213,16 +217,14 @@ export async function removeItem(req, res, next) {
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
 
-    const orderRow = await getOrCreateOrderForSession(row)
-    const st = String(orderRow.status || '').toUpperCase()
-    if (!['PENDING', 'SERVING'].includes(st)) throw badRequest('Đơn không thể sửa ở trạng thái này')
-
     const sessionId = row.session_id
+    // Chỉ cho phép xóa items thuộc PENDING orders
     const r = await query(
       `
       DELETE FROM order_items oi
       USING orders o
       WHERE oi.id = $1 AND oi.order_id = o.id AND o.table_session_id = $2
+        AND o.status = 'PENDING'
       RETURNING oi.id
     `,
       [itemId, sessionId],
@@ -242,6 +244,17 @@ async function computeOrderTotal(orderId) {
   return Number(r.rows[0]?.total || 0)
 }
 
+async function computeSessionTotal(sessionId) {
+  const r = await query(
+    `SELECT COALESCE(SUM(oi.price * oi.quantity), 0)::numeric AS total
+     FROM order_items oi
+     JOIN orders o ON o.id = oi.order_id
+     WHERE o.table_session_id = $1 AND o.status IN ('PENDING', 'SERVING')`,
+    [sessionId],
+  )
+  return Number(r.rows[0]?.total || 0)
+}
+
 export async function submitOrder(req, res, next) {
   try {
     const token = String(req.params.token || '').trim()
@@ -250,15 +263,19 @@ export async function submitOrder(req, res, next) {
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
 
-    const orderRow = await getOrCreateOrderForSession(row)
-    const orderId = orderRow.id
+    // Chỉ submit PENDING order (đợt mới nhất)
+    const pendingRes = await query(
+      `SELECT id FROM orders WHERE table_session_id = $1 AND status = 'PENDING' ORDER BY id DESC LIMIT 1`,
+      [row.session_id],
+    )
+    if (!pendingRes.rows.length) throw badRequest('Không có đơn mới để xác nhận')
+    const orderId = pendingRes.rows[0].id
 
     const total = await computeOrderTotal(orderId)
-    if (!Number.isFinite(total) || total <= 0) throw badRequest('Chưa có món trong đơn')
+    if (!Number.isFinite(total) || total <= 0) throw badRequest('Chưa có món trong đơn mới')
 
-    // Đánh dấu đã gửi bếp/phục vụ (giữ PENDING/SERVING để vẫn có thể thêm món nếu cần)
     const updated = await query(
-      `UPDATE orders SET status = 'SERVING' WHERE id = $1 AND status IN ('PENDING', 'SERVING') RETURNING id, status`,
+      `UPDATE orders SET status = 'SERVING' WHERE id = $1 AND status = 'PENDING' RETURNING id, status`,
       [orderId],
     )
     if (!updated.rows.length) throw badRequest('Đơn không thể xác nhận ở trạng thái này')
@@ -286,10 +303,56 @@ export async function getPayment(req, res, next) {
     const orderId = orderRow.id
 
     const pay = await query(`SELECT * FROM payments WHERE order_id = $1 ORDER BY id DESC LIMIT 1`, [orderId])
-    const total = await computeOrderTotal(orderId)
-    return ok(res, { orderId, total, payment: pay.rows[0] || null })
+    const total = await computeSessionTotal(row.session_id)
+    const paymentRow = pay.rows[0] || null
+    const isBankTransfer = String(paymentRow?.method || '').toLowerCase() === 'bank_transfer'
+    const bankQr = isBankTransfer ? await buildBankQrUrl(orderId, total) : null
+    return ok(res, {
+      orderId,
+      total,
+      payment: paymentRow,
+      qrUrl: bankQr?.qrUrl ?? null,
+      bankAccount: bankQr?.bankAccount ?? null,
+      bankCode: bankQr?.bankCode ?? null,
+      transferContent: bankQr?.transferContent ?? null,
+    })
   } catch (e) {
     return next(e)
+  }
+}
+
+/** Lấy thông tin ngân hàng từ settings và build URL QR SePay. */
+async function buildBankQrUrl(orderId, total) {
+  try {
+    const sr = await query(
+      `SELECT payment_bank_account, payment_bank_code, payment_transfer_content, payment_qr_template FROM settings ORDER BY id LIMIT 1`,
+    )
+    const s = sr.rows[0] || {}
+    const bankAccount = String(s.payment_bank_account || '').trim()
+    const bankCode = String(s.payment_bank_code || '').trim()
+    if (!bankAccount || !bankCode) return null
+
+    const rawContent = String(s.payment_transfer_content || 'Don {id}').trim()
+    const content = rawContent
+      .replace(/\{id\}/g, String(orderId))
+      .replace(/\{amount\}/g, String(Math.round(total)))
+    const template = String(s.payment_qr_template || '').trim()
+
+    const params = new URLSearchParams()
+    params.set('acc', bankAccount)
+    params.set('bank', bankCode)
+    if (total > 0) params.set('amount', String(Math.round(total)))
+    if (content) params.set('des', content)
+    if (template) params.set('template', template)
+
+    return {
+      qrUrl: `https://qr.sepay.vn/img?${params.toString()}`,
+      bankAccount,
+      bankCode,
+      transferContent: content,
+    }
+  } catch {
+    return null
   }
 }
 
@@ -307,7 +370,7 @@ export async function createPayment(req, res, next) {
     const orderRow = await getOrCreateOrderForSession(row)
     const orderId = orderRow.id
 
-    const total = await computeOrderTotal(orderId)
+    const total = await computeSessionTotal(row.session_id)
     if (!Number.isFinite(total) || total <= 0) throw badRequest('Chưa có món trong đơn')
 
     const existingPaid = await query(
@@ -346,8 +409,16 @@ export async function createPayment(req, res, next) {
       ).catch(() => {})
     }
 
-    const qrContent = m === 'bank_transfer' ? `PAY|ORDER:${orderId}|AMOUNT:${total}` : null
-    const payload = { orderId, total, payment: payRow, qrContent }
+    const bankQr = m === 'bank_transfer' ? await buildBankQrUrl(orderId, total) : null
+    const payload = {
+      orderId,
+      total,
+      payment: payRow,
+      qrUrl: bankQr?.qrUrl ?? null,
+      bankAccount: bankQr?.bankAccount ?? null,
+      bankCode: bankQr?.bankCode ?? null,
+      transferContent: bankQr?.transferContent ?? null,
+    }
     return isUpdate ? ok(res, payload) : created(res, payload)
   } catch (e) {
     return next(e)

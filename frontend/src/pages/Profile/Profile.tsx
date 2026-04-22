@@ -3,6 +3,12 @@ import { Link, useNavigate } from 'react-router-dom'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
 import './Profile.css'
 
+const ROLE_LABELS: Record<string, string> = {
+  CUSTOMER: 'Khách hàng',
+  STAFF: 'Nhân viên',
+  ADMIN: 'Quản trị viên',
+}
+
 export default function Profile() {
   const navigate = useNavigate()
   const avatarInputRef = useRef<HTMLInputElement>(null)
@@ -218,7 +224,7 @@ export default function Profile() {
                 </div>
                 <div className="profileInfo__row">
                   <span>Vai trò</span>
-                  <strong>{me.role || 'CUSTOMER'}</strong>
+                  <strong>{ROLE_LABELS[me?.role ?? ''] || me?.role || 'Khách hàng'}</strong>
                 </div>
                 <div className="profileInfo__row">
                   <span>Mã</span>
@@ -226,7 +232,7 @@ export default function Profile() {
                 </div>
               </div>
               <p className="profileHint">
-                Gợi ý: sau khi check-in, bạn có thể gọi món tại bàn bằng QR (nếu nhà hàng bật).
+                Gợi ý: sau khi vào bàn, bạn có thể gọi món bằng QR (nếu nhà hàng bật).
               </p>
             </aside>
           </div>

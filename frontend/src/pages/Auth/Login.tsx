@@ -62,7 +62,7 @@ export default function Login() {
         style={banner ? { backgroundImage: `url(${banner})` } : undefined}
       >
         <p className="authPage__eyebrow">{brand}</p>
-        <h1 className="authPage__title">Chào mừng trở lại</h1>
+        <h1 className="authPage__title">Chào mừng bạn đến với {brand}</h1>
         <p className="authPage__lead">
           Đăng nhập để xem lịch sử đặt bàn, cập nhật thông tin và tiếp tục trải nghiệm ẩm thực.
         </p>

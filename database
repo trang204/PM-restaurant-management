@@ -1,33 +1,18 @@
-
--- =============================================================================
--- Luxeat — schema + dữ liệu mẫu (PostgreSQL)
--- Chạy trên DB trống: psql -U postgres -d ten_db -f database
--- Cảnh báo: script DROP toàn bộ bảng liên quan rồi tạo lại.
--- =============================================================================
-
--- ----- Xóa bảng (thứ tự: phụ thuộc trước) -----
-DROP TABLE IF EXISTS order_items CASCADE;
-DROP TABLE IF EXISTS payments CASCADE;
-DROP TABLE IF EXISTS orders CASCADE;
-DROP TABLE IF EXISTS table_sessions CASCADE;
-DROP TABLE IF EXISTS booking_tables CASCADE;
-DROP TABLE IF EXISTS bookings CASCADE;
-DROP TABLE IF EXISTS foods CASCADE;
-DROP TABLE IF EXISTS categories CASCADE;
-DROP TABLE IF EXISTS notifications CASCADE;
-DROP TABLE IF EXISTS tables CASCADE;
-DROP TABLE IF EXISTS settings CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-DROP TABLE IF EXISTS roles CASCADE;
+-- NOTE
+-- File này được chuẩn hoá để tương thích với backend hiện tại.
+-- Tránh DROP toàn bộ (dễ làm mất dữ liệu). Nếu bạn muốn reset DB, hãy chạy thủ công lệnh DROP.
 
 -- ----- Vai trò -----
-CREATE TABLE roles (
+BEGIN;
+
+-- ----- Vai trò -----
+CREATE TABLE IF NOT EXISTS roles (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(50) UNIQUE NOT NULL
+    name VARCHAR(50) UNIQUE NOT NULL CHECK (name IN ('ADMIN','STAFF','CUSTOMER'))
 );
 
 -- ----- Người dùng -----
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
@@ -39,11 +24,11 @@ CREATE TABLE users (
 );
 
 -- ----- Cấu hình nhà hàng (thường 1 dòng id = 1) -----
-CREATE TABLE settings (
+CREATE TABLE IF NOT EXISTS settings (
     id SERIAL PRIMARY KEY,
     restaurant_name VARCHAR(150),
     logo_url TEXT,
-    banner_urls TEXT[] DEFAULT '{}',
+    banner_urls TEXT[] DEFAULT '{}'::text[],
     banner_enabled BOOLEAN DEFAULT TRUE,
     banner_mode VARCHAR(20) DEFAULT 'SLIDESHOW', -- SLIDESHOW | SINGLE
     banner_show_on_home BOOLEAN DEFAULT TRUE,
@@ -52,35 +37,53 @@ CREATE TABLE settings (
     header_cta_url TEXT,
     footer_tagline TEXT,
     footer_copyright TEXT,
-    footer_links JSONB DEFAULT '[]',
-    social_links JSONB DEFAULT '[]',
+    footer_links JSONB DEFAULT '[]'::jsonb,
+    social_links JSONB DEFAULT '[]'::jsonb,
     total_tables INT,
     address TEXT,
     phone VARCHAR(20),
     email VARCHAR(100),
     open_time TIME,
     close_time TIME,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- QR/Bank transfer (backend dùng)
+    payment_bank_account TEXT,
+    payment_bank_code TEXT,
+    payment_transfer_content TEXT,
+    payment_qr_template TEXT,
+
+    -- Nội dung trang chủ (backend ensureDbSchema dùng)
+    hero_eyebrow TEXT,
+    hero_lead TEXT,
+    hero_meta TEXT,
+    hero_panel_tag TEXT,
+    home_features_title TEXT,
+    home_features_desc TEXT,
+    home_cta_title TEXT,
+    home_cta_text TEXT,
+    home_features_json TEXT
 );
 
 -- ----- Bàn (status: AVAILABLE | RESERVED | OCCUPIED | CLOSED | …) -----
-CREATE TABLE tables (
+CREATE TABLE IF NOT EXISTS tables (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(50),
+    name VARCHAR(50) NOT NULL,
     capacity INT NOT NULL,
     status VARCHAR(20) DEFAULT 'AVAILABLE',
     status_note TEXT,
     pos_x INT,
     pos_y INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    image_url TEXT
 );
 
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL
+    name VARCHAR(100) NOT NULL UNIQUE
 );
 
-CREATE TABLE foods (
+CREATE TABLE IF NOT EXISTS foods (
     id SERIAL PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
     price DECIMAL(14, 2) NOT NULL,
@@ -91,7 +94,7 @@ CREATE TABLE foods (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE bookings (
+CREATE TABLE IF NOT EXISTS bookings (
     id SERIAL PRIMARY KEY,
     user_id INT REFERENCES users (id),
     booking_date DATE NOT NULL,
@@ -105,13 +108,13 @@ CREATE TABLE bookings (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE booking_tables (
+CREATE TABLE IF NOT EXISTS booking_tables (
     id SERIAL PRIMARY KEY,
     booking_id INT REFERENCES bookings (id) ON DELETE CASCADE,
     table_id INT REFERENCES tables (id)
 );
 
-CREATE TABLE table_sessions (
+CREATE TABLE IF NOT EXISTS table_sessions (
     id SERIAL PRIMARY KEY,
     table_id INT NOT NULL REFERENCES tables (id),
     booking_id INT REFERENCES bookings (id) ON DELETE SET NULL,
@@ -124,15 +127,15 @@ CREATE TABLE table_sessions (
 CREATE INDEX idx_table_sessions_token ON table_sessions (qr_token);
 CREATE INDEX idx_table_sessions_booking_active ON table_sessions (booking_id) WHERE status = 'ACTIVE';
 
-CREATE TABLE orders (
+CREATE TABLE IF NOT EXISTS orders (
     id SERIAL PRIMARY KEY,
     booking_id INT REFERENCES bookings (id),
     table_session_id INT REFERENCES table_sessions (id),
-    status VARCHAR(20) DEFAULT 'PENDING',
+    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING','SERVING','DONE','CANCELLED')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE order_items (
+CREATE TABLE IF NOT EXISTS order_items (
     id SERIAL PRIMARY KEY,
     order_id INT REFERENCES orders (id) ON DELETE CASCADE,
     food_id INT REFERENCES foods (id),
@@ -142,16 +145,16 @@ CREATE TABLE order_items (
     kitchen_ack_at TIMESTAMP
 );
 
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
     id SERIAL PRIMARY KEY,
     order_id INT REFERENCES orders (id),
     amount DECIMAL(14, 2),
     method VARCHAR(50),
-    status VARCHAR(20),
+    status VARCHAR(20) DEFAULT 'UNPAID' CHECK (status IN ('UNPAID','PAID')),
     paid_at TIMESTAMP
 );
 
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
     id SERIAL PRIMARY KEY,
     user_id INT REFERENCES users (id),
     message TEXT,
@@ -162,41 +165,20 @@ CREATE TABLE notifications (
 -- ----- Dữ liệu mẫu -----
 -- Mật khẩu mẫu (bcrypt cost 10): 123456
 INSERT INTO roles (name)
-VALUES
-    ('ADMIN'),
-    ('STAFF'),
-    ('CUSTOMER');
+SELECT x.name
+FROM (VALUES ('ADMIN'), ('STAFF'), ('CUSTOMER')) AS x(name)
+WHERE NOT EXISTS (SELECT 1 FROM roles);
 
 INSERT INTO users (name, email, password, phone, role_id)
-VALUES
-    (
-        'Admin',
-        'admin@gmail.com',
-        '$2b$10$UU7uJJcEYrSQZ9wdcYWlg.8B.9KP2Hy0aDp2VeedipG1Rm6MfBwRC',
-        '0900000001',
-        1
-    ),
-    (
-        'Nhân viên 1',
-        'staff1@gmail.com',
-        '$2b$10$UU7uJJcEYrSQZ9wdcYWlg.8B.9KP2Hy0aDp2VeedipG1Rm6MfBwRC',
-        '0900000002',
-        2
-    ),
-    (
-        'Nguyễn Văn A',
-        'user1@gmail.com',
-        '$2b$10$UU7uJJcEYrSQZ9wdcYWlg.8B.9KP2Hy0aDp2VeedipG1Rm6MfBwRC',
-        '0900000003',
-        3
-    ),
-    (
-        'Trần Thị B',
-        'user2@gmail.com',
-        '$2b$10$UU7uJJcEYrSQZ9wdcYWlg.8B.9KP2Hy0aDp2VeedipG1Rm6MfBwRC',
-        '0900000004',
-        3
-    );
+SELECT x.name, x.email, x.password, x.phone, x.role_id
+FROM (
+  VALUES
+    ('Admin', 'admin@gmail.com', '$2b$10$UU7uJJcEYrSQZ9wdcYWlg.8B.9KP2Hy0aDp2VeedipG1Rm6MfBwRC', '0900000001', 1),
+    ('Nhân viên 1', 'staff1@gmail.com', '$2b$10$UU7uJJcEYrSQZ9wdcYWlg.8B.9KP2Hy0aDp2VeedipG1Rm6MfBwRC', '0900000002', 2),
+    ('Nguyễn Văn A', 'user1@gmail.com', '$2b$10$UU7uJJcEYrSQZ9wdcYWlg.8B.9KP2Hy0aDp2VeedipG1Rm6MfBwRC', '0900000003', 3),
+    ('Trần Thị B', 'user2@gmail.com', '$2b$10$UU7uJJcEYrSQZ9wdcYWlg.8B.9KP2Hy0aDp2VeedipG1Rm6MfBwRC', '0900000004', 3)
+) AS x(name, email, password, phone, role_id)
+WHERE NOT EXISTS (SELECT 1 FROM users);
 
 INSERT INTO settings (
     id,
@@ -212,39 +194,41 @@ INSERT INTO settings (
     banner_show_on_home,
     banner_show_on_auth
 )
-VALUES (
+SELECT
     1,
     'Luxeat Restaurant',
     10,
     'Hà Nội',
     '0123456789',
     'luxeat@gmail.com',
-    '08:00',
-    '22:00',
+    '08:00'::time,
+    '22:00'::time,
     TRUE,
     'SLIDESHOW',
     TRUE,
     TRUE
-);
+WHERE NOT EXISTS (SELECT 1 FROM settings WHERE id = 1);
 
 INSERT INTO tables (name, capacity, status)
-VALUES
+SELECT x.name, x.capacity, x.status
+FROM (VALUES
     ('Bàn 1', 2, 'AVAILABLE'),
     ('Bàn 2', 4, 'AVAILABLE'),
     ('Bàn 3', 4, 'AVAILABLE'),
     ('Bàn 4', 6, 'AVAILABLE'),
     ('Bàn 5', 8, 'AVAILABLE'),
-    ('Bàn 6', 2, 'AVAILABLE');
+    ('Bàn 6', 2, 'AVAILABLE')
+) AS x(name, capacity, status)
+WHERE NOT EXISTS (SELECT 1 FROM tables);
 
 INSERT INTO categories (name)
-VALUES
-    ('Khai vị'),
-    ('Món chính'),
-    ('Đồ uống'),
-    ('Tráng miệng');
+SELECT x.name
+FROM (VALUES ('Khai vị'), ('Món chính'), ('Đồ uống'), ('Tráng miệng')) AS x(name)
+WHERE NOT EXISTS (SELECT 1 FROM categories);
 
 INSERT INTO foods (name, price, category_id)
-VALUES
+SELECT x.name, x.price, x.category_id
+FROM (VALUES
     ('Salad', 50000, 1),
     ('Súp gà', 60000, 1),
     ('Pizza Hải Sản', 120000, 2),
@@ -252,41 +236,54 @@ VALUES
     ('Cơm chiên', 80000, 2),
     ('Coca Cola', 20000, 3),
     ('Nước cam', 30000, 3),
-    ('Bánh ngọt', 40000, 4);
+    ('Bánh ngọt', 40000, 4)
+) AS x(name, price, category_id)
+WHERE NOT EXISTS (SELECT 1 FROM foods);
 
 INSERT INTO bookings (user_id, booking_date, booking_time, guests, status, guest_name, guest_phone)
-VALUES
-    (3, '2026-04-10', '18:00', 2, 'PENDING', 'Khách walk-in A', '0911111111'),
-    (4, '2026-04-10', '19:00', 4, 'CONFIRMED', NULL, NULL),
-    (3, '2026-04-11', '20:00', 3, 'COMPLETED', NULL, NULL);
+SELECT x.user_id, x.booking_date, x.booking_time::time, x.guests, x.status, x.guest_name, x.guest_phone
+FROM (VALUES
+    (3, '2026-04-10'::date, '18:00', 2, 'PENDING', 'Khách walk-in A', '0911111111'),
+    (4, '2026-04-10'::date, '19:00', 4, 'CONFIRMED', NULL, NULL),
+    (3, '2026-04-11'::date, '20:00', 3, 'COMPLETED', NULL, NULL)
+) AS x(user_id, booking_date, booking_time, guests, status, guest_name, guest_phone)
+WHERE NOT EXISTS (SELECT 1 FROM bookings);
 
 INSERT INTO booking_tables (booking_id, table_id)
-VALUES
-    (1, 1),
-    (2, 2),
-    (3, 3);
+SELECT x.booking_id, x.table_id
+FROM (VALUES (1, 1), (2, 2), (3, 3)) AS x(booking_id, table_id)
+WHERE NOT EXISTS (SELECT 1 FROM booking_tables);
 
 INSERT INTO orders (booking_id, table_session_id, status)
-VALUES
-    (2, NULL, 'DONE'),
-    (3, NULL, 'DONE');
+SELECT x.booking_id, x.table_session_id, x.status
+FROM (VALUES (2, NULL::int, 'DONE'), (3, NULL::int, 'DONE')) AS x(booking_id, table_session_id, status)
+WHERE NOT EXISTS (SELECT 1 FROM orders);
 
 INSERT INTO order_items (order_id, food_id, quantity, price)
-VALUES
+SELECT x.order_id, x.food_id, x.quantity, x.price
+FROM (VALUES
     (1, 3, 1, 120000),
     (1, 6, 2, 20000),
     (2, 4, 1, 200000),
-    (2, 7, 1, 30000);
+    (2, 7, 1, 30000)
+) AS x(order_id, food_id, quantity, price)
+WHERE NOT EXISTS (SELECT 1 FROM order_items);
 
-INSERT INTO payments (order_id, amount, method, status)
-VALUES
+INSERT INTO payments (order_id, amount, method, status, paid_at)
+SELECT x.order_id, x.amount, x.method, x.status, CASE WHEN x.status = 'PAID' THEN CURRENT_TIMESTAMP ELSE NULL END
+FROM (VALUES
     (1, 160000, 'cash', 'PAID'),
-    (2, 230000, 'bank', 'PAID');
+    (2, 230000, 'bank_transfer', 'PAID')
+) AS x(order_id, amount, method, status)
+WHERE NOT EXISTS (SELECT 1 FROM payments);
 
 INSERT INTO notifications (user_id, message)
-VALUES
+SELECT x.user_id, x.message
+FROM (VALUES
     (3, 'Đặt bàn thành công'),
-    (4, 'Đơn của bạn đã được xác nhận');
+    (4, 'Đơn của bạn đã được xác nhận')
+) AS x(user_id, message)
+WHERE NOT EXISTS (SELECT 1 FROM notifications);
 
 -- ----- Đồng bộ sequence (INSERT thủ công / restore) -----
 SELECT setval(pg_get_serial_sequence('roles', 'id'), COALESCE((SELECT MAX(id) FROM roles), 1));
@@ -306,3 +303,5 @@ SELECT setval(pg_get_serial_sequence('orders', 'id'), COALESCE((SELECT MAX(id) F
 SELECT setval(pg_get_serial_sequence('order_items', 'id'), COALESCE((SELECT MAX(id) FROM order_items), 1));
 SELECT setval(pg_get_serial_sequence('payments', 'id'), COALESCE((SELECT MAX(id) FROM payments), 1));
 SELECT setval(pg_get_serial_sequence('notifications', 'id'), COALESCE((SELECT MAX(id) FROM notifications), 1));
+
+COMMIT;

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { Bell, ChefHat, CheckCheck } from 'lucide-react'
 import { apiFetch } from '../lib/api'
 import './NotificationBell.css'
 
@@ -60,7 +61,7 @@ export default function NotificationBell() {
           setOpen((v) => !v)
         }}
       >
-        <span className="notifyBell__icon" aria-hidden />
+        <Bell size={17} aria-hidden />
         {data.unreadCount > 0 ? (
           <span className="notifyBell__badge">{data.unreadCount > 99 ? '99+' : data.unreadCount}</span>
         ) : null}
@@ -76,10 +77,12 @@ export default function NotificationBell() {
             <strong>Thông báo</strong>
             <div className="notifyBell__headActions">
               <Link to={kitchenPath} className="notifyBell__link" onClick={() => setOpen(false)}>
+                <ChefHat size={12} />
                 Bếp / đơn
               </Link>
               {data.unreadCount > 0 ? (
                 <button type="button" className="notifyBell__readAll" onClick={onReadAll}>
+                  <CheckCheck size={12} />
                   Đọc hết
                 </button>
               ) : null}

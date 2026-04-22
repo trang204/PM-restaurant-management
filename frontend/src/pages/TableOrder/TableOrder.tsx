@@ -10,6 +10,7 @@ type MenuItem = {
   description?: string | null
   image_url?: string | null
   category_name?: string | null
+  status?: string | null
 }
 
 type OrderItem = {
@@ -20,6 +21,8 @@ type OrderItem = {
   food_name?: string | null
   kitchen_status?: string | null
   kitchen_ack_at?: string | null
+  order_id?: number
+  order_status?: string | null
 }
 
 type Ctx = {
@@ -44,7 +47,10 @@ type PaymentCtx = {
   orderId: number
   total: number
   payment: PaymentRow | null
-  qrContent?: string | null
+  qrUrl?: string | null
+  bankAccount?: string | null
+  bankCode?: string | null
+  transferContent?: string | null
 }
 
 const STATUS_VI: Record<string, string> = {
@@ -99,7 +105,8 @@ export default function TableOrder() {
     window.setTimeout(() => setToast(null), 2200)
   }
 
-  const canOrder = ctx ? ['PENDING', 'SERVING'].includes(String(ctx.order.status || '').toUpperCase()) : false
+  // Luôn cho phép gọi thêm khi session còn active
+  const canOrder = ctx !== null
 
   const categories = useMemo(() => {
     if (!ctx?.menu.length) return [] as string[]
@@ -233,8 +240,7 @@ export default function TableOrder() {
       await publicApiFetch(`/table-session/${encodeURIComponent(token)}/submit`, { method: 'POST', body: '{}' })
       await load()
       await loadPayment()
-      showToast('Đã xác nhận đặt món')
-      setCartOpen(true)
+      showToast('Đã xác nhận đặt món — nhân viên đã nhận đơn')
     } catch (e) {
       setErr((e as Error).message)
     } finally {
@@ -257,12 +263,168 @@ export default function TableOrder() {
       })
       setPaymentCtx(d)
       showToast('Đã tạo yêu cầu thanh toán')
-      setCartOpen(true)
     } catch (e) {
       setErr((e as Error).message)
     } finally {
       setPaying(false)
     }
+  }
+
+  /** Chỉ nút "Xác nhận gọi món" — hiện trong giỏ hàng */
+  function renderConfirmBtn() {
+    // null/undefined order_status → coi là PENDING (item chưa được xác nhận)
+    const hasPending = ctx?.items.some(i => {
+      const s = String(i.order_status ?? 'PENDING').toUpperCase()
+      return s === 'PENDING'
+    })
+    if (!hasPending) return null
+    return (
+      <button
+        type="button"
+        className="tableOrder__btn tableOrder__btn--accent tableOrder__btn--full"
+        disabled={submitting}
+        onClick={submit}
+      >
+        {submitting ? 'Đang xác nhận…' : 'Xác nhận gọi món'}
+      </button>
+    )
+  }
+
+  /** Section thanh toán riêng — hiện bên dưới layout */
+  function renderPayPanel() {
+    const hasItems = (ctx?.items.length ?? 0) > 0
+    if (!hasItems) return null
+    return (
+      <section className="tableOrder__payPanel" aria-label="Thanh toán">
+        <div className="tableOrder__payPanelInner">
+          <h2 className="tableOrder__payPanelTitle">Thanh toán</h2>
+          <div className="tableOrder__payPanelBody">
+            {/* Chọn phương thức + nút yêu cầu */}
+            <div className="tableOrder__payPanelLeft">
+              <p className="tableOrder__payPanelSub">Tổng tạm tính: <strong className="tableOrder__payAmount">{formatPrice(total)}</strong></p>
+              <div className="tableOrder__payRow">
+                <label className="tableOrder__radio">
+                  <input type="radio" checked={payMethod === 'cash'} onChange={() => setPayMethod('cash')} /> Tiền mặt
+                </label>
+                <label className="tableOrder__radio">
+                  <input
+                    type="radio"
+                    checked={payMethod === 'bank_transfer'}
+                    onChange={() => setPayMethod('bank_transfer')}
+                  />{' '}
+                  Chuyển khoản
+                </label>
+              </div>
+              <button
+                type="button"
+                className="tableOrder__btn tableOrder__btn--outline tableOrder__btn--full"
+                disabled={paying}
+                onClick={createPay}
+              >
+                {paying ? 'Đang tạo…' : 'Yêu cầu thanh toán'}
+              </button>
+
+              {paymentCtx?.payment ? (
+                <div className="tableOrder__payMeta">
+                  <span>
+                    Trạng thái:{' '}
+                    <strong className={String(paymentCtx.payment.status || '').toUpperCase() === 'PAID' ? 'tableOrder__payPaid' : 'tableOrder__payUnpaid'}>
+                      {String(paymentCtx.payment.status || '').toUpperCase() === 'PAID' ? 'Đã thanh toán ✓' : 'Chờ xác nhận'}
+                    </strong>
+                  </span>
+                  <span>
+                    Phương thức:{' '}
+                    <strong>
+                      {paymentCtx.payment.method === 'bank_transfer' ? 'Chuyển khoản' : paymentCtx.payment.method === 'cash' ? 'Tiền mặt' : '—'}
+                    </strong>
+                  </span>
+                  <span>
+                    Số tiền: <strong className="tableOrder__payAmount">{formatPrice(Number(paymentCtx.total || total))}</strong>
+                  </span>
+                  {String(paymentCtx.payment.status || '').toUpperCase() !== 'PAID' &&
+                   paymentCtx.payment.method !== 'bank_transfer' ? (
+                    <p className="tableOrder__payNotify">
+                      Yêu cầu đã gửi tới nhân viên. Quý khách vui lòng chờ xác nhận.
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="tableOrder__legal">Chọn phương thức rồi nhấn "Yêu cầu thanh toán". Nhân viên sẽ xác nhận.</p>
+              )}
+            </div>
+
+            {/* QR chuyển khoản */}
+            {paymentCtx?.qrUrl && paymentCtx?.payment?.method === 'bank_transfer' ? (
+              <div className="tableOrder__payPanelRight">
+                <div className="tableOrder__qrSection">
+                  <p className="tableOrder__qrLabel">Quét mã QR để chuyển khoản</p>
+                  <div className="tableOrder__qrImgWrap">
+                    <img
+                      src={paymentCtx.qrUrl}
+                      alt="QR chuyển khoản"
+                      className="tableOrder__qrImg"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                    />
+                  </div>
+                  {paymentCtx.bankCode ? (
+                    <div className="tableOrder__qrBankRow">
+                      <img
+                        src={`https://qr.sepay.vn/assets/img/banklogo/${paymentCtx.bankCode}.png`}
+                        alt={paymentCtx.bankCode}
+                        className="tableOrder__qrBankLogo"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                      />
+                      <span className="tableOrder__qrBankCode">{paymentCtx.bankCode}</span>
+                    </div>
+                  ) : null}
+                  {paymentCtx.bankAccount ? (
+                    <div className="tableOrder__qrInfoRow">
+                      <span className="tableOrder__qrInfoLabel">Số tài khoản</span>
+                      <span className="tableOrder__qrInfoValue">{paymentCtx.bankAccount}</span>
+                      <button
+                        type="button"
+                        className="tableOrder__qrCopy"
+                        onClick={() => navigator.clipboard.writeText(paymentCtx.bankAccount!).then(() => showToast('Đã sao chép STK'))}
+                        title="Sao chép"
+                      >⎘</button>
+                    </div>
+                  ) : null}
+                  {paymentCtx.total > 0 ? (
+                    <div className="tableOrder__qrInfoRow">
+                      <span className="tableOrder__qrInfoLabel">Số tiền</span>
+                      <span className="tableOrder__qrInfoValue tableOrder__payAmount">{formatPrice(Number(paymentCtx.total))}</span>
+                    </div>
+                  ) : null}
+                  {paymentCtx.transferContent ? (
+                    <div className="tableOrder__qrInfoRow">
+                      <span className="tableOrder__qrInfoLabel">Nội dung CK</span>
+                      <span className="tableOrder__qrInfoValue">{paymentCtx.transferContent}</span>
+                      <button
+                        type="button"
+                        className="tableOrder__qrCopy"
+                        onClick={() => navigator.clipboard.writeText(paymentCtx.transferContent!).then(() => showToast('Đã sao chép nội dung'))}
+                        title="Sao chép"
+                      >⎘</button>
+                    </div>
+                  ) : null}
+                  <p className="tableOrder__payNotify" style={{ textAlign: 'center', marginTop: 4 }}>
+                    Sau khi chuyển khoản, nhân viên sẽ xác nhận thanh toán cho bạn.
+                  </p>
+                  <a
+                    href={paymentCtx.qrUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="tableOrder__qrOpenLink"
+                  >
+                    Mở QR trong tab mới ↗
+                  </a>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
+    )
   }
 
   return (
@@ -341,9 +503,13 @@ export default function TableOrder() {
 
       {ctx ? (
         <>
-          {!canOrder ? (
+          {statusKey === 'SERVING' && !ctx.items.some(i => String(i.order_status || '').toUpperCase() === 'PENDING') ? (
             <div className="tableOrder__banner tableOrder__banner--info">
-              Đơn đã khóa (trạng thái: {statusLabel}). Liên hệ nhân viên nếu cần thêm món.
+              Đơn đang được phục vụ. Muốn gọi thêm? Chọn món bên dưới — sẽ tạo đợt gọi mới.
+            </div>
+          ) : !['PENDING', 'SERVING'].includes(statusKey) ? (
+            <div className="tableOrder__banner tableOrder__banner--info">
+              Đơn đã kết thúc (trạng thái: {statusLabel}). Cảm ơn quý khách!
             </div>
           ) : null}
 
@@ -355,7 +521,7 @@ export default function TableOrder() {
               <input
                 className="tableOrder__search"
                 type="search"
-                placeholder="Tìm món, ví dụ: pizza, salad…"
+                placeholder="Tìm theo tên món"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 autoComplete="off"
@@ -400,8 +566,15 @@ export default function TableOrder() {
                     const fid = Number(m.id)
                     const inCart = itemsByFoodId.get(fid)
                     const busy = adding === fid
+                    const foodStatus = String(m.status || 'AVAILABLE').toUpperCase()
+                    const isAvailable = foodStatus === 'AVAILABLE'
+                    // item có trong giỏ và thuộc PENDING order → cho phép sửa số lượng trực tiếp
+                    const inCartPending = inCart && String(inCart.order_status ?? 'PENDING').toUpperCase() !== 'SERVING'
                     return (
-                      <article key={String(m.id)} className="tableOrder__card">
+                      <article
+                        key={String(m.id)}
+                        className={`tableOrder__card${!isAvailable ? ' tableOrder__card--unavailable' : ''}`}
+                      >
                         <div
                           className="tableOrder__img"
                           style={
@@ -411,43 +584,54 @@ export default function TableOrder() {
                           }
                         />
                         <div className="tableOrder__cardBody">
-                          <p className="tableOrder__catLabel">{m.category_name || 'Món'}</p>
+                          <div className="tableOrder__cardMeta">
+                            <p className="tableOrder__catLabel">{m.category_name || 'Món'}</p>
+                            <span
+                              className={`tableOrder__foodStatus ${
+                                isAvailable ? 'tableOrder__foodStatus--ok' : 'tableOrder__foodStatus--off'
+                              }`}
+                            >
+                              {isAvailable ? 'Còn món' : 'Hết món'}
+                            </span>
+                          </div>
                           <h3 className="tableOrder__name">{m.name}</h3>
                           {m.description ? <p className="tableOrder__desc">{m.description}</p> : null}
                           <div className="tableOrder__row">
                             <span className="tableOrder__price">{formatPrice(Number(m.price))}</span>
-                            {inCart && canOrder ? (
+                            {inCartPending && canOrder ? (
+                              /* Món trong Đợt PENDING: hiện số lượng + − + */
                               <div className="tableOrder__qtyInline">
                                 <button
                                   type="button"
                                   className="tableOrder__iconBtn"
-                                  disabled={itemBusy === inCart.id || busy}
+                                  disabled={itemBusy === inCart!.id || busy}
                                   aria-label="Giảm"
                                   onClick={() =>
-                                    inCart.quantity <= 1 ? removeLine(inCart.id) : setLineQty(inCart.id, inCart.quantity - 1)
+                                    inCart!.quantity <= 1 ? removeLine(inCart!.id) : setLineQty(inCart!.id, inCart!.quantity - 1)
                                   }
                                 >
                                   −
                                 </button>
-                                <span className="tableOrder__qtyNum">{inCart.quantity}</span>
+                                <span className="tableOrder__qtyNum">{inCart!.quantity}</span>
                                 <button
                                   type="button"
                                   className="tableOrder__iconBtn"
-                                  disabled={itemBusy === inCart.id || busy}
+                                  disabled={itemBusy === inCart!.id || busy}
                                   aria-label="Tăng"
-                                  onClick={() => setLineQty(inCart.id, inCart.quantity + 1)}
+                                  onClick={() => setLineQty(inCart!.id, inCart!.quantity + 1)}
                                 >
                                   +
                                 </button>
                               </div>
                             ) : (
+                              /* Món chưa gọi hoặc đã ở SERVING: nút "Thêm" / "Gọi thêm" → tạo Đợt mới */
                               <button
                                 type="button"
                                 className="tableOrder__add"
-                                disabled={busy || !canOrder}
+                                disabled={busy || !canOrder || !isAvailable}
                                 onClick={() => addToCart(fid, 1)}
                               >
-                                {busy ? '…' : 'Thêm'}
+                                {busy ? '…' : inCart ? 'Gọi thêm' : 'Thêm'}
                               </button>
                             )}
                           </div>
@@ -462,7 +646,6 @@ export default function TableOrder() {
             <aside className="tableOrder__cart" aria-label="Đơn của bạn">
               <div className="tableOrder__cartHead">
                 <h2 className="tableOrder__h2">Đơn của bạn</h2>
-                <span className="tableOrder__orderId">#{ctx.order.id}</span>
               </div>
               {ctx.items.length === 0 ? (
                 <div className="tableOrder__cartEmpty">
@@ -470,124 +653,98 @@ export default function TableOrder() {
                   <p className="tableOrder__cartHint">Chọn món bên cạnh — nhân viên sẽ nhận đơn tại quầy.</p>
                 </div>
               ) : (
-                <ul className="tableOrder__lines">
-                  {ctx.items.map((i) => {
-                    const line = Number(i.price) * i.quantity
-                    const busy = itemBusy === i.id
+                <>
+                  {/* Group items theo từng đợt order */}
+                  {Array.from(
+                    ctx.items.reduce((map, i) => {
+                      const key = i.order_id ?? ctx.order.id
+                      if (!map.has(key)) map.set(key, { status: i.order_status ?? 'PENDING', items: [] })
+                      map.get(key)!.items.push(i)
+                      return map
+                    }, new Map<number, { status: string; items: typeof ctx.items }>())
+                  ).map(([orderId, group], idx) => {
+                    const isPending = String(group.status).toUpperCase() !== 'SERVING'
                     return (
-                      <li key={i.id} className="tableOrder__line">
-                        <div className="tableOrder__lineMain">
-                          <span className="tableOrder__lineName">{i.food_name || `Món #${i.food_id}`}</span>
-                          <span className="tableOrder__lineSub">{formatPrice(Number(i.price))} / phần</span>
-                          <span
-                            className={
-                              String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
-                                ? 'tableOrder__kitchenOk'
-                                : 'tableOrder__kitchenWait'
-                            }
-                          >
-                            {String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
-                              ? 'Bếp đã nhận'
-                              : 'Chờ bếp xác nhận'}
-                          </span>
-                        </div>
-                        <div className="tableOrder__lineActions">
-                          {canOrder ? (
-                            <>
-                              <button
-                                type="button"
-                                className="tableOrder__iconBtn tableOrder__iconBtn--sm"
-                                disabled={busy}
-                                aria-label="Giảm"
-                                onClick={() =>
-                                  i.quantity <= 1 ? removeLine(i.id) : setLineQty(i.id, i.quantity - 1)
-                                }
-                              >
-                                −
-                              </button>
-                              <span className="tableOrder__qtyNum">{i.quantity}</span>
-                              <button
-                                type="button"
-                                className="tableOrder__iconBtn tableOrder__iconBtn--sm"
-                                disabled={busy}
-                                aria-label="Tăng"
-                                onClick={() => setLineQty(i.id, i.quantity + 1)}
-                              >
-                                +
-                              </button>
-                            </>
-                          ) : (
-                            <span className="tableOrder__qtyNum">×{i.quantity}</span>
-                          )}
-                          <span className="tableOrder__lineTotal">{formatPrice(line)}</span>
-                        </div>
-                      </li>
+                      <div key={orderId}>
+                        {idx > 0 || group.status !== 'PENDING' ? (
+                          <div className="tableOrder__orderLabel">
+                            {isPending ? `Đợt ${idx + 1} — Chưa xác nhận` : `Đợt ${idx + 1} — Đang phục vụ`}
+                          </div>
+                        ) : null}
+                        <ul className="tableOrder__lines">
+                          {group.items.map((i) => {
+                            const line = Number(i.price) * i.quantity
+                            const busy = itemBusy === i.id
+                            return (
+                              <li key={i.id} className="tableOrder__line">
+                                <div className="tableOrder__lineMain">
+                                  <span className="tableOrder__lineName">{i.food_name || `Món #${i.food_id}`}</span>
+                                  <span className="tableOrder__lineSub">{formatPrice(Number(i.price))} / phần</span>
+                                  {/* Chỉ hiện trạng thái bếp với đơn PENDING — SERVING đã được xử lý rồi */}
+                                  {isPending ? (
+                                    <span
+                                      className={
+                                        String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
+                                          ? 'tableOrder__kitchenOk'
+                                          : 'tableOrder__kitchenWait'
+                                      }
+                                    >
+                                      {String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
+                                        ? 'Bếp đã nhận'
+                                        : 'Chờ bếp xác nhận'}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <div className="tableOrder__lineActions">
+                                  {isPending ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        className="tableOrder__iconBtn tableOrder__iconBtn--sm"
+                                        disabled={busy}
+                                        aria-label="Giảm"
+                                        onClick={() =>
+                                          i.quantity <= 1 ? removeLine(i.id) : setLineQty(i.id, i.quantity - 1)
+                                        }
+                                      >
+                                        −
+                                      </button>
+                                      <span className="tableOrder__qtyNum">{i.quantity}</span>
+                                      <button
+                                        type="button"
+                                        className="tableOrder__iconBtn tableOrder__iconBtn--sm"
+                                        disabled={busy}
+                                        aria-label="Tăng"
+                                        onClick={() => setLineQty(i.id, i.quantity + 1)}
+                                      >
+                                        +
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span className="tableOrder__qtyNum">×{i.quantity}</span>
+                                  )}
+                                  <span className="tableOrder__lineTotal">{formatPrice(line)}</span>
+                                </div>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </div>
                     )
                   })}
-                </ul>
+                </>
               )}
               <div className="tableOrder__cartFooter">
                 <div className="tableOrder__totalRow">
                   <span>Tạm tính</span>
                   <strong>{formatPrice(total)}</strong>
                 </div>
-                <div className="tableOrder__payBox">
-                  <div className="tableOrder__payRow">
-                    <button
-                      type="button"
-                      className="tableOrder__btn tableOrder__btn--accent"
-                      disabled={!canOrder || submitting || ctx.items.length === 0}
-                      onClick={submit}
-                    >
-                      {submitting ? 'Đang xác nhận…' : 'Xác nhận đặt món'}
-                    </button>
-                    <button
-                      type="button"
-                      className="tableOrder__btn tableOrder__btn--ghost"
-                      disabled={paying || ctx.items.length === 0}
-                      onClick={createPay}
-                    >
-                      {paying ? 'Đang tạo…' : 'Thanh toán'}
-                    </button>
-                  </div>
-                  <div className="tableOrder__payRow">
-                    <label className="tableOrder__radio">
-                      <input type="radio" checked={payMethod === 'cash'} onChange={() => setPayMethod('cash')} /> Tiền mặt
-                    </label>
-                    <label className="tableOrder__radio">
-                      <input
-                        type="radio"
-                        checked={payMethod === 'bank_transfer'}
-                        onChange={() => setPayMethod('bank_transfer')}
-                      />{' '}
-                      Chuyển khoản
-                    </label>
-                  </div>
-
-                  {paymentCtx?.payment ? (
-                    <div className="tableOrder__payInfo">
-                      <div>Trạng thái: <strong>{paymentCtx.payment.status || 'UNPAID'}</strong></div>
-                      <div>Phương thức: <strong>{paymentCtx.payment.method || '—'}</strong></div>
-                      <div>Số tiền: <strong>{formatPrice(Number(paymentCtx.total || total))}</strong></div>
-                      {String(paymentCtx.payment.status || '').toUpperCase() !== 'PAID' ? (
-                        <p className="tableOrder__payNotify">
-                          Yêu cầu đã gửi tới nhân viên (chuông thông báo trên quầy). Quý khách vui lòng chờ xác nhận.
-                        </p>
-                      ) : null}
-                      {paymentCtx.qrContent ? (
-                        <div className="tableOrder__qrBox">
-                          <div className="tableOrder__qrTitle">Mã thanh toán (tạm)</div>
-                          <code className="tableOrder__qrCode">{paymentCtx.qrContent}</code>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <p className="tableOrder__legal">Giữ trang này để thêm món. Nhân viên sẽ xác nhận & thanh toán.</p>
-                  )}
-                </div>
+                {renderConfirmBtn()}
               </div>
             </aside>
           </div>
+
+          {renderPayPanel()}
 
           <div className="tableOrder__mobileBar">
             <button type="button" className="tableOrder__mobileBarBtn" onClick={() => setCartOpen(true)}>
@@ -613,59 +770,80 @@ export default function TableOrder() {
               {ctx.items.length === 0 ? (
                 <p className="tableOrder__cartEmpty">Chưa có món.</p>
               ) : (
-                <ul className="tableOrder__lines">
-                  {ctx.items.map((i) => {
-                    const line = Number(i.price) * i.quantity
-                    const busy = itemBusy === i.id
+                <>
+                  {Array.from(
+                    ctx.items.reduce((map, i) => {
+                      const key = i.order_id ?? ctx.order.id
+                      if (!map.has(key)) map.set(key, { status: i.order_status ?? 'PENDING', items: [] })
+                      map.get(key)!.items.push(i)
+                      return map
+                    }, new Map<number, { status: string; items: typeof ctx.items }>())
+                  ).map(([orderId, group], idx) => {
+                    const isPending = String(group.status).toUpperCase() !== 'SERVING'
                     return (
-                      <li key={i.id} className="tableOrder__line">
-                        <div className="tableOrder__lineMain">
-                          <span className="tableOrder__lineName">{i.food_name || `Món #${i.food_id}`}</span>
-                          <span className="tableOrder__lineSub">{formatPrice(Number(i.price))} / phần</span>
-                          <span
-                            className={
-                              String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
-                                ? 'tableOrder__kitchenOk'
-                                : 'tableOrder__kitchenWait'
-                            }
-                          >
-                            {String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
-                              ? 'Bếp đã nhận'
-                              : 'Chờ bếp xác nhận'}
-                          </span>
+                      <div key={orderId}>
+                        <div className="tableOrder__orderLabel">
+                          {isPending ? `Đợt ${idx + 1} — Chưa xác nhận` : `Đợt ${idx + 1} — Đang phục vụ`}
                         </div>
-                        <div className="tableOrder__lineActions">
-                          {canOrder ? (
-                            <>
-                              <button
-                                type="button"
-                                className="tableOrder__iconBtn tableOrder__iconBtn--sm"
-                                disabled={busy}
-                                onClick={() =>
-                                  i.quantity <= 1 ? removeLine(i.id) : setLineQty(i.id, i.quantity - 1)
-                                }
-                              >
-                                −
-                              </button>
-                              <span className="tableOrder__qtyNum">{i.quantity}</span>
-                              <button
-                                type="button"
-                                className="tableOrder__iconBtn tableOrder__iconBtn--sm"
-                                disabled={busy}
-                                onClick={() => setLineQty(i.id, i.quantity + 1)}
-                              >
-                                +
-                              </button>
-                            </>
-                          ) : (
-                            <span className="tableOrder__qtyNum">×{i.quantity}</span>
-                          )}
-                          <span className="tableOrder__lineTotal">{formatPrice(line)}</span>
-                        </div>
-                      </li>
+                        <ul className="tableOrder__lines">
+                          {group.items.map((i) => {
+                            const line = Number(i.price) * i.quantity
+                            const busy = itemBusy === i.id
+                            return (
+                              <li key={i.id} className="tableOrder__line">
+                                <div className="tableOrder__lineMain">
+                                  <span className="tableOrder__lineName">{i.food_name || `Món #${i.food_id}`}</span>
+                                  <span className="tableOrder__lineSub">{formatPrice(Number(i.price))} / phần</span>
+                                  {isPending ? (
+                                    <span
+                                      className={
+                                        String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
+                                          ? 'tableOrder__kitchenOk'
+                                          : 'tableOrder__kitchenWait'
+                                      }
+                                    >
+                                      {String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
+                                        ? 'Bếp đã nhận'
+                                        : 'Chờ bếp xác nhận'}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <div className="tableOrder__lineActions">
+                                  {isPending ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        className="tableOrder__iconBtn tableOrder__iconBtn--sm"
+                                        disabled={busy}
+                                        onClick={() =>
+                                          i.quantity <= 1 ? removeLine(i.id) : setLineQty(i.id, i.quantity - 1)
+                                        }
+                                      >
+                                        −
+                                      </button>
+                                      <span className="tableOrder__qtyNum">{i.quantity}</span>
+                                      <button
+                                        type="button"
+                                        className="tableOrder__iconBtn tableOrder__iconBtn--sm"
+                                        disabled={busy}
+                                        onClick={() => setLineQty(i.id, i.quantity + 1)}
+                                      >
+                                        +
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span className="tableOrder__qtyNum">×{i.quantity}</span>
+                                  )}
+                                  <span className="tableOrder__lineTotal">{formatPrice(line)}</span>
+                                </div>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </div>
                     )
                   })}
-                </ul>
+                </>
               )}
             </div>
             <div className="tableOrder__drawerFoot">
@@ -673,6 +851,7 @@ export default function TableOrder() {
                 <span>Tạm tính</span>
                 <strong>{formatPrice(total)}</strong>
               </div>
+              {renderConfirmBtn()}
             </div>
           </div>
         </>

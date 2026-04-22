@@ -11,7 +11,7 @@ export type ReservationRow = {
   /** Tên bàn (nếu API trả array_agg). */
   tables?: string[]
   note?: string | null
-  /** Link gọi món tại bàn (khi đơn đã xác nhận và có phiên QR). */
+  /** Link gọi món tại bàn (chỉ có sau khi khách đã vào bàn và có phiên QR). */
   tableOrderUrl?: string | null
   tableOrderToken?: string | null
 }

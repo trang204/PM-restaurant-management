@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
 import { fetchPublicSettings } from '../../lib/settings'
 import './AppLayout.css'
@@ -8,8 +8,14 @@ type Me = { id?: string; email?: string; role?: string; fullName?: string; avata
 
 export default function AppLayout() {
   const [me, setMe] = useState<Me | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const navRef = useRef<HTMLElement>(null)
+  const location = useLocation()
+
+  useEffect(() => { setMenuOpen(false) }, [location.pathname])
   const [brand, setBrand] = useState<{ name: string; logoUrl?: string | null }>({ name: 'Luxeat', logoUrl: null })
   const [publicInfo, setPublicInfo] = useState<{
+
     address?: string | null
     phone?: string | null
     email?: string | null
@@ -61,15 +67,28 @@ export default function AppLayout() {
     <div className="appShell">
       <header className="appHeader">
         <div className="appHeader__inner">
-          <NavLink to="/" className="brand">
+          <NavLink to="/" className="brand" onClick={() => setMenuOpen(false)}>
             {brand.logoUrl ? (
-              <img className="brand__logo" src={mediaUrl(brand.logoUrl)} alt="" width={38} height={38} />
+              <img className="brand__logo" src={mediaUrl(brand.logoUrl)} alt="" width={50} height={50} />
             ) : (
               <span className="brand__mark" aria-hidden />
             )}
             <span className="brand__text">{brand.name}</span>
           </NavLink>
-          <nav className="nav">
+
+          <button
+            type="button"
+            className={`nav__hamburger${menuOpen ? ' nav__hamburger--open' : ''}`}
+            aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+
+          <nav ref={navRef} className={`nav${menuOpen ? ' nav--open' : ''}`} aria-label="Điều hướng">
             <NavLink to="/menu" className="nav__link">
               Thực đơn
             </NavLink>
@@ -118,6 +137,10 @@ export default function AppLayout() {
               </>
             )}
           </nav>
+
+          {menuOpen && (
+            <div className="nav__backdrop" aria-hidden onClick={() => setMenuOpen(false)} />
+          )}
         </div>
       </header>
 
@@ -184,7 +207,7 @@ export default function AppLayout() {
           </div>
 
           <div className="luxFooter__bottom">
-            <span>© {new Date().getFullYear()} {brand.name}. All rights reserved.</span>
+            <span>© {new Date().getFullYear()} {brand.name}. Đã đăng ký bản quyền.</span>
             <div className="luxFooter__bottomLinks">
               {me?.role === 'ADMIN' ? (
                 <NavLink to="/admin" className="luxFooter__miniLink">

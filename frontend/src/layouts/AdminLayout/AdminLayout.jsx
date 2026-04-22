@@ -11,6 +11,8 @@ import {
   Settings,
   LogOut,
   Home,
+  Menu as MenuIcon,
+  X,
 } from 'lucide-react'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
 import { fetchPublicSettings } from '../../lib/settings'
@@ -75,6 +77,11 @@ export default function AdminLayout() {
   const [openGroups, setOpenGroups] = useState(() => new Set(['van-hanh', 'thuc-don', 'he-thong']))
   const [me, setMe] = useState(null)
   const [brand, setBrand] = useState({ name: 'Luxeat', logoUrl: null })
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [pathname])
 
   useEffect(() => {
     setOpenGroups((prev) => {
@@ -124,20 +131,28 @@ export default function AdminLayout() {
 
   return (
     <div className="admin-app">
-      <aside className="admin-sidebar" aria-label="Điều hướng quản trị">
+      <aside className={`admin-sidebar${sidebarOpen ? ' admin-sidebar--open' : ''}`} aria-label="Điều hướng quản trị">
         <NavLink to="/" className="admin-sidebar__brand">
           {brand.logoUrl ? (
             <img
               className="admin-sidebar__brand-logo"
               src={mediaUrl(brand.logoUrl)}
               alt=""
-              width={34}
-              height={34}
+              width={40}
+              height={40}
             />
           ) : (
             <span className="admin-sidebar__brand-mark" aria-hidden />
           )}
-          <span className="admin-sidebar__brand-text">{brand.name} Admin</span>
+          <span className="admin-sidebar__brand-text">{brand.name} — Quản trị</span>
+          <button
+            type="button"
+            className="admin-sidebar__close"
+            aria-label="Đóng menu"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X size={18} />
+          </button>
         </NavLink>
 
         <nav className="admin-sidebar__nav admin-tree" aria-label="Menu điều hướng">
@@ -221,14 +236,34 @@ export default function AdminLayout() {
         </div>
       </aside>
 
+      {sidebarOpen && (
+        <div className="admin-sidebar__backdrop" aria-hidden onClick={() => setSidebarOpen(false)} />
+      )}
+
       <div className="admin-body">
         <header className="admin-topbar">
+          <button
+            type="button"
+            className="admin-topbar__hamburger"
+            aria-label="Mở menu"
+            onClick={() => setSidebarOpen((v) => !v)}
+          >
+            <MenuIcon size={20} />
+          </button>
           <div className="admin-topbar__spacer" />
           <div className="admin-topbar__actions">
             <NotificationBell />
             <span className="admin-topbar__name">{me?.fullName || me?.email || '...'}</span>
             <div className="admin-topbar__avatar" title={me?.email || 'Admin'} aria-hidden>
-              {(me?.email || 'A').slice(0, 2).toUpperCase()}
+              {me?.avatarUrl ? (
+                <img
+                  src={mediaUrl(me.avatarUrl)}
+                  alt=""
+                  className="admin-topbar__avatarImg"
+                />
+              ) : (
+                <span>{(me?.fullName || me?.email || 'A').slice(0, 2).toUpperCase()}</span>
+              )}
             </div>
             <button type="button" className="admin-topbar__logout" onClick={handleLogout}>
               <LogOut size={14} />

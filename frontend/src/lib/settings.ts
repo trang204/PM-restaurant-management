@@ -1,5 +1,7 @@
 import { publicApiFetch } from './api'
 
+export type HomeFeature = { title: string; text: string; icon?: string }
+
 export type PublicSettings = {
   restaurantName: string | null
   logoUrl: string | null
@@ -15,6 +17,17 @@ export type PublicSettings = {
   email: string | null
   openTime: string | null
   closeTime: string | null
+  home?: {
+    heroEyebrow?: string | null
+    heroLead?: string | null
+    heroMeta?: string | null
+    heroPanelTag?: string | null
+    featuresTitle?: string | null
+    featuresDesc?: string | null
+    ctaTitle?: string | null
+    ctaText?: string | null
+    features?: HomeFeature[] | null
+  }
 }
 
 function normalizeBannerUrls(raw: unknown): string[] {
@@ -52,6 +65,7 @@ export async function fetchPublicSettings(): Promise<PublicSettings> {
     email: d?.email ?? null,
     openTime: d?.openTime ?? null,
     closeTime: d?.closeTime ?? null,
+    home: d?.home ?? null,
   }
 }
 

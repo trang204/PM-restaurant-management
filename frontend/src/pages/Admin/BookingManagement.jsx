@@ -6,11 +6,22 @@ import './BookingManagement.css'
 function badgeClass(status) {
   const s = String(status || '').toLowerCase()
   if (s === 'pending') return 'book-badge book-badge--yellow'
+  if (s === 'hold') return 'book-badge book-badge--yellow'
   if (s === 'confirmed') return 'book-badge book-badge--blue'
   if (s === 'checked_in') return 'book-badge book-badge--green'
   if (s === 'completed' || s === 'paid') return 'book-badge book-badge--green'
   if (s === 'cancelled') return 'book-badge book-badge--red'
   return 'book-badge'
+}
+
+const STATUS_LABELS = {
+  PENDING: 'Chờ xác nhận',
+  HOLD: 'Đang giữ bàn',
+  CONFIRMED: 'Đã xác nhận',
+  CHECKED_IN: 'Đã vào bàn',
+  COMPLETED: 'Hoàn thành',
+  CANCELLED: 'Đã hủy',
+  PAID: 'Đã thanh toán',
 }
 
 function normDate(d) {
@@ -65,7 +76,7 @@ function formatDateHeader(ymd) {
 
 function isActiveBookingStatus(status) {
   const u = String(status || '').toUpperCase()
-  return u === 'PENDING' || u === 'CONFIRMED' || u === 'CHECKED_IN'
+  return u === 'PENDING' || u === 'HOLD' || u === 'CONFIRMED' || u === 'CHECKED_IN'
 }
 
 /** Mã bàn (string) đã gán cho đơn khác cùng khung ngày + giờ. */
@@ -120,6 +131,11 @@ function assignedTableIsClosed(tables, row) {
   return Boolean(t && String(t.status || '').toUpperCase() === 'CLOSED')
 }
 
+function bankLogoUrl(code) {
+  if (!code) return null
+  return `https://qr.sepay.vn/assets/img/banklogo/${code}.png`
+}
+
 /** @param {{ staffMode?: boolean }} props */
 export default function BookingManagement({ staffMode = false }) {
   const { toast, confirm: askConfirm } = useNotifications()
@@ -135,14 +151,18 @@ export default function BookingManagement({ staffMode = false }) {
   const [transferModal, setTransferModal] = useState(null)
   const [transferToId, setTransferToId] = useState('')
   const [transferReason, setTransferReason] = useState('')
-  const [closeTableModal, setCloseTableModal] = useState(null)
-  const [closeTableReason, setCloseTableReason] = useState('')
+  const [releaseGuestModal, setReleaseGuestModal] = useState(null)
+  const [releaseGuestNote, setReleaseGuestNote] = useState('')
   const [opsBusy, setOpsBusy] = useState(false)
   const [walkInTableId, setWalkInTableId] = useState('')
   const [walkInName, setWalkInName] = useState('')
   const [walkInPhone, setWalkInPhone] = useState('')
   const [walkInGuests, setWalkInGuests] = useState('2')
   const [walkInBusy, setWalkInBusy] = useState(false)
+  const [paymentSettings, setPaymentSettings] = useState(null)
+  const [paymentModal, setPaymentModal] = useState(null)
+  const [paymentBusy, setPaymentBusy] = useState(false)
+  const [qrBusy, setQrBusy] = useState(false)
 
   function load() {
     setLoading(true)
@@ -164,6 +184,20 @@ export default function BookingManagement({ staffMode = false }) {
 
   useEffect(() => {
     refreshTables()
+  }, [])
+
+  useEffect(() => {
+    apiFetch('/admin/settings')
+      .then((d) => {
+        if (!d) return
+        setPaymentSettings({
+          bankAccount: String(d.payment_bank_account ?? '').trim(),
+          bankCode: String(d.payment_bank_code ?? '').trim(),
+          transferContent: String(d.payment_transfer_content ?? '').trim(),
+          qrTemplate: String(d.payment_qr_template ?? '').trim(),
+        })
+      })
+      .catch(() => {})
   }, [])
 
   /** Đồng bộ dropdown gán bàn với bàn đã lưu trên server (F5 vẫn thấy đúng bàn). */
@@ -223,14 +257,7 @@ export default function BookingManagement({ staffMode = false }) {
     try {
       const res = await apiFetch(`/admin/reservations/${id}/confirm`, { method: 'POST', body: '{}' })
       load()
-      if (res?.tableSession?.qrSvg && res?.tableSession?.orderUrl) {
-        setQrModal({
-          title: 'Khách có thể gọi món',
-          svg: res.tableSession.qrSvg,
-          url: res.tableSession.orderUrl,
-          note: res.tableSessionNote,
-        })
-      } else if (res?.tableSessionNote) {
+      if (res?.tableSessionNote) {
         toast(res.tableSessionNote, { variant: 'info' })
       }
     } catch (e) {
@@ -244,7 +271,7 @@ export default function BookingManagement({ staffMode = false }) {
       load()
       if (res?.tableSession?.qrSvg && res?.tableSession?.orderUrl) {
         setQrModal({
-          title: 'Check-in — QR gọi món',
+          title: 'Vào bàn — QR gọi món',
           svg: res.tableSession.qrSvg,
           url: res.tableSession.orderUrl,
           note: res.tableSessionNote,
@@ -333,27 +360,32 @@ export default function BookingManagement({ staffMode = false }) {
     }
   }
 
-  function openCloseTable(r) {
+  function openReleaseGuest(r) {
     if (!r.assignedTableId) {
       toast('Chưa gán bàn.', { variant: 'info' })
       return
     }
-    setCloseTableModal({ tableId: Number(r.assignedTableId), label: r.fullName || `Đơn #${r.id}` })
-    setCloseTableReason('')
+    if (r.status !== 'CHECKED_IN') {
+      toast('Chỉ trả bàn khi khách đã vào bàn (đã check-in).', { variant: 'info' })
+      return
+    }
+    setReleaseGuestModal({ bookingId: r.id, label: r.fullName || `Đơn #${r.id}` })
+    setReleaseGuestNote('')
   }
 
-  async function submitCloseTable() {
-    if (!closeTableModal) return
+  async function submitReleaseGuest() {
+    if (!releaseGuestModal) return
     setOpsBusy(true)
     try {
-      await apiFetch(`/admin/tables/${closeTableModal.tableId}/close`, {
+      await apiFetch(`/admin/reservations/${releaseGuestModal.bookingId}/release-guest`, {
         method: 'POST',
         body: JSON.stringify({
-          reason: closeTableReason.trim() ? closeTableReason.trim() : undefined,
+          note: releaseGuestNote.trim() ? releaseGuestNote.trim() : undefined,
         }),
       })
-      setCloseTableModal(null)
-      setCloseTableReason('')
+      setReleaseGuestModal(null)
+      setReleaseGuestNote('')
+      toast('Đã trả bàn — bàn trống, có thể nhận khách mới.', { variant: 'success' })
       load()
       refreshTables()
     } catch (e) {
@@ -363,17 +395,83 @@ export default function BookingManagement({ staffMode = false }) {
     }
   }
 
+  function buildSePayUrl({ bankAccount, bankCode, amount, content, template }) {
+    const base = 'https://qr.sepay.vn/img'
+    const params = new URLSearchParams()
+    params.set('acc', bankAccount)
+    params.set('bank', bankCode)
+    if (amount) params.set('amount', String(Math.round(amount)))
+    if (content) params.set('des', content)
+    if (template) params.set('template', template)
+    return `${base}?${params.toString()}`
+  }
+
+  async function openOrderQr(r) {
+    setQrBusy(true)
+    try {
+      const res = await apiFetch(`/admin/reservations/${r.id}/order-qr`)
+      if (res?.tableSession?.qrSvg && res?.tableSession?.orderUrl) {
+        setQrModal({
+          title: `QR gọi món — ${r.fullName || `Đơn #${r.id}`}`,
+          svg: res.tableSession.qrSvg,
+          url: res.tableSession.orderUrl,
+          note: res.tableSessionNote,
+        })
+      } else {
+        toast(res?.tableSessionNote || 'Chưa có phiên gọi món. Hãy gán bàn, xác nhận đơn và bấm Vào bàn khi khách tới.', { variant: 'info' })
+      }
+    } catch (e) {
+      toast(e.message, { variant: 'error' })
+    } finally {
+      setQrBusy(false)
+    }
+  }
+
+  async function openPaymentQr(r) {
+    if (!paymentSettings?.bankAccount || !paymentSettings?.bankCode) {
+      toast('Chưa cấu hình thông tin ngân hàng. Vào Cài đặt → Thanh toán để nhập.', { variant: 'info' })
+      return
+    }
+    setPaymentBusy(true)
+    try {
+      const data = await apiFetch(`/admin/reservations/${r.id}/order-total`)
+      const amount = Number(data?.amount ?? 0)
+      const rawContent = paymentSettings.transferContent || 'Thanh toan dat ban {id}'
+      const content = rawContent.replace('{id}', String(r.id)).replace('{amount}', String(Math.round(amount)))
+      const qrUrl = buildSePayUrl({
+        bankAccount: paymentSettings.bankAccount,
+        bankCode: paymentSettings.bankCode,
+        amount,
+        content,
+        template: paymentSettings.qrTemplate,
+      })
+      setPaymentModal({
+        bookingId: r.id,
+        guestName: r.fullName,
+        amount,
+        content,
+        qrUrl,
+        bankAccount: paymentSettings.bankAccount,
+        bankCode: paymentSettings.bankCode,
+      })
+    } catch (e) {
+      toast(e.message, { variant: 'error' })
+    } finally {
+      setPaymentBusy(false)
+    }
+  }
+
   return (
     <div className="booking-mgmt">
       <header className="booking-mgmt__header">
         <div>
           <h1 className="booking-mgmt__title">
-            {staffMode ? 'Tiếp đón & check-in' : 'Đặt bàn'}
+            {staffMode ? 'Tiếp đón & quản lý bàn' : 'Đặt bàn'}
           </h1>
           <p className="booking-mgmt__subtitle">
             {staffMode
-              ? 'Khách vãng lai: mở bàn nhanh (form bên dưới). Đặt trước: gán bàn → Xác nhận → Check-in → QR gọi món. Danh sách theo ngày.'
-              : 'Khách vãng lai: mở bàn nhanh. Đặt trước: xác nhận đơn → QR gọi món (đã gán bàn). Danh sách theo ngày.'}
+              ? 'Khách vãng lai: mở bàn nhanh (form bên dưới). Đặt trước: gán bàn → Xác nhận → Vào bàn → QR gọi món. Danh sách theo ngày.'
+              : 'Khách vãng lai: mở bàn nhanh. Đặt trước: gán bàn → Xác nhận → Vào bàn → QR gọi món. Danh sách theo ngày.'}
           </p>
         </div>
       </header>
@@ -387,7 +485,7 @@ export default function BookingManagement({ staffMode = false }) {
             Mở bàn — khách vãng lai
           </h2>
           <p className="booking-mgmt__walkInHint">
-            Tạo đơn không cần tài khoản, check-in ngay, bàn chuyển sang đang có khách và hiển thị QR/link gọi món.
+            Tạo đơn không cần tài khoản, vào bàn ngay, bàn chuyển sang đang có khách và hiển thị QR/link gọi món.
           </p>
           <div className="booking-mgmt__walkInGrid">
             <label className="booking-mgmt__field">
@@ -500,14 +598,17 @@ export default function BookingManagement({ staffMode = false }) {
               className="booking-mgmt__qr-svg"
               dangerouslySetInnerHTML={{ __html: qrModal.svg }}
             />
-            <p className="booking-mgmt__modal-url">
-              <a href={qrModal.url} target="_blank" rel="noreferrer">
-                Mở trang gọi món
-              </a>
-            </p>
             <div className="booking-mgmt__modal-actions">
+              <a
+                href={qrModal.url}
+                target="_blank"
+                rel="noreferrer"
+                className="booking-mgmt__btn booking-mgmt__btn--qr"
+              >
+                Gọi món cho khách
+              </a>
               <button type="button" className="booking-mgmt__btn booking-mgmt__btn--primary" onClick={() => copyUrl(qrModal.url)}>
-                Copy link
+                Sao chép link
               </button>
               <button type="button" className="booking-mgmt__btn booking-mgmt__btn--ghost" onClick={() => setQrModal(null)}>
                 Đóng
@@ -584,23 +685,23 @@ export default function BookingManagement({ staffMode = false }) {
         </div>
       ) : null}
 
-      {closeTableModal ? (
-        <div className="booking-mgmt__modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="close-table-title">
+      {releaseGuestModal ? (
+        <div className="booking-mgmt__modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="release-guest-title">
           <div className="booking-mgmt__modal">
-            <h2 id="close-table-title" className="booking-mgmt__modal-title">
-              Đóng bàn (sự cố)
+            <h2 id="release-guest-title" className="booking-mgmt__modal-title">
+              Trả bàn — gỡ khách
             </h2>
             <p className="booking-mgmt__modal-note">
-              Chỉ đóng được khi <strong>không còn khách đang ngồi</strong> tại bàn (chưa check-in hoặc đã chuyển khách). Đơn:{' '}
-              {closeTableModal.label}
+              Kết thúc lượt phục vụ tại bàn: đóng phiên QR gọi món, kết thúc đơn, bàn trở lại trống để nhận khách tiếp theo.{' '}
+              <strong>Không</strong> phải đóng bàn bảo trì. Đơn: {releaseGuestModal.label}
             </p>
             <label className="booking-mgmt__field">
-              <span>Lý do (tuỳ chọn)</span>
+              <span>Ghi chú (tuỳ chọn)</span>
               <textarea
                 rows={3}
-                value={closeTableReason}
-                onChange={(e) => setCloseTableReason(e.target.value)}
-                placeholder="Ghi chú cho nhân viên…"
+                value={releaseGuestNote}
+                onChange={(e) => setReleaseGuestNote(e.target.value)}
+                placeholder="Ví dụ: khách đã về, thanh toán tại quầy…"
               />
             </label>
             <div className="booking-mgmt__modal-actions">
@@ -608,17 +709,91 @@ export default function BookingManagement({ staffMode = false }) {
                 type="button"
                 className="booking-mgmt__btn booking-mgmt__btn--primary"
                 disabled={opsBusy}
-                onClick={submitCloseTable}
+                onClick={submitReleaseGuest}
               >
-                {opsBusy ? 'Đang xử lý…' : 'Đóng bàn'}
+                {opsBusy ? 'Đang xử lý…' : 'Trả bàn'}
               </button>
               <button
                 type="button"
                 className="booking-mgmt__btn booking-mgmt__btn--ghost"
                 disabled={opsBusy}
-                onClick={() => setCloseTableModal(null)}
+                onClick={() => setReleaseGuestModal(null)}
               >
                 Hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {paymentModal ? (
+        <div className="booking-mgmt__modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="payment-qr-title">
+          <div className="booking-mgmt__modal booking-mgmt__modal--wide">
+            <h2 id="payment-qr-title" className="booking-mgmt__modal-title">
+              QR Thanh toán chuyển khoản
+            </h2>
+            <div className="booking-mgmt__payment-info">
+              {(() => {
+                const logo = bankLogoUrl(paymentModal.bankCode)
+                return (
+                  <div className="booking-mgmt__payment-bank-row">
+                    {logo ? (
+                      <img src={logo} alt={paymentModal.bankCode} className="booking-mgmt__payment-bank-logo" />
+                    ) : null}
+                    <div>
+                      <p className="booking-mgmt__payment-bank-name">{paymentModal.bankCode}</p>
+                      <p className="booking-mgmt__payment-bank-acc">STK: <strong>{paymentModal.bankAccount}</strong></p>
+                    </div>
+                  </div>
+                )
+              })()}
+              <p>
+                <span className="booking-mgmt__payment-label">Khách:</span> {paymentModal.guestName} &nbsp;|&nbsp;
+                <span className="booking-mgmt__payment-label">Đơn #:</span> {paymentModal.bookingId}
+              </p>
+              <p>
+                <span className="booking-mgmt__payment-label">Nội dung CK:</span> {paymentModal.content}
+              </p>
+              {paymentModal.amount > 0 ? (
+                <p>
+                  <span className="booking-mgmt__payment-label">Số tiền:</span>{' '}
+                  <strong className="booking-mgmt__payment-amount">
+                    {paymentModal.amount.toLocaleString('vi-VN')} ₫
+                  </strong>
+                </p>
+              ) : (
+                <p className="booking-mgmt__payment-note">Chưa có món — số tiền bằng 0. Khách có thể nhập tay khi quét QR.</p>
+              )}
+            </div>
+            <div className="booking-mgmt__payment-qr">
+              <img
+                src={paymentModal.qrUrl}
+                alt="QR thanh toán chuyển khoản"
+                className="booking-mgmt__payment-qr-img"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                  e.currentTarget.nextElementSibling?.removeAttribute('hidden')
+                }}
+              />
+              <p hidden className="booking-mgmt__payment-qr-err">
+                Không tải được ảnh QR. Kiểm tra lại số tài khoản và mã ngân hàng trong Cài đặt.
+              </p>
+            </div>
+            <div className="booking-mgmt__modal-actions">
+              <a
+                href={paymentModal.qrUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="booking-mgmt__btn booking-mgmt__btn--secondary"
+              >
+                Mở QR mới
+              </a>
+              <button
+                type="button"
+                className="booking-mgmt__btn booking-mgmt__btn--ghost"
+                onClick={() => setPaymentModal(null)}
+              >
+                Đóng
               </button>
             </div>
           </div>
@@ -645,27 +820,7 @@ export default function BookingManagement({ staffMode = false }) {
 
       {!loading && !err && totalDayPages > 0 ? (
         <nav className="booking-mgmt__pager" aria-label="Phân trang theo ngày">
-          <div className="booking-mgmt__pagerMain">
-            <button
-              type="button"
-              className="booking-mgmt__btn booking-mgmt__btn--ghost booking-mgmt__btn--sm"
-              disabled={dayPage <= 0}
-              onClick={() => setDayPage((p) => Math.max(0, p - 1))}
-            >
-              ← Trước
-            </button>
-            <span className="booking-mgmt__pagerLabel">
-              Trang <strong>{dayPage + 1}</strong> / {totalDayPages}
-            </span>
-            <button
-              type="button"
-              className="booking-mgmt__btn booking-mgmt__btn--ghost booking-mgmt__btn--sm"
-              disabled={dayPage >= totalDayPages - 1}
-              onClick={() => setDayPage((p) => Math.min(totalDayPages - 1, p + 1))}
-            >
-              Sau →
-            </button>
-          </div>
+          
           <div className="booking-mgmt__pagerPick">
             <label className="booking-mgmt__pagerSelectLabel" htmlFor="booking-day-page">
               Chọn ngày
@@ -764,18 +919,20 @@ export default function BookingManagement({ staffMode = false }) {
                         </div>
                       </td>
                       <td data-label="Trạng thái">
-                        <span className={badgeClass(r.status)}>{r.status}</span>
+                        <span className={badgeClass(r.status)}>{STATUS_LABELS[r.status] || r.status}</span>
                       </td>
                       <td data-label="Thao tác">
                         <div className="booking-mgmt__actions">
                           <button
                             type="button"
                             className="booking-mgmt__btn booking-mgmt__btn--primary"
-                            disabled={r.status !== 'PENDING' || tableClosed}
+                            disabled={(r.status !== 'PENDING' && r.status !== 'HOLD') || tableClosed}
                             title={
                               tableClosed
                                 ? 'Bàn đang đóng — chuyển khách sang bàn khác hoặc mở lại bàn trước'
-                                : undefined
+                                : r.status !== 'PENDING' && r.status !== 'HOLD'
+                                  ? 'Chỉ xác nhận được khi đơn đang chờ hoặc đang giữ bàn'
+                                  : undefined
                             }
                             onClick={() => confirmReservation(r.id)}
                           >
@@ -784,26 +941,65 @@ export default function BookingManagement({ staffMode = false }) {
                           <button
                             type="button"
                             className="booking-mgmt__btn booking-mgmt__btn--secondary"
-                            disabled={
-                              r.status === 'CANCELLED' || r.status === 'COMPLETED' || tableClosed
-                            }
+                            disabled={(r.status !== 'CONFIRMED' && r.status !== 'HOLD') || tableClosed}
                             title={
-                              tableClosed
-                                ? 'Bàn đang đóng — chuyển khách sang bàn khác hoặc mở lại bàn trước'
-                                : undefined
+                              r.status === 'PENDING'
+                                ? 'Cần xác nhận đơn trước khi khách vào bàn'
+                                : r.status === 'CHECKED_IN'
+                                  ? 'Khách đã vào bàn rồi'
+                                  : tableClosed
+                                    ? 'Bàn đang đóng — chuyển khách sang bàn khác hoặc mở lại bàn trước'
+                                    : undefined
                             }
                             onClick={() => checkIn(r.id)}
                           >
-                            Check-in
+                            Vào bàn
                           </button>
-                            <button
-                              type="button"
-                              className="booking-mgmt__btn booking-mgmt__btn--danger"
-                              disabled={r.status === 'CANCELLED' || r.status === 'COMPLETED'}
-                              onClick={() => cancelBooking(r.id)}
-                            >
-                              Hủy
-                            </button>
+                          <button
+                            type="button"
+                            className="booking-mgmt__btn booking-mgmt__btn--qr"
+                            disabled={
+                              qrBusy ||
+                              !r.assignedTableId ||
+                              r.status !== 'CHECKED_IN' ||
+                              r.status === 'CANCELLED' ||
+                              r.status === 'COMPLETED'
+                            }
+                            title={
+                              !r.assignedTableId
+                                ? 'Cần gán bàn trước'
+                                : r.status === 'CANCELLED' || r.status === 'COMPLETED'
+                                  ? 'Đơn đã kết thúc'
+                                  : r.status !== 'CHECKED_IN'
+                                    ? 'Chỉ xem QR sau khi khách đã vào bàn'
+                                  : 'Xem QR gọi món / vào trang order cho khách'
+                            }
+                            onClick={() => openOrderQr(r)}
+                          >
+                            QR gọi món
+                          </button>
+                          <button
+                            type="button"
+                            className="booking-mgmt__btn booking-mgmt__btn--pay"
+                            disabled={paymentBusy || r.status === 'CANCELLED' || r.status === 'COMPLETED'}
+                            title="Tạo QR chuyển khoản thanh toán cho đơn này"
+                            onClick={() => openPaymentQr(r)}
+                          >
+                            QR CK
+                          </button>
+                          <button
+                            type="button"
+                            className="booking-mgmt__btn booking-mgmt__btn--danger"
+                            disabled={
+                              r.status === 'CANCELLED' ||
+                              r.status === 'COMPLETED' ||
+                              r.status === 'CHECKED_IN'
+                            }
+                            title={r.status === 'CHECKED_IN' ? 'Khách đang ngồi tại bàn — không thể hủy' : undefined}
+                            onClick={() => cancelBooking(r.id)}
+                          >
+                            Hủy
+                          </button>
                             <button
                               type="button"
                               className="booking-mgmt__btn booking-mgmt__btn--ghost"
@@ -818,11 +1014,19 @@ export default function BookingManagement({ staffMode = false }) {
                               type="button"
                               className="booking-mgmt__btn booking-mgmt__btn--ghost"
                               disabled={
-                                !r.assignedTableId || r.status === 'CANCELLED' || r.status === 'COMPLETED'
+                                !r.assignedTableId ||
+                                r.status === 'CANCELLED' ||
+                                r.status === 'COMPLETED' ||
+                                r.status !== 'CHECKED_IN'
                               }
-                              onClick={() => openCloseTable(r)}
+                              title={
+                                r.status !== 'CHECKED_IN'
+                                  ? 'Chỉ trả bàn khi khách đã vào bàn (đã check-in)'
+                                  : 'Gỡ khách — bàn trống lại (không phải bảo trì bàn)'
+                              }
+                              onClick={() => openReleaseGuest(r)}
                             >
-                              Đóng bàn
+                              Trả bàn
                             </button>
                           </div>
                         </td>
@@ -831,6 +1035,29 @@ export default function BookingManagement({ staffMode = false }) {
                   })}
               </tbody>
             </table>
+          </div>
+          <div className="booking-mgmt__pagerMain">
+            <button
+              type="button"
+              className="booking-mgmt__btn booking-mgmt__btn--ghost booking-mgmt__btn--sm"
+              disabled={dayPage <= 0}
+              onClick={() => setDayPage((p) => Math.max(0, p - 1))}
+            >
+              ← Trước
+            </button>
+            <div style={{ marginTop:'10px', marginBottom:'10px',padding:'10px', textAlign:'center', display:'flex', alignItems:'center', justifyContent:'between' }}>
+            <span className="booking-mgmt__pagerLabel" style={{ marginRight:'30px' }}>
+              Trang <strong>{dayPage + 1}</strong> / {totalDayPages}
+            </span>
+            <button
+              type="button"
+              className="booking-mgmt__btn booking-mgmt__btn--ghost booking-mgmt__btn--sm"
+              disabled={dayPage >= totalDayPages - 1}
+              onClick={() => setDayPage((p) => Math.min(totalDayPages - 1, p + 1))}
+            >
+              Sau →
+            </button>
+          </div>
           </div>
         </section>
       ) : !loading && !err && rows.length === 0 ? (

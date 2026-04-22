@@ -6,9 +6,15 @@ import './UserManagement.css'
 
 const roles = ['CUSTOMER', 'STAFF', 'ADMIN']
 
+const ROLE_LABELS = {
+  CUSTOMER: 'Khách hàng',
+  STAFF: 'Nhân viên',
+  ADMIN: 'Quản trị viên',
+}
+
 function groupMeta(group) {
   const g = String(group || 'customers').toLowerCase()
-  if (g === 'admins' || g === 'admin') return { role: 'ADMIN', label: 'Admin' }
+  if (g === 'admins' || g === 'admin') return { role: 'ADMIN', label: 'Quản trị viên' }
   if (g === 'staff' || g === 'nhan-vien') return { role: 'STAFF', label: 'Nhân viên' }
   return { role: 'CUSTOMER', label: 'Khách hàng' }
 }
@@ -55,7 +61,7 @@ export default function UserManagement() {
     if (!roleModal) return
     const trimmed = String(roleModal.role || '').trim()
     if (!roles.includes(trimmed)) {
-      toast('Role không hợp lệ.', { variant: 'error' })
+      toast('Vai trò không hợp lệ.', { variant: 'error' })
       return
     }
     try {
@@ -127,7 +133,7 @@ export default function UserManagement() {
               Nhân viên
             </NavLink>
             <NavLink to="/admin/users/admins" className={({ isActive }) => `user-mgmt__tab${isActive ? ' user-mgmt__tab--on' : ''}`}>
-              Admin
+              Quản trị viên
             </NavLink>
           </div>
           <button type="button" className="user-mgmt__add" onClick={openAddModal}>
@@ -156,23 +162,23 @@ export default function UserManagement() {
               <th>Họ tên</th>
               <th>Email</th>
               <th>SĐT</th>
-              <th>Role</th>
+              <th>Vai trò</th>
               <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
               <tr key={u.id}>
-                <td data-label="Name">{u.fullName || u.name || '—'}</td>
+                <td data-label="Họ tên">{u.fullName || u.name || '—'}</td>
                 <td data-label="Email">{u.email}</td>
-                <td data-label="Phone">{u.phone || '—'}</td>
-                <td data-label="Role">
-                  <span className="user-mgmt__role">{u.role}</span>
+                <td data-label="SĐT">{u.phone || '—'}</td>
+                <td data-label="Vai trò">
+                  <span className="user-mgmt__role">{ROLE_LABELS[u.role] || u.role}</span>
                 </td>
-                <td data-label="Actions">
+                <td data-label="Thao tác">
                   <div className="user-mgmt__actions">
-                    <button type="button" className="user-mgmt__btn user-mgmt__btn--secondary" onClick={() => editRole(u.id)}>
-                      Đổi role
+                    <button type="button" className="user-mgmt__btn user-mgmt__btn--secondary" onClick={() => openRoleModal(u.id)}>
+                      Đổi vai trò
                     </button>
                     <button type="button" className="user-mgmt__btn user-mgmt__btn--danger" onClick={() => deleteUser(u.id)}>
                       Xóa
@@ -195,17 +201,17 @@ export default function UserManagement() {
         >
           <div className="user-mgmt__dialog" onClick={(e) => e.stopPropagation()}>
             <h2 id="user-role-title" className="user-mgmt__dialogTitle">
-              Đổi role
+              Đổi vai trò
             </h2>
             <label className="user-mgmt__dialogField">
-              <span>Role ({roles.join(', ')})</span>
+              <span>Vai trò</span>
               <select
                 value={roleModal.role}
                 onChange={(e) => setRoleModal((m) => (m ? { ...m, role: e.target.value } : m))}
               >
                 {roles.map((r) => (
                   <option key={r} value={r}>
-                    {r}
+                    {ROLE_LABELS[r] || r}
                   </option>
                 ))}
               </select>

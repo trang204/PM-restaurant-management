@@ -29,9 +29,10 @@ function statusBadge(status) {
 const STATUS_LABELS = {
   PENDING: 'Chờ xác nhận',
   CONFIRMED: 'Đã xác nhận',
-  CHECKED_IN: 'Đã nhận bàn',
+  CHECKED_IN: 'Đã vào bàn',
   COMPLETED: 'Hoàn thành',
   CANCELLED: 'Đã hủy',
+  PAID: 'Đã thanh toán',
 }
 
 export default function Dashboard() {
