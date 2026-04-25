@@ -141,7 +141,9 @@ async function tableSessionPayload(bookingId, bookingStatus) {
     tableSession: sessionPayload ? { ...sessionPayload, qrSvg } : null,
     tableSessionNote: sessionPayload
       ? null
-      : 'Chưa gán bàn nên chưa tạo QR. Gán bàn cho đơn rồi bấm Xác nhận hoặc Check-in để tạo link/QR gọi món.',
+      : String(bookingStatus || '').toUpperCase() === 'CHECKED_IN'
+        ? 'Chưa gán bàn nên chưa tạo QR. Gán bàn cho đơn rồi bấm Vào bàn để tạo link/QR gọi món.'
+        : 'Khách chưa vào quán nên chưa tạo QR. Xác nhận đơn trước, sau đó bấm Vào bàn khi khách tới để tạo link/QR gọi món.',
   }
 }
 
@@ -375,16 +377,23 @@ export async function confirm(req, res, next) {
     const cur = await query('SELECT id, status FROM bookings WHERE id = $1', [id])
     if (!cur.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
     const curStatus = String(cur.rows[0].status || '').toUpperCase()
-    if (curStatus !== 'PENDING') {
+    if (curStatus !== 'PENDING' && curStatus !== 'HOLD') {
       throw badRequest(`Không thể xác nhận đơn ở trạng thái "${curStatus}".`)
     }
 
     await assertAssignedTableNotClosed(id, 'xác nhận')
 
-    const r = await query(`UPDATE bookings SET status = 'CONFIRMED' WHERE id = $1 RETURNING *`, [id])
+    const r = await query(
+      `UPDATE bookings SET status = 'CONFIRMED', hold_expires_at = NULL WHERE id = $1 RETURNING *`,
+      [id],
+    )
     if (!r.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
-    const payload = await tableSessionPayload(id, r.rows[0].status)
-    return ok(res, payload)
+    return ok(res, {
+      reservationId: id,
+      status: r.rows[0].status,
+      tableSession: null,
+      tableSessionNote: 'Đã xác nhận đơn. Khi khách tới quán, bấm Vào bàn để tạo QR gọi món.',
+    })
   } catch (e) {
     return next(e)
   }
@@ -395,7 +404,7 @@ export async function checkIn(req, res, next) {
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
 
-    // Chỉ cho phép check-in khi đã CONFIRMED
+    // Cho phép check-in khi đã CONFIRMED hoặc đang HOLD (khách đã giữ bàn trước khi đến).
     const cur = await query('SELECT id, status FROM bookings WHERE id = $1', [id])
     if (!cur.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
     const curStatus = String(cur.rows[0].status || '').toUpperCase()
@@ -405,6 +414,9 @@ export async function checkIn(req, res, next) {
     if (curStatus === 'CANCELLED') throw badRequest('Đơn đã hủy, không thể check-in.')
     if (curStatus === 'COMPLETED') throw badRequest('Đơn đã hoàn tất, không thể check-in.')
     if (curStatus === 'CHECKED_IN') throw badRequest('Khách đã check-in rồi.')
+    if (curStatus !== 'CONFIRMED' && curStatus !== 'HOLD') {
+      throw badRequest(`Không thể check-in đơn ở trạng thái "${curStatus}".`)
+    }
 
     await assertAssignedTableNotClosed(id, 'check-in')
 
@@ -412,7 +424,10 @@ export async function checkIn(req, res, next) {
     if (bt.rows.length) {
       await query(`UPDATE tables SET status = 'OCCUPIED' WHERE id = $1`, [bt.rows[0].table_id])
     }
-    const r = await query(`UPDATE bookings SET status = 'CHECKED_IN' WHERE id = $1 RETURNING *`, [id])
+    const r = await query(
+      `UPDATE bookings SET status = 'CHECKED_IN', hold_expires_at = NULL WHERE id = $1 RETURNING *`,
+      [id],
+    )
     if (!r.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
 
     const payload = await tableSessionPayload(id, r.rows[0].status)
@@ -532,6 +547,58 @@ export async function cashierPay(req, res, next) {
     })
 
     return ok(res, { reservationId: bookingId, status: 'COMPLETED', paymentId: pay.id })
+  } catch (e) {
+    return next(e)
+  }
+}
+
+/**
+ * Trả bàn / gỡ khách: đóng phiên QR, kết thúc đơn, bàn về trống (AVAILABLE).
+ * Khác với đóng bàn bảo trì (POST /admin/tables/:id/close → tables.status = CLOSED).
+ */
+export async function releaseGuest(req, res, next) {
+  try {
+    const bookingId = Number(req.params.id)
+    if (!Number.isFinite(bookingId)) throw badRequest('id không hợp lệ')
+    const { note } = req.body || {}
+
+    await withTransaction(async (client) => {
+      const cur = await client.query('SELECT id, status FROM bookings WHERE id = $1', [bookingId])
+      if (!cur.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
+      const st = String(cur.rows[0].status || '').toUpperCase()
+      if (st === 'COMPLETED' || st === 'CANCELLED') throw badRequest('Đơn đã kết thúc')
+      if (st !== 'CHECKED_IN') {
+        throw badRequest('Chỉ trả bàn khi khách đã vào bàn (đã check-in).')
+      }
+
+      await client.query(
+        `UPDATE table_sessions SET status = 'CLOSED', closed_at = NOW()
+         WHERE booking_id = $1 AND status = 'ACTIVE'`,
+        [bookingId],
+      )
+
+      await client.query(
+        `UPDATE orders SET status = 'DONE' WHERE booking_id = $1 AND status IN ('PENDING', 'SERVING')`,
+        [bookingId],
+      )
+
+      const noteTrim = note != null ? String(note).trim() : ''
+      if (noteTrim) {
+        await client.query(`UPDATE bookings SET status = 'COMPLETED', note = COALESCE(note, '') || $2 WHERE id = $1`, [
+          bookingId,
+          `\n[Trả bàn] ${noteTrim}`,
+        ])
+      } else {
+        await client.query(`UPDATE bookings SET status = 'COMPLETED' WHERE id = $1`, [bookingId])
+      }
+
+      const bt = await client.query('SELECT table_id FROM booking_tables WHERE booking_id = $1', [bookingId])
+      if (bt.rows.length) {
+        await client.query(`UPDATE tables SET status = 'AVAILABLE' WHERE id = $1`, [bt.rows[0].table_id])
+      }
+    })
+
+    return ok(res, { reservationId: bookingId, status: 'COMPLETED' })
   } catch (e) {
     return next(e)
   }

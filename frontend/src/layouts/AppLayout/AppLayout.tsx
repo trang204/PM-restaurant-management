@@ -69,7 +69,7 @@ export default function AppLayout() {
         <div className="appHeader__inner">
           <NavLink to="/" className="brand" onClick={() => setMenuOpen(false)}>
             {brand.logoUrl ? (
-              <img className="brand__logo" src={mediaUrl(brand.logoUrl)} alt="" width={38} height={38} />
+              <img className="brand__logo" src={mediaUrl(brand.logoUrl)} alt="" width={50} height={50} />
             ) : (
               <span className="brand__mark" aria-hidden />
             )}

@@ -144,6 +144,7 @@ export default function TableManagement() {
       })
       setCloseModal(null)
       setCloseReason('')
+      toast('Đã đánh dấu bàn bảo trì.', { variant: 'success' })
       load()
     } catch (e) {
       toast(e.message, { variant: 'error' })
@@ -153,6 +154,7 @@ export default function TableManagement() {
   async function reopenTable(id) {
     try {
       await apiFetch(`/admin/tables/${id}/reopen`, { method: 'POST', body: JSON.stringify({}) })
+      toast('Đã mở bàn lại phục vụ.', { variant: 'success' })
       load()
     } catch (e) {
       toast(e.message, { variant: 'error' })
@@ -231,7 +233,7 @@ export default function TableManagement() {
                     className="table-card__btn table-card__btn--primary"
                     onClick={() => reopenTable(t.id)}
                   >
-                    Mở bàn
+                    Mở phục vụ
                   </button>
                 ) : (
                   <button
@@ -239,7 +241,7 @@ export default function TableManagement() {
                     className="table-card__btn table-card__btn--secondary"
                     onClick={() => openCloseTable(t.id)}
                   >
-                    Đóng bàn
+                    Bảo trì bàn
                   </button>
                 )}
                 <button type="button" className="table-card__btn table-card__btn--secondary" onClick={() => openEdit(t)}>
@@ -313,8 +315,11 @@ export default function TableManagement() {
         >
           <div className="table-mgmt__dialog" onClick={(e) => e.stopPropagation()}>
             <h2 id="table-close-title" className="table-mgmt__dialogTitle">
-              Đóng bàn
+              Bảo trì bàn
             </h2>
+            <p className="table-mgmt__dialogHint">
+              Đánh dấu bàn không phục vụ (sự cố, vệ sinh…). Để gỡ khách và trả bàn trống, dùng mục Tiếp đón → Trả bàn.
+            </p>
             <p className="table-mgmt__dialogHint">Lý do (tuỳ chọn)</p>
             <textarea
               className="table-mgmt__textarea"
@@ -328,7 +333,7 @@ export default function TableManagement() {
                 Hủy
               </button>
               <button type="button" className="table-card__btn table-card__btn--primary" onClick={submitCloseTable}>
-                Đóng bàn
+                Xác nhận bảo trì
               </button>
             </div>
           </div>

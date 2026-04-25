@@ -20,7 +20,7 @@ function validateEnv() {
 
   if (errors.length > 0) {
     // eslint-disable-next-line no-console
-    console.error('\n❌  Không thể khởi động backend — thiếu cấu hình bảo mật:\n')
+    console.error('\n  Không thể khởi động backend — thiếu cấu hình bảo mật:\n')
     for (const e of errors) {
       // eslint-disable-next-line no-console
       console.error(`   • ${e}`)

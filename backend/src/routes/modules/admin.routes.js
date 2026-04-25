@@ -32,6 +32,7 @@ router.post('/reservations/:id/transfer-table', ...staff, adminReservations.tran
 router.post('/reservations/:id/confirm', ...staff, adminReservations.confirm)
 router.post('/reservations/:id/check-in', ...staff, adminReservations.checkIn)
 router.post('/reservations/:id/cashier-pay', ...staff, adminReservations.cashierPay)
+router.post('/reservations/:id/release-guest', ...staff, adminReservations.releaseGuest)
 router.post('/reservations/:id/confirm-online-payment', ...staff, adminReservations.confirmOnlinePayment)
 router.post('/reservations/:id/cancel', ...staff, adminReservations.cancelReservation)
 

@@ -1,61 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap');
-
-/* ─── Design Tokens ─── */
-:root {
-  /* Typography */
-  --font-heading: 'Playfair Display', Georgia, 'Times New Roman', serif;
-  --font-body: 'DM Sans', system-ui, 'Segoe UI', sans-serif;
-  --font-mono: ui-monospace, Consolas, monospace;
-
-  /* Palette — Classic Bistro */
-  --cream:        #FAF8F4;
-  --ivory:        #FFFEF9;
-  --espresso:     #1C1713;
-  --charcoal:     #3D3530;
-  --muted:        #7A7069;
-  --warm-gray:    #9E9590;
-  --gold:         #B8935A;
-  --gold-dark:    #8B6E41;
-  --gold-light:   #F4ECE0;
-  --gold-soft:    rgba(184,147,90,0.12);
-  --sage:         #4A7C59;
-  --sage-light:   #EFF6F1;
-  --error:        #C0392B;
-  --error-bg:     #FEF3F2;
-  --border:       #E2D9CC;
-  --border-soft:  rgba(28,23,19,0.08);
-
-  /* Shadows */
-  --shadow-sm:  0 2px 8px rgba(28,23,19,0.06);
-  --shadow-md:  0 4px 20px rgba(28,23,19,0.09);
-  --shadow-lg:  0 12px 40px rgba(28,23,19,0.12);
-
-  /* Radius */
-  --radius-sm:  6px;
-  --radius-md:  10px;
-  --radius-lg:  16px;
-  --radius-xl:  24px;
-
-  /* Transitions */
-  --ease: 0.2s ease;
-
-  /* Legacy aliases — keep so existing pages still work */
-  --text:   var(--muted);
-  --text-h: var(--espresso);
-  --bg:     var(--cream);
-  --accent: var(--gold);
-  --accent-bg: var(--gold-soft);
-
-  font: 16px/1.6 var(--font-body);
-  letter-spacing: 0.01em;
-  color: var(--charcoal);
-  background: var(--cream);
-  color-scheme: light;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+/* Theme — chỉnh màu / font / nền trong ./config/theme.css */
+@import './config/theme.css';
 
 /* ─── Reset & Base ─── */
 *, *::before, *::after { box-sizing: border-box; }
@@ -67,7 +11,9 @@ html {
   background: var(--cream);
 }
 
-html:has(#root .admin-app) { background: #F5F2ED; }
+html:has(#root .admin-app) {
+  background: var(--color-admin-bg);
+}
 
 #root {
   width: 100%;
@@ -87,7 +33,7 @@ html:has(#root .admin-app) { background: #F5F2ED; }
 
 #root:has(.admin-app) {
   color-scheme: light;
-  background: #F5F2ED;
+  background: var(--color-admin-bg);
 }
 
 /* ─── Typography ─── */

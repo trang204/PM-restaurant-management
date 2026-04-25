@@ -22,10 +22,17 @@ export async function closeActiveSessionsForTable(tableId) {
 }
 
 /**
- * Tạo / tái sử dụng phiên gọi món cho booking đã CONFIRMED hoặc CHECKED_IN và đã gán bàn.
- * Trả về { session, order, orderUrl } hoặc null nếu thiếu bàn.
+ * Tạo / tái sử dụng phiên gọi món cho booking đã CHECKED_IN và đã gán bàn.
+ * Trả về { session, order, orderUrl } hoặc null nếu thiếu bàn / chưa vào bàn.
  */
 export async function ensureTableSessionForBooking(bookingId) {
+  const booking = await query(
+    `SELECT id, status FROM bookings WHERE id = $1 LIMIT 1`,
+    [bookingId],
+  )
+  if (!booking.rows.length) return null
+  if (String(booking.rows[0].status || '').toUpperCase() !== 'CHECKED_IN') return null
+
   const bt = await query(
     `SELECT bt.table_id FROM booking_tables bt WHERE bt.booking_id = $1 LIMIT 1`,
     [bookingId],
@@ -127,7 +134,7 @@ export async function loadActiveSessionByToken(token) {
   )
   if (!r.rows.length) return null
   const row = r.rows[0]
-  if (!['CONFIRMED', 'CHECKED_IN'].includes(row.booking_status)) return null
+  if (String(row.booking_status || '').toUpperCase() !== 'CHECKED_IN') return null
   return row
 }
 

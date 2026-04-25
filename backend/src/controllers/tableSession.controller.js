@@ -27,7 +27,7 @@ export async function getMyActiveSession(req, res, next) {
       JOIN tables t ON t.id = ts.table_id
       WHERE ts.status = 'ACTIVE'
         AND b.user_id = $1
-        AND b.status IN ('CONFIRMED', 'CHECKED_IN')
+        AND b.status = 'CHECKED_IN'
       ORDER BY ts.id DESC
       LIMIT 1
     `,
@@ -82,11 +82,11 @@ export async function getSessionContext(req, res, next) {
         f.price,
         f.description,
         f.image_url,
+        COALESCE(f.status, 'AVAILABLE') AS status,
         f.category_id,
         c.name AS category_name
       FROM foods f
       LEFT JOIN categories c ON c.id = f.category_id
-      WHERE COALESCE(f.status, 'AVAILABLE') = 'AVAILABLE'
       ORDER BY c.name, f.name
     `,
     )

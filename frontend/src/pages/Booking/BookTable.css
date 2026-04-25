@@ -272,6 +272,13 @@
   overflow: hidden;
 }
 
+[class*="bookTableBtn"].bookTableBtn--active {
+  border-color: rgba(184,147,90,0.9);
+  background: linear-gradient(145deg, rgba(184,147,90,0.16), rgba(244,236,224,0.8));
+  box-shadow: 0 10px 26px rgba(184,147,90,0.18);
+  transform: translateY(-1px);
+}
+
 [class*="bookTableBtn"]:hover:not(:disabled) {
   border-color: rgba(184,147,90,0.4);
   background: var(--bk2-gold-s);
@@ -326,6 +333,31 @@
   padding: 16px 22px;
   max-height: 400px;
   overflow-y: auto;
+}
+
+.bookPreorder.bookPreorder--expanded {
+  max-height: 680px;
+}
+
+.bookCard__actions {
+  margin-left: auto;
+}
+
+.bookPreorder__toggle {
+  border: 1px solid rgba(184,147,90,0.35);
+  background: rgba(184,147,90,0.12);
+  color: #8B6E41;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--bk2-ease);
+}
+
+.bookPreorder__toggle:hover {
+  background: rgba(184,147,90,0.18);
+  border-color: rgba(184,147,90,0.55);
 }
 
 .bookPreorder__group-title {
