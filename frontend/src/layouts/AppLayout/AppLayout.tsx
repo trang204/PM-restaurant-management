@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Mail, MapPin, Phone } from 'lucide-react'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
 import { fetchPublicSettings } from '../../lib/settings'
 import './AppLayout.css'
@@ -21,6 +22,7 @@ export default function AppLayout() {
     email?: string | null
     openTime?: string | null
     closeTime?: string | null
+    socials?: Array<{ label?: string; url?: string }> | null
   } | null>(null)
 
   useEffect(() => {
@@ -49,6 +51,7 @@ export default function AppLayout() {
           email: s.email,
           openTime: s.openTime,
           closeTime: s.closeTime,
+          socials: Array.isArray(s.footer?.socials) ? s.footer?.socials : null,
         })
       })
       .catch(() => {
@@ -95,9 +98,11 @@ export default function AppLayout() {
             <NavLink to="/book" className="nav__link">
               Đặt bàn
             </NavLink>
-            <NavLink to="/reservations" className="nav__link">
-              Lịch sử
-            </NavLink>
+            {me ? (
+              <NavLink to="/reservations" className="nav__link">
+                Lịch sử
+              </NavLink>
+            ) : null}
             {me ? (
               <>
                 <NavLink to="/profile" className="nav__link nav__link--profile">
@@ -172,23 +177,51 @@ export default function AppLayout() {
                 <NavLink to="/book" className="luxFooter__link">
                   Đặt bàn<br />
                 </NavLink>
-                <NavLink to="/reservations" className="luxFooter__link">
-                  Lịch sử<br />
-                </NavLink>
+                {me ? (
+                  <NavLink to="/reservations" className="luxFooter__link">
+                    Lịch sử<br />
+                  </NavLink>
+                ) : null}
               </div>
 
               <div className="luxFooter__col">
                 <div className="luxFooter__h">Liên hệ</div>
-                {publicInfo?.address ? <div className="luxFooter__text">{publicInfo.address}</div> : null}
+                {publicInfo?.address ? (
+                  <div className="luxFooter__contactRow">
+                    <MapPin size={16} aria-hidden />
+                    <span>{publicInfo.address}</span>
+                  </div>
+                ) : null}
                 {publicInfo?.phone ? (
-                  <a className="luxFooter__link" href={`tel:${String(publicInfo.phone).replace(/\s/g, '')}`}>
-                    {publicInfo.phone}
+                  <a className="luxFooter__contactRow luxFooter__contactLink" href={`tel:${String(publicInfo.phone).replace(/\s/g, '')}`}>
+                    <Phone size={16} aria-hidden />
+                    <span>{publicInfo.phone}</span>
                   </a>
                 ) : null}
                 {publicInfo?.email ? (
-                  <a className="luxFooter__link" href={`mailto:${publicInfo.email}`}>
-                    {publicInfo.email}
+                  <a className="luxFooter__contactRow luxFooter__contactLink" href={`mailto:${publicInfo.email}`}>
+                    <Mail size={16} aria-hidden />
+                    <span>{publicInfo.email}</span>
                   </a>
+                ) : null}
+
+                {publicInfo?.socials?.length ? (
+                  <div className="luxFooter__socials" aria-label="Mạng xã hội">
+                    {publicInfo.socials
+                      .filter((x) => x && x.url && x.label)
+                      .slice(0, 6)
+                      .map((s) => (
+                        <a
+                          key={`${s.label}-${s.url}`}
+                          className="luxFooter__socialBtn"
+                          href={String(s.url)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {String(s.label)}
+                        </a>
+                      ))}
+                  </div>
                 ) : null}
               </div>
 
@@ -196,11 +229,6 @@ export default function AppLayout() {
                 <div className="luxFooter__h">Giờ mở cửa</div>
                 <div className="luxFooter__text">
                   {publicInfo?.openTime && publicInfo?.closeTime ? `${publicInfo.openTime} – ${publicInfo.closeTime}` : 'Hàng ngày'}
-                </div>
-                <div className="luxFooter__ctaRow">
-                  <NavLink to="/book" className="luxFooter__cta">
-                    Đặt bàn ngay
-                  </NavLink>
                 </div>
               </div>
             </div>

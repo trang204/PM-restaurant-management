@@ -101,8 +101,6 @@
   padding: 26px 28px;
 }
 
-.profileCard--aside {}
-
 .profileCard__title {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 1.1rem;
@@ -203,6 +201,36 @@
   cursor: default;
 }
 
+.profileValue {
+  padding: 10px 13px;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--pr-text);
+  background: #F5F2ED;
+  border: 1px solid var(--pr-border);
+  border-radius: 9px;
+  line-height: 1.35;
+}
+
+.profileValue--button {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profileValue--button:hover {
+  background: #fff;
+  border-color: rgba(184,147,90,0.35);
+  box-shadow: 0 0 0 3px rgba(184,147,90,0.12);
+}
+
+.profileField__error {
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #C0392B;
+}
+
 /* ─── Actions ─── */
 .profileActions {
   display: flex;
@@ -229,7 +257,7 @@
   transition: all var(--pr-ease);
 }
 
-.profileBtn:hover { background: #FDFAF7; border-color: rgba(184,147,90,0.3); text-decoration: none; }
+.profileBtn:hover { background: #a4a4a1; border-color: rgba(184,147,90,0.3); text-decoration: none; }
 
 .profileBtn--primary {
   background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
