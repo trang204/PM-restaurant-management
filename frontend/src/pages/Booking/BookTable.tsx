@@ -45,6 +45,7 @@ export default function BookTable() {
   const [guestCount, setGuestCount] = useState(2)
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
   const [qtyByMenuId, setQtyByMenuId] = useState<Record<string, number>>({})
+  const [preorderExpanded, setPreorderExpanded] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -88,6 +89,24 @@ export default function BookTable() {
   }, [menu, qtyByMenuId])
 
   const selectedTable = tables.find((t) => t.id === selectedTableId)
+  const autoSuggestedTable = useMemo(() => {
+    // Gợi ý: chọn bàn nhỏ nhất nhưng đủ chỗ và đang AVAILABLE
+    const cands = tables
+      .filter(isTableSelectable)
+      .filter((t) => Number(t.capacity) >= guestCount)
+      .sort((a, b) => Number(a.capacity) - Number(b.capacity))
+    return cands[0] || null
+  }, [tables, guestCount])
+
+  const effectivePreferredTableId =
+    selectedTableId === null ? autoSuggestedTable?.id ?? null : selectedTableId
+
+  function setFriendlyRequiredMessage(e: React.FormEvent<HTMLInputElement>) {
+    const el = e.currentTarget
+    // Chỉ set message khi thiếu required (không override các validation khác)
+    if (el.validity.valueMissing) el.setCustomValidity('Vui lòng điền vào trường này')
+    else el.setCustomValidity('')
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -101,6 +120,8 @@ export default function BookTable() {
         time,
         guestCount,
         preorderItems,
+        // Ưu tiên bàn: nếu user chọn cụ thể hoặc đang để Tự động có gợi ý theo số khách
+        tableId: effectivePreferredTableId,
       }
       const created = await apiFetch<{ id: string }>('/reservations', {
         method: 'POST',
@@ -108,11 +129,11 @@ export default function BookTable() {
       })
       const id = created?.id
       if (!id) throw new Error('Thiếu mã đơn')
-      if (selectedTableId) {
+      if (effectivePreferredTableId) {
         try {
           await apiFetch(`/reservations/${id}/hold`, {
             method: 'POST',
-            body: JSON.stringify({ tableId: selectedTableId }),
+            body: JSON.stringify({ tableId: effectivePreferredTableId }),
           })
         } catch {
           /* giữ đơn dù giữ bàn lỗi */
@@ -196,6 +217,8 @@ export default function BookTable() {
                   autoComplete="name"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
+                  onInvalid={setFriendlyRequiredMessage}
+                  onInput={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity('')}
                   placeholder="Nguyễn Văn A"
                 />
               </label>
@@ -207,6 +230,8 @@ export default function BookTable() {
                   autoComplete="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  onInvalid={setFriendlyRequiredMessage}
+                  onInput={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity('')}
                   placeholder="09xx xxx xxx"
                 />
               </label>
@@ -224,11 +249,25 @@ export default function BookTable() {
             <div className="bookGrid2">
               <label className="bookField">
                 <span>Ngày *</span>
-                <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+                <input
+                  type="date"
+                  required
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  onInvalid={setFriendlyRequiredMessage}
+                  onInput={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity('')}
+                />
               </label>
               <label className="bookField">
                 <span>Giờ *</span>
-                <input type="time" required value={time} onChange={(e) => setTime(e.target.value)} />
+                <input
+                  type="time"
+                  required
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  onInvalid={setFriendlyRequiredMessage}
+                  onInput={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity('')}
+                />
               </label>
             </div>
             <div style={{ marginTop: 16, marginLeft: 26, marginBottom: 16 }}>
@@ -262,7 +301,11 @@ export default function BookTable() {
                 onClick={() => setSelectedTableId(null)}
               >
                 <span className="bookTableBtn__name">Tự động</span>
-                <span className="bookTableBtn__meta">Nhà hàng chọn bàn phù hợp</span>
+                <span className="bookTableBtn__meta">
+                  {autoSuggestedTable
+                    ? `Hệ thống gợi ý: ${autoSuggestedTable.name} (${autoSuggestedTable.capacity} chỗ)`
+                    : 'Hệ thống chọn bàn phù hợp số khách'}
+                </span>
                 <span className="bookTableBtn__badge">Gợi ý</span>
               </button>
               {tables.map((t) => {
@@ -295,8 +338,17 @@ export default function BookTable() {
                 <h2>Gọi món trước</h2>
                 <p>Tuỳ chọn — đặt số lượng sơ bộ, bếp sẽ ghi nhận khi bạn đến.</p>
               </div>
+              <div className="bookCard__actions">
+                <button
+                  type="button"
+                  className="bookPreorder__toggle"
+                  onClick={() => setPreorderExpanded((v) => !v)}
+                >
+                  {preorderExpanded ? 'Thu gọn' : 'Xem menu đầy đủ'}
+                </button>
+              </div>
             </div>
-            <div className="bookPreorder">
+            <div className={`bookPreorder${preorderExpanded ? ' bookPreorder--expanded' : ''}`}>
               {menu.length === 0 ? (
                 <p style={{ margin: 0, color: 'var(--book-muted)', fontSize: '0.9rem' }}>Đang tải thực đơn…</p>
               ) : (
