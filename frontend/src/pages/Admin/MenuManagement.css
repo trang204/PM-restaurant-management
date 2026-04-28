@@ -297,7 +297,7 @@
   transition: all var(--mn-ease);
 }
 
-.menu-card__btn:hover { background: #FDFAF7; border-color: rgba(184,147,90,0.3); }
+.menu-card__btn:hover { background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%); border-color: rgba(184,147,90,0.38); }
 .menu-card__btn--secondary { color: var(--mn-text); }
 .menu-card__btn--danger { color: #C0392B; border-color: #F5C4C0; }
 .menu-card__btn--danger:hover { background: #FEF3F2; border-color: #F5C4C0; }
@@ -436,7 +436,7 @@
   transition: all var(--mn-ease);
 }
 
-.menu-modal__cancel:hover { background: #FDFAF7; border-color: rgba(184,147,90,0.3); }
+.menu-modal__cancel:hover { background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%); border-color: rgba(184,147,90,0.38); }
 
 .menu-modal__submit {
   display: inline-flex;

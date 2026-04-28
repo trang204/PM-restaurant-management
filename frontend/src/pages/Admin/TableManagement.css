@@ -240,7 +240,7 @@
   transition: all var(--tm-ease);
 }
 
-.table-card__btn:hover { background: #FDFAF7; border-color: rgba(184,147,90,0.3); }
+.table-card__btn:hover { background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%); border-color: rgba(184,147,90,0.38); }
 
 .table-card__btn--primary {
   background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
@@ -254,7 +254,7 @@
 .table-card__btn--secondary { color: var(--tm-text); }
 
 .table-card__btn--secondary:hover {
-  background: #f7f8fb;
+  background: linear-gradient(135deg, rgba(184,147,90,0.12) 0%, rgba(244,236,224,0.88) 100%);
 }
 
 .table-card__btn--danger { color: #C0392B; border-color: #F5C4C0; }

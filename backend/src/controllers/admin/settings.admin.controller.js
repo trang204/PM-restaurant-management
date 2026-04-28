@@ -67,8 +67,6 @@ export async function updateSettings(req, res, next) {
       payment_bank_code,
       payment_transfer_content,
       payment_qr_template,
-      system_email,
-      system_email_password,
       hero_eyebrow,
       hero_lead,
       hero_meta,
@@ -87,10 +85,6 @@ export async function updateSettings(req, res, next) {
     const emailValue = email != null ? String(email).trim() : ''
     if (emailValue && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
       throw badRequest('Email không hợp lệ')
-    }
-    const systemEmailValue = system_email != null ? String(system_email).trim() : ''
-    if (systemEmailValue && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(systemEmailValue)) {
-      throw badRequest('Email hệ thống không hợp lệ')
     }
     if (open_time && close_time && String(open_time) >= String(close_time)) {
       throw badRequest('Giờ đóng cửa phải sau giờ mở cửa')
@@ -132,8 +126,6 @@ export async function updateSettings(req, res, next) {
     col('payment_bank_code', payment_bank_code != null ? String(payment_bank_code).trim() || null : null)
     col('payment_transfer_content', payment_transfer_content != null ? String(payment_transfer_content).trim() || null : null)
     col('payment_qr_template', payment_qr_template != null ? String(payment_qr_template).trim() || null : null)
-    col('system_email', system_email != null ? String(system_email).trim() || null : null)
-    col('system_email_password', system_email_password != null ? String(system_email_password) || null : null)
 
     // Các cột homepage — chỉ thêm vào SET nếu cột thực sự tồn tại trong DB.
     const homeCols = {

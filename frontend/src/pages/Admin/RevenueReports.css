@@ -453,7 +453,7 @@
   flex-shrink: 0;
 }
 
-.rev-report__modalClose:hover { background: #FDFAF7; border-color: rgba(184,147,90,0.3); }
+.rev-report__modalClose:hover { background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%); border-color: rgba(184,147,90,0.38); }
 
 /* ─── Invoice list ─── */
 .rev-report__invoiceList {

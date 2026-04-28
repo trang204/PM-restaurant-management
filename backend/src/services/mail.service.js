@@ -1,16 +1,13 @@
 import nodemailer from 'nodemailer'
-import { query } from '../config/db.js'
 
 let cachedTransport = null
 let cachedMode = null
 let cachedKey = null
 
-async function readMailConfig() {
+function readMailConfig() {
   const host = String(process.env.SMTP_HOST || '').trim()
-  const row = await query('SELECT system_email, system_email_password FROM settings WHERE id = 1 LIMIT 1')
-  const dbConfig = row.rows[0] || {}
-  const user = String(dbConfig.system_email || process.env.SMTP_USER || '').trim()
-  const pass = String(dbConfig.system_email_password || process.env.SMTP_PASS || '').trim()
+  const user = String(process.env.SMTP_USER || '').trim()
+  const pass = String(process.env.SMTP_PASS || '').trim()
   const port = Number(process.env.SMTP_PORT || 587)
   const secure = String(process.env.SMTP_SECURE || '').trim() === 'true' || port === 465
   return { host, user, pass, port, secure }
@@ -34,7 +31,7 @@ async function createTransport(config) {
 }
 
 async function getTransport() {
-  const config = await readMailConfig()
+  const config = readMailConfig()
   const nextKey = JSON.stringify({
     host: config.host,
     user: config.user,
@@ -49,10 +46,22 @@ async function getTransport() {
   return cachedTransport
 }
 
+export async function getMailRuntimeInfo() {
+  const config = readMailConfig()
+  return {
+    mode: config.host && config.user && config.pass ? 'smtp' : 'preview',
+    host: config.host || null,
+    port: config.port,
+    secure: config.secure,
+    user: config.user || null,
+    hasPassword: Boolean(config.pass),
+  }
+}
+
 export async function sendResetPasswordEmail({ to, resetUrl, restaurantName }) {
   const transport = await getTransport()
-  const config = await readMailConfig()
-  const from = String(process.env.MAIL_FROM || config.user || process.env.SMTP_USER || 'no-reply@luxeat.local').trim()
+  const config = readMailConfig()
+  const from = String(process.env.MAIL_FROM || config.user || 'no-reply@luxeat.local').trim()
   const appName = restaurantName?.trim() || 'Luxeat'
   const info = await transport.sendMail({
     from,
@@ -96,4 +105,38 @@ export async function sendResetPasswordEmail({ to, resetUrl, restaurantName }) {
   }
 
   return { previewUrl }
+}
+
+export async function sendTestEmail({ to, restaurantName }) {
+  const transport = await getTransport()
+  const config = readMailConfig()
+  const from = String(process.env.MAIL_FROM || config.user || 'no-reply@luxeat.local').trim()
+  const appName = restaurantName?.trim() || 'Luxeat'
+  const info = await transport.sendMail({
+    from,
+    to,
+    subject: `${appName} - Kiem tra cau hinh email`,
+    text: [
+      `Xin chao,`,
+      ``,
+      `Day la email kiem tra tu he thong ${appName}.`,
+      `Neu ban nhan duoc email nay, cau hinh gui mail da hoat dong.`,
+    ].join('\n'),
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1f2937">
+        <h2 style="margin:0 0 12px">${appName}</h2>
+        <p>Day la email kiem tra tu he thong <strong>${appName}</strong>.</p>
+        <p>Neu ban nhan duoc email nay, cau hinh gui mail da hoat dong.</p>
+      </div>
+    `,
+  })
+
+  if (cachedMode === 'json') {
+    const message = typeof info.message === 'string' ? info.message : JSON.stringify(info.message)
+    // eslint-disable-next-line no-console
+    console.log('[mail:test-preview]', message)
+    return { previewUrl: 'Xem noi dung email test trong console server ([mail:test-preview]).' }
+  }
+
+  return { previewUrl: nodemailer.getTestMessageUrl(info) || null }
 }

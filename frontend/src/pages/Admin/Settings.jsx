@@ -179,7 +179,6 @@ const DEFAULT_FEATURES = [
 const tabs = [
   { id: 'general', label: 'Thông tin chung' },
   { id: 'payment', label: 'Thanh toán' },
-  { id: 'email', label: 'Email hệ thống' },
   { id: 'content', label: 'Nội dung website' },
   { id: 'banner', label: 'Giao diện / Banner' },
 ]
@@ -215,8 +214,6 @@ export default function Settings() {
     paymentBankCode: '',
     paymentTransferContent: 'Thanh toan dat ban {id}',
     paymentQrTemplate: 'compact',
-    systemEmail: '',
-    systemEmailPassword: '',
   })
   const [homeForm, setHomeForm] = useState({
     heroEyebrow: 'Ẩm thực tinh tế · Đặt bàn trực tuyến',
@@ -258,8 +255,6 @@ export default function Settings() {
           paymentBankCode: String(d.payment_bank_code ?? ''),
           paymentTransferContent: String(d.payment_transfer_content ?? 'Thanh toan dat ban {id}'),
           paymentQrTemplate: String(d.payment_qr_template ?? 'compact'),
-          systemEmail: String(d.system_email ?? ''),
-          systemEmailPassword: String(d.system_email_password ?? ''),
         })
         setHomeForm((prev) => ({
           heroEyebrow: d.hero_eyebrow ?? prev.heroEyebrow,
@@ -317,9 +312,6 @@ export default function Settings() {
     if (form.paymentBankAccount.trim() && !/^\d{6,20}$/.test(form.paymentBankAccount.trim())) {
       nextErrors.paymentBankAccount = 'Số tài khoản nên gồm 6-20 chữ số.'
     }
-    if (form.systemEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.systemEmail.trim())) {
-      nextErrors.systemEmail = 'Email hệ thống không hợp lệ.'
-    }
     features.forEach((item, index) => {
       if (!item.title.trim()) nextErrors[`feature-title-${index}`] = requiredMessage(`Tiêu đề tính năng #${index + 1}`)
       if (!item.text.trim()) nextErrors[`feature-text-${index}`] = requiredMessage(`Mô tả tính năng #${index + 1}`)
@@ -355,8 +347,6 @@ export default function Settings() {
           payment_bank_code: form.paymentBankCode.trim() || null,
           payment_transfer_content: form.paymentTransferContent.trim() || null,
           payment_qr_template: form.paymentQrTemplate.trim() || null,
-          system_email: form.systemEmail.trim() || null,
-          system_email_password: form.systemEmailPassword || null,
           hero_eyebrow: homeForm.heroEyebrow.trim() || null,
           hero_lead: homeForm.heroLead.trim() || null,
           hero_meta: homeForm.heroMeta.trim() || null,
@@ -583,46 +573,6 @@ export default function Settings() {
                   <option value="">Mặc định</option>
                 </select>
               </label>
-            </div>
-          </div>
-        </div>
-        ) : null}
-
-        {activeTab === 'email' ? (
-        <div className="settings-card__grid">
-          <div className="settings-field--full settings-payment">
-            <span className="settings-payment__label">Email hệ thống gửi thông báo</span>
-            <p className="settings-payment__hint">
-              Dùng cho các email hệ thống như quên mật khẩu. SMTP host/port vẫn lấy từ biến môi trường server,
-              còn tài khoản và mật khẩu gửi mail có thể nhập tại đây.
-            </p>
-            <div className="settings-card__grid" style={{ marginTop: 8 }}>
-              <label className="settings-field">
-                <span>Tài khoản email hệ thống</span>
-                <input
-                  name="systemEmail"
-                  type="email"
-                  value={form.systemEmail}
-                  onChange={onChange}
-                  placeholder="VD: yourmail@gmail.com"
-                />
-                {fieldErrors.systemEmail ? <small className="settings-field__error">{fieldErrors.systemEmail}</small> : null}
-              </label>
-              <label className="settings-field">
-                <span>Mật khẩu email / App password</span>
-                <input
-                  name="systemEmailPassword"
-                  type="password"
-                  value={form.systemEmailPassword}
-                  onChange={onChange}
-                  placeholder="Nhập mật khẩu hoặc app password"
-                />
-              </label>
-              <div className="settings-field settings-field--full">
-                <small className="settings-field__hint">
-                  Khuyến nghị dùng app password nếu bạn gửi mail qua Gmail hoặc Outlook.
-                </small>
-              </div>
             </div>
           </div>
         </div>
