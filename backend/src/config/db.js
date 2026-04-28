@@ -177,6 +177,15 @@ export async function ensureDbSchema() {
       is_read BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL UNIQUE,
+      expires_at TIMESTAMP NOT NULL,
+      used_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `)
 
   // Seed roles tối thiểu để auth/register không lỗi.
@@ -299,12 +308,36 @@ export async function ensureDbSchema() {
     await query(`ALTER TABLE order_items ADD COLUMN kitchen_ack_at TIMESTAMP`)
   }
 
+  const pr = await query(
+    `
+    SELECT 1
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name = 'password_reset_tokens'
+    LIMIT 1
+    `,
+  )
+  if (!pr.rows.length) {
+    await query(`
+      CREATE TABLE password_reset_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token_hash TEXT NOT NULL UNIQUE,
+        expires_at TIMESTAMP NOT NULL,
+        used_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+  }
+
   // Cột cài đặt thanh toán chuyển khoản (SePay QR).
   const paymentCols = [
     ['payment_bank_account', 'TEXT'],
     ['payment_bank_code', 'TEXT'],
     ['payment_transfer_content', 'TEXT'],
     ['payment_qr_template', 'TEXT'],
+    ['system_email', 'TEXT'],
+    ['system_email_password', 'TEXT'],
   ]
   for (const [col, type] of paymentCols) {
     const pc = await query(

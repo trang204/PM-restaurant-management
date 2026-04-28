@@ -265,6 +265,17 @@
   box-shadow: 0 0 0 3px rgba(184,147,90,0.14);
 }
 
+.booking-mgmt__pagerSub {
+  margin: 2px 0 0;
+  color: var(--bk-text);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.booking-mgmt__dayPagination {
+  margin-top: 10px;
+}
+
 /* ─── Day section ─── */
 .booking-mgmt__day { margin-bottom: 24px; }
 
@@ -341,6 +352,18 @@
 
 .booking-mgmt__table tr:last-child td { border-bottom: none; }
 .booking-mgmt__table tbody tr:hover td { background: rgba(244,236,224,0.3); }
+
+.booking-mgmt__pagination {
+  margin-top: 16px;
+}
+
+.booking-mgmt__paginationWrap {
+  margin-top: 16px;
+}
+
+.booking-mgmt__paginationWrap .booking-mgmt__pagerPick {
+  margin-bottom: 8px;
+}
 
 .booking-mgmt__assign {
   display: flex;

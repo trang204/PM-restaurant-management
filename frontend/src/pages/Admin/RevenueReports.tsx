@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { BarChart3, TableProperties, ChevronDown, ChevronRight, X, Download, TrendingUp, CalendarRange } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { apiFetch } from '../../lib/api'
+import AdminPagination from '../../components/AdminPagination'
 import './RevenueReports.css'
 
 /* ─── Types ─── */
@@ -168,12 +169,16 @@ export default function RevenueReports() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailErr, setDetailErr] = useState<string | null>(null)
   const [invoices, setInvoices] = useState<InvoiceRow[]>([])
+  const [periodPage, setPeriodPage] = useState(1)
+  const [periodPageSize, setPeriodPageSize] = useState(10)
 
   /* Table report state */
   const [tableData, setTableData] = useState<TableRow[]>([])
   const [tableLoading, setTableLoading] = useState(false)
   const [tableErr, setTableErr] = useState<string | null>(null)
   const [expandedTable, setExpandedTable] = useState<number | string | null>(null)
+  const [tablePage, setTablePage] = useState(1)
+  const [tablePageSize, setTablePageSize] = useState(10)
 
   /* Period query */
   const qs = useMemo(() => {
@@ -234,6 +239,16 @@ export default function RevenueReports() {
   const growthPercent = Number(data?.growthPercent || 0)
   const series = data?.series || []
   const tableTotal = tableData.reduce((s, r) => s + Number(r.total || 0), 0)
+  useEffect(() => { setPeriodPage(1) }, [groupBy, from, to, activeTab])
+  useEffect(() => { setTablePage(1) }, [from, to, activeTab])
+  const pagedSeries = useMemo(() => {
+    const start = (periodPage - 1) * periodPageSize
+    return series.slice(start, start + periodPageSize)
+  }, [series, periodPage, periodPageSize])
+  const pagedTableData = useMemo(() => {
+    const start = (tablePage - 1) * tablePageSize
+    return tableData.slice(start, start + tablePageSize)
+  }, [tableData, tablePage, tablePageSize])
 
   async function exportExcel() {
     const q = new URLSearchParams()
@@ -464,7 +479,7 @@ export default function RevenueReports() {
                   <tr><th>Kỳ</th><th>Doanh thu</th><th></th></tr>
                 </thead>
                 <tbody>
-                  {series.map((row) => (
+                  {pagedSeries.map((row) => (
                     <tr key={String(row.date)}>
                       <td>{formatAxisLabel(String(row.date), groupBy)}</td>
                       <td><span className="rev-report__cellMoney">{formatMoney(Number(row.revenue || 0))}</span></td>
@@ -478,6 +493,14 @@ export default function RevenueReports() {
                 </tbody>
               </table>
               </div>
+              <AdminPagination
+                className="rev-report__pagination"
+                page={periodPage}
+                pageSize={periodPageSize}
+                total={series.length}
+                onPageChange={setPeriodPage}
+                onPageSizeChange={setPeriodPageSize}
+              />
             </>
           ) : null}
 
@@ -505,45 +528,56 @@ export default function RevenueReports() {
           ) : null}
 
           {!tableLoading && !tableErr && tableData.length > 0 ? (
-            <div className="rev-report__tableGroup">
-              {tableData.map((tr) => {
-                const key = tr.tableId ?? tr.tableName
-                const isExpanded = expandedTable === key
-                return (
-                  <div key={key} className="rev-report__tableBlock">
-                    <button
-                      type="button"
-                      className={`rev-report__tableBlockHead${isExpanded ? ' rev-report__tableBlockHead--open' : ''}`}
-                      onClick={() => setExpandedTable(isExpanded ? null : key)}
-                    >
-                      <div className="rev-report__tableBlockLeft">
-                        {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                        <TableProperties size={15} />
-                        <span className="rev-report__tableBlockName">{tr.tableName}</span>
-                        <span className="rev-report__tableBlockBadge">{tr.invoiceCount} hóa đơn</span>
-                      </div>
-                      <span className="rev-report__tableBlockTotal">{formatMoney(Number(tr.total || 0))}</span>
-                    </button>
+            <>
+              <div className="rev-report__tableGroup">
+                {pagedTableData.map((tr) => {
+                  const key = tr.tableId ?? tr.tableName
+                  const isExpanded = expandedTable === key
+                  return (
+                    <div key={key} className="rev-report__tableBlock">
+                      <button
+                        type="button"
+                        className={`rev-report__tableBlockHead${isExpanded ? ' rev-report__tableBlockHead--open' : ''}`}
+                        onClick={() => setExpandedTable(isExpanded ? null : key)}
+                      >
+                        <div className="rev-report__tableBlockLeft">
+                          {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                          <TableProperties size={15} />
+                          <span className="rev-report__tableBlockName">{tr.tableName}</span>
+                          <span className="rev-report__tableBlockBadge">{tr.invoiceCount} hóa đơn</span>
+                        </div>
+                        <span className="rev-report__tableBlockTotal">{formatMoney(Number(tr.total || 0))}</span>
+                      </button>
 
-                    {isExpanded && (
-                      <div className="rev-report__tableBlockBody">
-                        {Array.isArray(tr.invoices) && tr.invoices.length > 0 ? (
-                          <ul className="rev-report__invoiceList">
-                            {tr.invoices.map((inv) => (
-                              <InvoiceCard key={inv.paymentId} inv={inv} />
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="rev-report__noItems" style={{ padding: '14px 18px' }}>
-                            Không có chi tiết hóa đơn cho bàn này.
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+                      {isExpanded && (
+                        <div className="rev-report__tableBlockBody">
+                          {Array.isArray(tr.invoices) && tr.invoices.length > 0 ? (
+                            <ul className="rev-report__invoiceList">
+                              {tr.invoices.map((inv) => (
+                                <InvoiceCard key={inv.paymentId} inv={inv} />
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="rev-report__noItems" style={{ padding: '14px 18px' }}>
+                              Không có chi tiết hóa đơn cho bàn này.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              <AdminPagination
+                className="rev-report__pagination"
+                page={tablePage}
+                pageSize={tablePageSize}
+                total={tableData.length}
+                onPageChange={setTablePage}
+                onPageSizeChange={setTablePageSize}
+              />
+            </>
           ) : null}
         </>
       )}

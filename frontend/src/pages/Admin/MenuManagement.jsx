@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { apiFetch, mediaUrl, uploadFoodImage } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
+import AdminPagination from '../../components/AdminPagination'
+import { requiredMessage } from '../../lib/validation'
 import './MenuManagement.css'
 
 const placeholderImg =
@@ -33,10 +35,13 @@ export default function MenuManagement() {
   const [detailItem, setDetailItem] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState(emptyForm)
+  const [formErrors, setFormErrors] = useState({})
   const [imageFile, setImageFile] = useState(null)
   /** 'all' | string category id */
   const [filterCat, setFilterCat] = useState('all')
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   function load() {
     setLoading(true)
@@ -61,6 +66,7 @@ export default function MenuManagement() {
       ...emptyForm,
       categoryId: first?.id != null ? String(first.id) : '',
     })
+    setFormErrors({})
     setDetailItem(null)
     setModalOpen(true)
   }
@@ -83,6 +89,7 @@ export default function MenuManagement() {
       description: item.description || '',
       status: String(item.status || 'AVAILABLE').toUpperCase() === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'AVAILABLE',
     })
+    setFormErrors({})
     setDetailItem(null)
     setModalOpen(true)
   }
@@ -95,6 +102,7 @@ export default function MenuManagement() {
   function closeModal() {
     setModalOpen(false)
     setImageFile(null)
+    setFormErrors({})
   }
 
   function closeDetail() {
@@ -108,16 +116,20 @@ export default function MenuManagement() {
     const catId = Number(form.categoryId)
     const cleanName = String(form.name || '').trim()
     const cleanDescription = String(form.description || '').trim()
+    const nextErrors = {}
     if (!Number.isFinite(catId) || catId <= 0) {
-      toast('Chọn danh mục.', { variant: 'info' })
-      return
+      nextErrors.categoryId = requiredMessage('Danh mục')
     }
     if (!cleanName) {
-      toast('Nhập tên món.', { variant: 'info' })
-      return
+      nextErrors.name = requiredMessage('Tên món')
     }
-    if (!Number.isFinite(price) || price <= 0) {
-      toast('Giá món phải lớn hơn 0.', { variant: 'info' })
+    if (String(form.price || '').trim() === '') {
+      nextErrors.price = requiredMessage('Giá')
+    } else if (!Number.isFinite(price) || price <= 0) {
+      nextErrors.price = 'Giá món phải lớn hơn 0.'
+    }
+    setFormErrors(nextErrors)
+    if (Object.keys(nextErrors).length) {
       return
     }
     try {
@@ -215,7 +227,24 @@ export default function MenuManagement() {
     return arr.filter((s) => Number(s.category_id) === n)
   }, [items, filterCat, search])
 
-  const visibleCount = sections.reduce((sum, sec) => sum + sec.items.length, 0)
+  useEffect(() => {
+    setPage(1)
+  }, [filterCat, search])
+
+  const flatItems = useMemo(
+    () => sections.flatMap((sec) => sec.items.map((item) => ({ ...item, __sectionKey: String(sec.category_id ?? 'none') }))),
+    [sections],
+  )
+  const visibleCount = flatItems.length
+  const pagedItems = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return flatItems.slice(start, start + pageSize)
+  }, [flatItems, page, pageSize])
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(flatItems.length / pageSize))
+    setPage((current) => Math.min(current, totalPages))
+  }, [flatItems.length, pageSize])
 
   function ingredientText(item) {
     const count = Number(item?.ingredient_count)
@@ -290,72 +319,81 @@ export default function MenuManagement() {
         <p className="menu-mgmt__empty">Không tìm thấy món nào phù hợp.</p>
       ) : null}
 
-      {!loading && !err
-        ? sections.map((sec) => (
-            <section key={String(sec.category_id ?? 'none')} className="menu-mgmt__section" aria-labelledby={`cat-${sec.category_id ?? 'none'}`}>
-              <h2 id={`cat-${sec.category_id ?? 'none'}`} className="menu-mgmt__sectionTitle">
-                {sec.category_name}
-                <span className="menu-mgmt__sectionCount">{sec.items.length} món</span>
-              </h2>
-              <div className="menu-mgmt__grid">
-                {sec.items.map((it) => (
-                  <article
-                    key={it.id}
-                    className="menu-card menu-card--clickable"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => openDetail(it)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        openDetail(it)
-                      }
-                    }}
-                  >
-                    <div className="menu-card__image-wrap">
-                      <img
-                        className="menu-card__image"
-                        src={it.image_url ? mediaUrl(it.image_url) : placeholderImg}
-                        alt=""
-                      />
-                    </div>
-                    <div className="menu-card__body">
-                      <h3 className="menu-card__name">{it.name}</h3>
-                      <p className="menu-card__price">{formatPrice(Number(it.price) || 0)}</p>
-                      <p className="menu-card__category">{it.category_name || '—'}</p>
-                      <p className="menu-card__meta">{ingredientText(it)}</p>
-                      <p className="menu-card__status" data-status={String(it.status || '').toUpperCase()}>
-                        {String(it.status || '').toUpperCase() === 'AVAILABLE' ? 'Đang bán' : 'Ngừng bán'}
-                      </p>
-                      <div className="menu-card__actions">
-                        <button
-                          type="button"
-                          className="menu-card__btn menu-card__btn--secondary"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            openEdit(it)
-                          }}
-                        >
-                          Sửa
-                        </button>
-                        <button
-                          type="button"
-                          className="menu-card__btn menu-card__btn--danger"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            deleteItem(it.id)
-                          }}
-                        >
-                          Xóa
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-          ))
-        : null}
+      {!loading && !err && pagedItems.length > 0 ? (
+        <section className="menu-mgmt__section" aria-labelledby="menu-all-results">
+          <h2 id="menu-all-results" className="menu-mgmt__sectionTitle">
+            Danh sách món
+            <span className="menu-mgmt__sectionCount">{visibleCount} món</span>
+          </h2>
+          <div className="menu-mgmt__grid">
+            {pagedItems.map((it) => (
+              <article
+                key={it.id}
+                className="menu-card menu-card--clickable"
+                role="button"
+                tabIndex={0}
+                onClick={() => openDetail(it)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    openDetail(it)
+                  }
+                }}
+              >
+                <div className="menu-card__image-wrap">
+                  <img
+                    className="menu-card__image"
+                    src={it.image_url ? mediaUrl(it.image_url) : placeholderImg}
+                    alt=""
+                  />
+                </div>
+                <div className="menu-card__body">
+                  <h3 className="menu-card__name">{it.name}</h3>
+                  <p className="menu-card__price">{formatPrice(Number(it.price) || 0)}</p>
+                  <p className="menu-card__category">{it.category_name || '—'}</p>
+                  <p className="menu-card__meta">{ingredientText(it)}</p>
+                  <p className="menu-card__status" data-status={String(it.status || '').toUpperCase()}>
+                    {String(it.status || '').toUpperCase() === 'AVAILABLE' ? 'Đang bán' : 'Ngừng bán'}
+                  </p>
+                  <div className="menu-card__actions">
+                    <button
+                      type="button"
+                      className="menu-card__btn menu-card__btn--secondary"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openEdit(it)
+                      }}
+                    >
+                      Sửa
+                    </button>
+                    <button
+                      type="button"
+                      className="menu-card__btn menu-card__btn--danger"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deleteItem(it.id)
+                      }}
+                    >
+                      Xóa
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {!loading && !err && visibleCount > 0 ? (
+        <AdminPagination
+          className="menu-mgmt__pagination"
+          page={page}
+          pageSize={pageSize}
+          total={visibleCount}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      ) : null}
 
       {modalOpen ? (
         <div className="menu-modal" role="dialog" aria-modal="true" aria-labelledby="menu-modal-title">
@@ -364,30 +402,41 @@ export default function MenuManagement() {
             <h2 id="menu-modal-title" className="menu-modal__title">
               {editingId ? 'Sửa món' : 'Thêm món'}
             </h2>
-            <form className="menu-modal__form" onSubmit={saveItem}>
+            <form className="menu-modal__form" onSubmit={saveItem} noValidate>
               <label className="menu-modal__field">
                 <span>Tên</span>
                 <input
                   value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  onChange={(e) => {
+                    setFormErrors((prev) => ({ ...prev, name: '' }))
+                    setForm((f) => ({ ...f, name: e.target.value }))
+                  }}
                   required
                   autoComplete="off"
                 />
+                {formErrors.name ? <small className="menu-modal__error">{formErrors.name}</small> : null}
               </label>
               <label className="menu-modal__field">
                 <span>Giá (VND)</span>
                 <input
                   value={form.price}
-                  onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+                  onChange={(e) => {
+                    setFormErrors((prev) => ({ ...prev, price: '' }))
+                    setForm((f) => ({ ...f, price: e.target.value }))
+                  }}
                   inputMode="numeric"
                   required
                 />
+                {formErrors.price ? <small className="menu-modal__error">{formErrors.price}</small> : null}
               </label>
               <label className="menu-modal__field">
                 <span>Danh mục</span>
                 <select
                   value={form.categoryId}
-                  onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))}
+                  onChange={(e) => {
+                    setFormErrors((prev) => ({ ...prev, categoryId: '' }))
+                    setForm((f) => ({ ...f, categoryId: e.target.value }))
+                  }}
                   required
                 >
                   <option value="">— Chọn danh mục —</option>
@@ -397,6 +446,7 @@ export default function MenuManagement() {
                     </option>
                   ))}
                 </select>
+                {formErrors.categoryId ? <small className="menu-modal__error">{formErrors.categoryId}</small> : null}
               </label>
               <label className="menu-modal__field">
                 <span>Mô tả</span>

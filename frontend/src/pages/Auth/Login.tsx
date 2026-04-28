@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
+import { requiredMessage } from '../../lib/validation'
 import PasswordField from '../../components/PasswordField'
 import { fetchPublicSettings } from '../../lib/settings'
 import './AuthPages.css'
@@ -36,13 +37,18 @@ export default function Login() {
     try {
       const nextEmail = email.trim().toLowerCase()
       const nextPassword = password
-      if (!nextEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+      if (!nextEmail) {
+        setFieldErr({ email: requiredMessage('Email') })
+        setLoading(false)
+        return
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
         setFieldErr({ email: 'Email không hợp lệ' })
         setLoading(false)
         return
       }
       if (!nextPassword) {
-        setFieldErr({ password: 'Vui lòng nhập mật khẩu' })
+        setFieldErr({ password: requiredMessage('Mật khẩu') })
         setLoading(false)
         return
       }
@@ -73,7 +79,7 @@ export default function Login() {
       } else if (/sai email hoặc mật khẩu/i.test(msg)) {
         setFieldErr({ password: 'Sai email hoặc mật khẩu' })
       } else if (/email và password là bắt buộc/i.test(msg)) {
-        setFieldErr({ email: 'Email không hợp lệ', password: 'Vui lòng nhập mật khẩu' })
+        setFieldErr({ email: requiredMessage('Email'), password: requiredMessage('Mật khẩu') })
       } else {
         setFieldErr({ password: msg })
       }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch, mediaUrl } from '../../lib/api'
+import { requiredMessage } from '../../lib/validation'
 import './BookTable.css'
 
 type Table = { id: string; name: string; capacity: number; status: string; zone?: string; image_url?: string }
@@ -48,6 +49,7 @@ export default function BookTable() {
   const [preorderExpanded, setPreorderExpanded] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     let c = false
@@ -101,16 +103,16 @@ export default function BookTable() {
   const effectivePreferredTableId =
     selectedTableId === null ? autoSuggestedTable?.id ?? null : selectedTableId
 
-  function setFriendlyRequiredMessage(e: React.FormEvent<HTMLInputElement>) {
-    const el = e.currentTarget
-    // Chỉ set message khi thiếu required (không override các validation khác)
-    if (el.validity.valueMissing) el.setCustomValidity('Vui lòng điền vào trường này')
-    else el.setCustomValidity('')
-  }
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    const nextErrors: Record<string, string> = {}
+    if (!fullName.trim()) nextErrors.fullName = requiredMessage('Họ và tên')
+    if (!phone.trim()) nextErrors.phone = requiredMessage('Số điện thoại')
+    if (!date) nextErrors.date = requiredMessage('Ngày')
+    if (!time) nextErrors.time = requiredMessage('Giờ')
+    setFieldErrors(nextErrors)
+    if (Object.keys(nextErrors).length) return
     setLoading(true)
     try {
       const body = {
@@ -200,7 +202,7 @@ export default function BookTable() {
       </header>
 
       <div className="bookLayout">
-        <form id="book-form" className="bookMain" onSubmit={onSubmit}>
+        <form id="book-form" className="bookMain" onSubmit={onSubmit} noValidate>
           <section className="bookCard">
             <div className="bookCard__head">
               <span className="bookStep">1</span>
@@ -216,11 +218,13 @@ export default function BookTable() {
                   required
                   autoComplete="name"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  onInvalid={setFriendlyRequiredMessage}
-                  onInput={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity('')}
+                  onChange={(e) => {
+                    setFieldErrors((prev) => ({ ...prev, fullName: '' }))
+                    setFullName(e.target.value)
+                  }}
                   placeholder="Nguyễn Văn A"
                 />
+                {fieldErrors.fullName ? <small className="bookField__error">{fieldErrors.fullName}</small> : null}
               </label>
               <label className="bookField">
                 <span>Số điện thoại *</span>
@@ -229,11 +233,13 @@ export default function BookTable() {
                   type="tel"
                   autoComplete="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  onInvalid={setFriendlyRequiredMessage}
-                  onInput={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity('')}
+                  onChange={(e) => {
+                    setFieldErrors((prev) => ({ ...prev, phone: '' }))
+                    setPhone(e.target.value)
+                  }}
                   placeholder="09xx xxx xxx"
                 />
+                {fieldErrors.phone ? <small className="bookField__error">{fieldErrors.phone}</small> : null}
               </label>
             </div>
           </section>
@@ -253,10 +259,12 @@ export default function BookTable() {
                   type="date"
                   required
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  onInvalid={setFriendlyRequiredMessage}
-                  onInput={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity('')}
+                  onChange={(e) => {
+                    setFieldErrors((prev) => ({ ...prev, date: '' }))
+                    setDate(e.target.value)
+                  }}
                 />
+                {fieldErrors.date ? <small className="bookField__error">{fieldErrors.date}</small> : null}
               </label>
               <label className="bookField">
                 <span>Giờ *</span>
@@ -264,10 +272,12 @@ export default function BookTable() {
                   type="time"
                   required
                   value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  onInvalid={setFriendlyRequiredMessage}
-                  onInput={(e) => (e.currentTarget as HTMLInputElement).setCustomValidity('')}
+                  onChange={(e) => {
+                    setFieldErrors((prev) => ({ ...prev, time: '' }))
+                    setTime(e.target.value)
+                  }}
                 />
+                {fieldErrors.time ? <small className="bookField__error">{fieldErrors.time}</small> : null}
               </label>
             </div>
             <div style={{ marginTop: 16, marginLeft: 26, marginBottom: 16 }}>

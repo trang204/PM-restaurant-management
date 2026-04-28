@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch, mediaUrl, uploadTableImage } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
+import AdminPagination from '../../components/AdminPagination'
 import './TableManagement.css'
 
 function statusMeta(status) {
@@ -44,6 +45,8 @@ export default function TableManagement() {
   const [closeReason, setCloseReason] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   function load() {
     setLoading(true)
@@ -262,6 +265,20 @@ export default function TableManagement() {
     })
   }, [tables, search, statusFilter])
 
+  useEffect(() => {
+    setPage(1)
+  }, [search, statusFilter])
+
+  const pagedTables = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return filteredTables.slice(start, start + pageSize)
+  }, [filteredTables, page, pageSize])
+
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredTables.length / pageSize))
+    setPage((current) => Math.min(current, totalPages))
+  }, [filteredTables.length, pageSize])
+
   return (
     <div className="table-mgmt">
       <header className="table-mgmt__header">
@@ -306,7 +323,7 @@ export default function TableManagement() {
       {err ? <p style={{ color: 'crimson' }}>{err}</p> : null}
 
       <div className="table-mgmt__grid">
-        {filteredTables.map((t) => {
+        {pagedTables.map((t) => {
           const st = statusMeta(t.status)
           const status = String(t.status || '').toUpperCase()
           const isOccupied = status === 'OCCUPIED' || status === 'IN_USE' || status === 'IN USE'
@@ -393,6 +410,17 @@ export default function TableManagement() {
           )
         })}
       </div>
+
+      {!loading && !err && filteredTables.length > 0 ? (
+        <AdminPagination
+          className="table-mgmt__pagination"
+          page={page}
+          pageSize={pageSize}
+          total={filteredTables.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      ) : null}
 
       {modalOpen ? (
         <div

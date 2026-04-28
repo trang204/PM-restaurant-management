@@ -161,6 +161,10 @@
   margin-bottom: 14px;
 }
 
+.rev-report__pagination {
+  margin-top: 16px;
+}
+
 /* ─── Summary ─── */
 .rev-report__summary {
   background: var(--rr-card);

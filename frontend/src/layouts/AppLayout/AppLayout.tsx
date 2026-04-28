@@ -119,7 +119,7 @@ export default function AppLayout() {
                 </NavLink>
                 {me.role === 'ADMIN' ? (
                   <NavLink to="/admin" className="nav__link">
-                    Quản trị
+                    Admin
                   </NavLink>
                 ) : null}
                 {me.role === 'STAFF' ? (

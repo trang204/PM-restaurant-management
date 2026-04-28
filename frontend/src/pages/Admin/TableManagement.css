@@ -138,6 +138,10 @@
   gap: 16px;
 }
 
+.table-mgmt__pagination {
+  margin-top: 18px;
+}
+
 /* ─── Table Card ─── */
 .table-card {
   background: var(--tm-card);

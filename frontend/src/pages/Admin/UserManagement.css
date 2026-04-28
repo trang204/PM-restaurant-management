@@ -335,6 +335,13 @@
   background: #fff;
 }
 
+.user-mgmt__dialogError {
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #C0392B;
+}
+
 .user-mgmt__dialogActions {
   display: flex;
   gap: 10px;
@@ -360,25 +367,7 @@
 }
 
 .user-mgmt__pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
   margin-top: 14px;
-  flex-wrap: wrap;
-}
-
-.user-mgmt__paginationText,
-.user-mgmt__pageIndicator {
-  color: var(--um-muted);
-  font-size: 0.88rem;
-}
-
-.user-mgmt__paginationActions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
 }
 
 @media (max-width: 600px) {

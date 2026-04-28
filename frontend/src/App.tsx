@@ -5,6 +5,7 @@ import Home from './pages/Home/Home'
 import Login from './pages/Auth/Login'
 import Register from './pages/Auth/Register'
 import ForgotPassword from './pages/Auth/ForgotPassword'
+import ResetPassword from './pages/Auth/ResetPassword'
 import Profile from './pages/Profile/Profile'
 import BookTable from './pages/Booking/BookTable'
 import ReservationHistory from './pages/Booking/ReservationHistory'
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/book" element={<BookTable />} />
         <Route path="/reservations" element={<ReservationHistory />} />

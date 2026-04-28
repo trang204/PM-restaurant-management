@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { apiFetch, mediaUrl, storagePathFromMediaUrl } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
+import { requiredMessage } from '../../lib/validation'
 import './Settings.css'
 
 function sliceTime(v) {
@@ -178,6 +179,7 @@ const DEFAULT_FEATURES = [
 const tabs = [
   { id: 'general', label: 'Thông tin chung' },
   { id: 'payment', label: 'Thanh toán' },
+  { id: 'email', label: 'Email hệ thống' },
   { id: 'content', label: 'Nội dung website' },
   { id: 'banner', label: 'Giao diện / Banner' },
 ]
@@ -213,6 +215,8 @@ export default function Settings() {
     paymentBankCode: '',
     paymentTransferContent: 'Thanh toan dat ban {id}',
     paymentQrTemplate: 'compact',
+    systemEmail: '',
+    systemEmailPassword: '',
   })
   const [homeForm, setHomeForm] = useState({
     heroEyebrow: 'Ẩm thực tinh tế · Đặt bàn trực tuyến',
@@ -254,6 +258,8 @@ export default function Settings() {
           paymentBankCode: String(d.payment_bank_code ?? ''),
           paymentTransferContent: String(d.payment_transfer_content ?? 'Thanh toan dat ban {id}'),
           paymentQrTemplate: String(d.payment_qr_template ?? 'compact'),
+          systemEmail: String(d.system_email ?? ''),
+          systemEmailPassword: String(d.system_email_password ?? ''),
         })
         setHomeForm((prev) => ({
           heroEyebrow: d.hero_eyebrow ?? prev.heroEyebrow,
@@ -298,22 +304,25 @@ export default function Settings() {
 
   function validateForm() {
     const nextErrors = {}
-    if (!form.restaurantName.trim()) nextErrors.restaurantName = 'Tên nhà hàng là bắt buộc.'
+    if (!form.restaurantName.trim()) nextErrors.restaurantName = requiredMessage('Tên nhà hàng')
     const phone = form.phone.trim().replace(/[.\s-]/g, '')
-    if (!phone) nextErrors.phone = 'Số điện thoại là bắt buộc.'
+    if (!phone) nextErrors.phone = requiredMessage('Số điện thoại')
     else if (!/^(?:\+?84|0)\d{9,10}$/.test(phone)) nextErrors.phone = 'Số điện thoại không hợp lệ.'
-    if (!form.email.trim()) nextErrors.email = 'Email là bắt buộc.'
+    if (!form.email.trim()) nextErrors.email = requiredMessage('Email')
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) nextErrors.email = 'Email không hợp lệ.'
-    if (!form.address.trim()) nextErrors.address = 'Địa chỉ là bắt buộc.'
-    if (!form.openTime) nextErrors.openTime = 'Chọn giờ mở cửa.'
-    if (!form.closeTime) nextErrors.closeTime = 'Chọn giờ đóng cửa.'
+    if (!form.address.trim()) nextErrors.address = requiredMessage('Địa chỉ')
+    if (!form.openTime) nextErrors.openTime = requiredMessage('Giờ mở cửa')
+    if (!form.closeTime) nextErrors.closeTime = requiredMessage('Giờ đóng cửa')
     if (form.openTime && form.closeTime && form.openTime >= form.closeTime) nextErrors.closeTime = 'Giờ đóng cửa phải sau giờ mở cửa.'
     if (form.paymentBankAccount.trim() && !/^\d{6,20}$/.test(form.paymentBankAccount.trim())) {
       nextErrors.paymentBankAccount = 'Số tài khoản nên gồm 6-20 chữ số.'
     }
+    if (form.systemEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.systemEmail.trim())) {
+      nextErrors.systemEmail = 'Email hệ thống không hợp lệ.'
+    }
     features.forEach((item, index) => {
-      if (!item.title.trim()) nextErrors[`feature-title-${index}`] = 'Nhập tiêu đề tính năng.'
-      if (!item.text.trim()) nextErrors[`feature-text-${index}`] = 'Nhập mô tả tính năng.'
+      if (!item.title.trim()) nextErrors[`feature-title-${index}`] = requiredMessage(`Tiêu đề tính năng #${index + 1}`)
+      if (!item.text.trim()) nextErrors[`feature-text-${index}`] = requiredMessage(`Mô tả tính năng #${index + 1}`)
     })
     setFieldErrors(nextErrors)
     return Object.keys(nextErrors).length === 0
@@ -346,6 +355,8 @@ export default function Settings() {
           payment_bank_code: form.paymentBankCode.trim() || null,
           payment_transfer_content: form.paymentTransferContent.trim() || null,
           payment_qr_template: form.paymentQrTemplate.trim() || null,
+          system_email: form.systemEmail.trim() || null,
+          system_email_password: form.systemEmailPassword || null,
           hero_eyebrow: homeForm.heroEyebrow.trim() || null,
           hero_lead: homeForm.heroLead.trim() || null,
           hero_meta: homeForm.heroMeta.trim() || null,
@@ -458,7 +469,7 @@ export default function Settings() {
       {loading ? <p>Đang tải...</p> : null}
       {err ? <p className="settings-page__err">{err}</p> : null}
 
-      <form className="settings-card" onSubmit={onSubmit}>
+      <form className="settings-card" onSubmit={onSubmit} noValidate>
         <div className="settings-tabs" role="tablist" aria-label="Nhóm cài đặt">
           {tabs.map((tab) => (
             <button
@@ -572,6 +583,46 @@ export default function Settings() {
                   <option value="">Mặc định</option>
                 </select>
               </label>
+            </div>
+          </div>
+        </div>
+        ) : null}
+
+        {activeTab === 'email' ? (
+        <div className="settings-card__grid">
+          <div className="settings-field--full settings-payment">
+            <span className="settings-payment__label">Email hệ thống gửi thông báo</span>
+            <p className="settings-payment__hint">
+              Dùng cho các email hệ thống như quên mật khẩu. SMTP host/port vẫn lấy từ biến môi trường server,
+              còn tài khoản và mật khẩu gửi mail có thể nhập tại đây.
+            </p>
+            <div className="settings-card__grid" style={{ marginTop: 8 }}>
+              <label className="settings-field">
+                <span>Tài khoản email hệ thống</span>
+                <input
+                  name="systemEmail"
+                  type="email"
+                  value={form.systemEmail}
+                  onChange={onChange}
+                  placeholder="VD: yourmail@gmail.com"
+                />
+                {fieldErrors.systemEmail ? <small className="settings-field__error">{fieldErrors.systemEmail}</small> : null}
+              </label>
+              <label className="settings-field">
+                <span>Mật khẩu email / App password</span>
+                <input
+                  name="systemEmailPassword"
+                  type="password"
+                  value={form.systemEmailPassword}
+                  onChange={onChange}
+                  placeholder="Nhập mật khẩu hoặc app password"
+                />
+              </label>
+              <div className="settings-field settings-field--full">
+                <small className="settings-field__hint">
+                  Khuyến nghị dùng app password nếu bạn gửi mail qua Gmail hoặc Outlook.
+                </small>
+              </div>
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
+import AdminPagination from '../../components/AdminPagination'
 import './BookingManagement.css'
 
 function badgeClass(status) {
@@ -883,38 +884,6 @@ export default function BookingManagement({ staffMode = false }) {
         </div>
       ) : null}
 
-      {!loading && !err && totalDayPages > 0 ? (
-        <nav className="booking-mgmt__pager" aria-label="Phân trang theo ngày">
-          
-          <div className="booking-mgmt__pagerPick">
-            <label className="booking-mgmt__pagerSelectLabel" htmlFor="booking-day-page">
-              Chọn ngày
-            </label>
-            <select
-              id="booking-day-page"
-              className="booking-mgmt__pagerSelect"
-              value={dayPage}
-              onChange={(e) => setDayPage(Number(e.target.value))}
-            >
-              {sortedDateKeys.map((k, i) => (
-                <option key={k} value={i}>
-                  {formatDateHeader(k)}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="booking-mgmt__btn booking-mgmt__btn--secondary booking-mgmt__btn--sm"
-              onClick={goToday}
-              disabled={sortedDateKeys.indexOf(todayYmd) < 0}
-              title={sortedDateKeys.indexOf(todayYmd) < 0 ? 'Không có đơn hôm nay' : 'Chuyển tới ngày hôm nay'}
-            >
-              Hôm nay
-            </button>
-          </div>
-        </nav>
-      ) : null}
-
       {activeDateKey ? (
         <section className="booking-mgmt__day">
           <div className="booking-mgmt__dayHead">
@@ -1124,29 +1093,34 @@ export default function BookingManagement({ staffMode = false }) {
               </tbody>
             </table>
           </div>
-          <div className="booking-mgmt__pagerMain">
-            <button
-              type="button"
-              className="booking-mgmt__btn booking-mgmt__btn--ghost booking-mgmt__btn--sm"
-              disabled={dayPage <= 0}
-              onClick={() => setDayPage((p) => Math.max(0, p - 1))}
-            >
-              ← Trước
-            </button>
-            <div style={{ marginTop:'10px', marginBottom:'10px',padding:'10px', textAlign:'center', display:'flex', alignItems:'center', justifyContent:'between' }}>
-            <span className="booking-mgmt__pagerLabel" style={{ marginRight:'30px' }}>
-              Trang <strong>{dayPage + 1}</strong> / {totalDayPages}
-            </span>
-            <button
-              type="button"
-              className="booking-mgmt__btn booking-mgmt__btn--ghost booking-mgmt__btn--sm"
-              disabled={dayPage >= totalDayPages - 1}
-              onClick={() => setDayPage((p) => Math.min(totalDayPages - 1, p + 1))}
-            >
-              Sau →
-            </button>
-          </div>
-          </div>
+          {!loading && !err && totalDayPages > 0 ? (
+            <div className="booking-mgmt__paginationWrap">
+              <div className="booking-mgmt__pagerPick">
+                <div>
+                  <p className="booking-mgmt__pagerSelectLabel">Theo ngày</p>
+                  <p className="booking-mgmt__pagerSub">{activeDateKey ? formatDateHeader(activeDateKey) : '—'}</p>
+                </div>
+                <button
+                  type="button"
+                  className="booking-mgmt__btn booking-mgmt__btn--secondary booking-mgmt__btn--sm"
+                  onClick={goToday}
+                  disabled={sortedDateKeys.indexOf(todayYmd) < 0}
+                  title={sortedDateKeys.indexOf(todayYmd) < 0 ? 'Không có đơn hôm nay' : 'Chuyển tới ngày hôm nay'}
+                >
+                  Hôm nay
+                </button>
+              </div>
+              <AdminPagination
+                className="booking-mgmt__pagination"
+                page={dayPage + 1}
+                pageSize={1}
+                total={totalDayPages}
+                showPageSize={false}
+                onPageSizeChange={() => {}}
+                onPageChange={(p) => setDayPage(Math.max(0, Math.min(totalDayPages - 1, Number(p) - 1)))}
+              />
+            </div>
+          ) : null}
         </section>
       ) : !loading && !err && rows.length === 0 ? (
         <div className="booking-mgmt__table-wrap">

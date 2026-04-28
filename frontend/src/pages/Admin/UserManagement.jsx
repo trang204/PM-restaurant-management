@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { apiFetch, mediaUrl, uploadUserAvatar } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
+import AdminPagination from '../../components/AdminPagination'
+import { requiredMessage } from '../../lib/validation'
 import './UserManagement.css'
 
 const roles = ['CUSTOMER', 'STAFF', 'ADMIN']
@@ -39,15 +41,18 @@ export default function UserManagement() {
   const [createdFrom, setCreatedFrom] = useState('')
   const [createdTo, setCreatedTo] = useState('')
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [editModal, setEditModal] = useState(null)
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [addForm, setAddForm] = useState({ email: '', password: '', fullName: '', phone: '', status: 'ACTIVE', role: meta.role })
+  const [addErrors, setAddErrors] = useState({})
+  const [editErrors, setEditErrors] = useState({})
   const [avatarFile, setAvatarFile] = useState(null)
   const [avatarPreview, setAvatarPreview] = useState('')
 
   useEffect(() => {
     setPage(1)
-  }, [meta.role, q, statusFilter, createdFrom, createdTo])
+  }, [meta.role, q, statusFilter, createdFrom, createdTo, pageSize])
 
   function load() {
     setLoading(true)
@@ -59,11 +64,15 @@ export default function UserManagement() {
     if (createdFrom) qs.set('createdFrom', createdFrom)
     if (createdTo) qs.set('createdTo', createdTo)
     qs.set('page', String(page))
-    qs.set('pageSize', '10')
+    qs.set('pageSize', String(pageSize))
     apiFetch(`/admin/users?${qs.toString()}`)
       .then((d) => {
         setUsers(Array.isArray(d?.items) ? d.items : [])
-        setPagination(d?.pagination || { page: 1, pageSize: 10, total: 0, totalPages: 1 })
+        const pg = d?.pagination || { page: 1, pageSize: 10, total: 0, totalPages: 1 }
+        setPagination(pg)
+        if (Number.isFinite(Number(pg.page)) && Number(pg.page) !== page) {
+          setPage(Number(pg.page))
+        }
       })
       .catch((e) => setErr(e.message))
       .finally(() => setLoading(false))
@@ -71,12 +80,12 @@ export default function UserManagement() {
 
   useEffect(() => {
     load()
-  }, [meta.role, page])
+  }, [meta.role, page, pageSize])
 
   useEffect(() => {
     const t = window.setTimeout(() => load(), 250)
     return () => window.clearTimeout(t)
-  }, [q, statusFilter, createdFrom, createdTo])
+  }, [q, statusFilter, createdFrom, createdTo, pageSize])
 
   function openEditModal(user) {
     setAvatarFile(null)
@@ -90,10 +99,19 @@ export default function UserManagement() {
       status: user.status || 'ACTIVE',
       avatar_url: user.avatar_url || null,
     })
+    setEditErrors({})
   }
 
   async function submitEdit() {
     if (!editModal) return
+    const nextErrors = {}
+    if (!String(editModal.fullName || '').trim()) nextErrors.fullName = requiredMessage('Họ tên')
+    if (!String(editModal.email || '').trim()) nextErrors.email = requiredMessage('Email')
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(editModal.email).trim())) nextErrors.email = 'Email không hợp lệ'
+    if (Object.keys(nextErrors).length) {
+      setEditErrors(nextErrors)
+      return
+    }
     const trimmedRole = String(editModal.role || '').trim()
     if (!roles.includes(trimmedRole)) {
       toast('Vai trò không hợp lệ.', { variant: 'error' })
@@ -135,6 +153,7 @@ export default function UserManagement() {
 
   function openAddModal() {
     setAddForm({ email: '', password: '', fullName: '', phone: '', status: 'ACTIVE', role: meta.role })
+    setAddErrors({})
     setAvatarFile(null)
     setAvatarPreview('')
     setAddModalOpen(true)
@@ -145,12 +164,13 @@ export default function UserManagement() {
     const password = addForm.password
     const fullName = addForm.fullName.trim()
     const phone = addForm.phone.trim()
-    if (!email) {
-      toast('Nhập email.', { variant: 'info' })
-      return
-    }
-    if (!password) {
-      toast('Nhập mật khẩu.', { variant: 'info' })
+    const nextErrors = {}
+    if (!fullName) nextErrors.fullName = requiredMessage('Họ tên')
+    if (!email) nextErrors.email = requiredMessage('Email')
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) nextErrors.email = 'Email không hợp lệ'
+    if (!password) nextErrors.password = requiredMessage('Mật khẩu')
+    if (Object.keys(nextErrors).length) {
+      setAddErrors(nextErrors)
       return
     }
     try {
@@ -324,20 +344,14 @@ export default function UserManagement() {
       </div>
 
       {!loading && !err ? (
-        <div className="user-mgmt__pagination">
-          <p className="user-mgmt__paginationText">
-            Hiển thị {(pagination.page - 1) * pagination.pageSize + (users.length ? 1 : 0)}-{(pagination.page - 1) * pagination.pageSize + users.length} / {pagination.total}
-          </p>
-          <div className="user-mgmt__paginationActions">
-            <button type="button" className="user-mgmt__btn user-mgmt__btn--ghost" disabled={pagination.page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-              Trước
-            </button>
-            <span className="user-mgmt__pageIndicator">Trang {pagination.page}/{pagination.totalPages}</span>
-            <button type="button" className="user-mgmt__btn user-mgmt__btn--ghost" disabled={pagination.page >= pagination.totalPages} onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}>
-              Sau
-            </button>
-          </div>
-        </div>
+        <AdminPagination
+          className="user-mgmt__pagination"
+          page={page}
+          pageSize={pageSize}
+          total={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       ) : null}
 
       {editModal ? (
@@ -354,11 +368,26 @@ export default function UserManagement() {
             </h2>
             <label className="user-mgmt__dialogField">
               <span>Họ tên</span>
-              <input value={editModal.fullName} onChange={(e) => setEditModal((m) => (m ? { ...m, fullName: e.target.value } : m))} />
+              <input
+                value={editModal.fullName}
+                onChange={(e) => {
+                  setEditErrors((prev) => ({ ...prev, fullName: '' }))
+                  setEditModal((m) => (m ? { ...m, fullName: e.target.value } : m))
+                }}
+              />
+              {editErrors.fullName ? <small className="user-mgmt__dialogError">{editErrors.fullName}</small> : null}
             </label>
             <label className="user-mgmt__dialogField">
               <span>Email</span>
-              <input type="email" value={editModal.email} onChange={(e) => setEditModal((m) => (m ? { ...m, email: e.target.value } : m))} />
+              <input
+                type="email"
+                value={editModal.email}
+                onChange={(e) => {
+                  setEditErrors((prev) => ({ ...prev, email: '' }))
+                  setEditModal((m) => (m ? { ...m, email: e.target.value } : m))
+                }}
+              />
+              {editErrors.email ? <small className="user-mgmt__dialogError">{editErrors.email}</small> : null}
             </label>
             <label className="user-mgmt__dialogField">
               <span>Số điện thoại</span>
@@ -428,8 +457,12 @@ export default function UserManagement() {
               <input
                 type="text"
                 value={addForm.fullName}
-                onChange={(e) => setAddForm((f) => ({ ...f, fullName: e.target.value }))}
+                onChange={(e) => {
+                  setAddErrors((prev) => ({ ...prev, fullName: '' }))
+                  setAddForm((f) => ({ ...f, fullName: e.target.value }))
+                }}
               />
+              {addErrors.fullName ? <small className="user-mgmt__dialogError">{addErrors.fullName}</small> : null}
             </label>
             <label className="user-mgmt__dialogField">
               <span>Email</span>
@@ -437,8 +470,12 @@ export default function UserManagement() {
                 type="email"
                 autoComplete="off"
                 value={addForm.email}
-                onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))}
+                onChange={(e) => {
+                  setAddErrors((prev) => ({ ...prev, email: '' }))
+                  setAddForm((f) => ({ ...f, email: e.target.value }))
+                }}
               />
+              {addErrors.email ? <small className="user-mgmt__dialogError">{addErrors.email}</small> : null}
             </label>
             <label className="user-mgmt__dialogField">
               <span>Mật khẩu</span>
@@ -446,8 +483,12 @@ export default function UserManagement() {
                 type="password"
                 autoComplete="new-password"
                 value={addForm.password}
-                onChange={(e) => setAddForm((f) => ({ ...f, password: e.target.value }))}
+                onChange={(e) => {
+                  setAddErrors((prev) => ({ ...prev, password: '' }))
+                  setAddForm((f) => ({ ...f, password: e.target.value }))
+                }}
               />
+              {addErrors.password ? <small className="user-mgmt__dialogError">{addErrors.password}</small> : null}
             </label>
             <label className="user-mgmt__dialogField">
               <span>Số điện thoại</span>

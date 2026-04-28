@@ -121,6 +121,10 @@
 /* ─── Section ─── */
 .menu-mgmt__section { margin-bottom: 32px; }
 
+.menu-mgmt__pagination {
+  margin-top: 18px;
+}
+
 .menu-mgmt__sectionTitle {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 1.1rem;
@@ -381,6 +385,13 @@
 }
 
 .menu-modal__field textarea { resize: vertical; min-height: 68px; }
+
+.menu-modal__error {
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #C0392B;
+}
 
 .menu-modal__preview {
   width: 100%;

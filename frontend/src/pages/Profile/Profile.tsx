@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch, mediaUrl } from '../../lib/api'
+import { requiredMessage } from '../../lib/validation'
 import './Profile.css'
 
 const ROLE_LABELS: Record<string, string> = {
@@ -28,7 +29,7 @@ export default function Profile() {
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [okMsg, setOkMsg] = useState<string | null>(null)
-  const [fieldErr, setFieldErr] = useState<{ email?: string; phone?: string } | null>(null)
+  const [fieldErr, setFieldErr] = useState<{ fullName?: string; email?: string; phone?: string } | null>(null)
 
   useEffect(() => {
     const token = localStorage.getItem('luxeat_token')
@@ -57,16 +58,32 @@ export default function Profile() {
     setOkMsg(null)
     setFieldErr(null)
     try {
+      const nextFullName = form.fullName.trim()
       const nextEmail = form.email.trim().toLowerCase()
       const nextPhoneRaw = form.phone.trim()
       const nextPhone = nextPhoneRaw ? nextPhoneRaw.replace(/[.\s-]/g, '') : ''
+      if (!nextFullName) {
+        setFieldErr({ fullName: requiredMessage('Họ tên') })
+        setSaving(false)
+        return
+      }
       // MM: bắt buộc nhập và đúng format
-      if (!nextPhone || !/^(?:\+?84|0)\d{9,10}$/.test(nextPhone)) {
+      if (!nextPhone) {
+        setFieldErr({ phone: requiredMessage('Số điện thoại') })
+        setSaving(false)
+        return
+      }
+      if (!/^(?:\+?84|0)\d{9,10}$/.test(nextPhone)) {
         setFieldErr({ phone: 'Số điện thoại không hợp lệ' })
         setSaving(false)
         return
       }
-      if (!nextEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+      if (!nextEmail) {
+        setFieldErr({ email: requiredMessage('Email') })
+        setSaving(false)
+        return
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
         setFieldErr({ email: 'Email không hợp lệ' })
         setSaving(false)
         return
@@ -74,7 +91,7 @@ export default function Profile() {
       const d = await apiFetch<any>('/users/me', {
         method: 'PATCH',
         body: JSON.stringify({
-          fullName: form.fullName.trim(),
+          fullName: nextFullName,
           email: nextEmail,
           phone: form.phone.trim() || null,
         }),
@@ -139,7 +156,7 @@ export default function Profile() {
 
         {me ? (
           <div className="profileGrid">
-            <form className="profileCard" onSubmit={save}>
+            <form className="profileCard" onSubmit={save} noValidate>
               <h2 className="profileCard__title">Thông tin</h2>
               <div className="profileAvatar">
                 <div className="profileAvatar__preview">
@@ -194,12 +211,18 @@ export default function Profile() {
                     {me.fullName || '—'}
                   </button>
                 ) : (
-                  <input
-                    value={form.fullName}
-                    onChange={(e) => setForm((p) => ({ ...p, fullName: e.target.value }))}
-                    required
-                    placeholder="Nguyễn Văn A"
-                  />
+                  <>
+                    <input
+                      value={form.fullName}
+                      onChange={(e) => {
+                        setFieldErr((prev) => ({ ...(prev || {}), fullName: undefined }))
+                        setForm((p) => ({ ...p, fullName: e.target.value }))
+                      }}
+                      required
+                      placeholder="Nguyễn Văn A"
+                    />
+                    {fieldErr?.fullName ? <span className="profileField__error">{fieldErr.fullName}</span> : null}
+                  </>
                 )}
               </div>
               <div className="profileField">
