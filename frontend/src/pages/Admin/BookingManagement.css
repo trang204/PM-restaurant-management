@@ -349,6 +349,42 @@
   flex-wrap: wrap;
 }
 
+.booking-mgmt__assign select {
+  min-width: 220px;
+  max-width: 320px;
+  width: 100%;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--bk-text);
+  background: #FDFAF7;
+  border: 1px solid var(--bk-border);
+  border-radius: 10px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color var(--bk-ease), box-shadow var(--bk-ease), background var(--bk-ease);
+}
+
+.booking-mgmt__assign select:focus {
+  border-color: var(--bk-gold);
+  box-shadow: 0 0 0 3px rgba(184,147,90,0.14);
+  background: #fff;
+}
+
+.booking-mgmt__assign select:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.booking-mgmt__assign .booking-mgmt__btn {
+  padding: 8px 12px;
+  border-radius: 10px;
+}
+
+.booking-mgmt__assign .booking-mgmt__btn--sm {
+  padding: 7px 12px;
+}
+
 .booking-mgmt__actions {
   display: flex;
   gap: 6px;
