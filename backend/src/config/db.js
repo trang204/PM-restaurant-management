@@ -62,6 +62,7 @@ export async function ensureDbSchema() {
       password TEXT NOT NULL,
       phone VARCHAR(20),
       avatar_url TEXT,
+      status VARCHAR(20) DEFAULT 'ACTIVE',
       role_id INT REFERENCES roles(id),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -265,6 +266,22 @@ export async function ensureDbSchema() {
   )
   if (!u.rows.length) {
     await query(`ALTER TABLE users ADD COLUMN avatar_url TEXT`)
+  }
+
+  const us = await query(
+    `
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'users'
+      AND column_name = 'status'
+    LIMIT 1
+    `,
+  )
+  if (!us.rows.length) {
+    await query(`ALTER TABLE users ADD COLUMN status VARCHAR(20) DEFAULT 'ACTIVE'`)
+    await query(`UPDATE users SET status = 'ACTIVE' WHERE status IS NULL`)
+    await query(`ALTER TABLE users ALTER COLUMN status SET DEFAULT 'ACTIVE'`)
   }
 
   const oi = await query(

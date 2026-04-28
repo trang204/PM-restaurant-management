@@ -61,6 +61,76 @@
 
 .table-mgmt__add:hover { filter: brightness(1.06); box-shadow: 0 5px 18px rgba(184,147,90,0.4); }
 
+.table-mgmt__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.table-mgmt__search {
+  flex: 1 1 240px;
+  max-width: 360px;
+  padding: 10px 13px;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--tm-text);
+  background: #fff;
+  border: 1px solid var(--tm-border);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color var(--tm-ease), box-shadow var(--tm-ease);
+}
+
+.table-mgmt__search:focus {
+  border-color: var(--tm-gold);
+  box-shadow: 0 0 0 3px rgba(184,147,90,0.14);
+}
+
+.table-mgmt__filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.table-mgmt__filterBtn {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--tm-border);
+  background: #fff;
+  color: var(--tm-muted);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--tm-ease);
+}
+
+.table-mgmt__filterBtn:hover {
+  background: #fdfaf7;
+  color: var(--tm-text);
+}
+
+.table-mgmt__filterBtn--active {
+  background: var(--tm-gold-s);
+  color: var(--tm-gold-d);
+  border-color: rgba(184,147,90,0.35);
+}
+
+.table-mgmt__layoutLink {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(184,147,90,0.35);
+  background: var(--tm-gold-s);
+  color: var(--tm-gold-d);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 /* ─── Grid ─── */
 .table-mgmt__grid {
   display: grid;
@@ -121,6 +191,21 @@
   gap: 5px;
 }
 
+.table-card__guestInfo {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f6f9ff;
+  border: 1px solid #dbe7ff;
+}
+
+.table-card__guestInfo p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--tm-text);
+  line-height: 1.55;
+}
+
 .table-card__note {
   font-size: 0.82rem;
   color: var(--tm-muted);
@@ -164,32 +249,63 @@
 
 .table-card__btn--secondary { color: var(--tm-text); }
 
+.table-card__btn--secondary:hover {
+  background: #f7f8fb;
+}
+
 .table-card__btn--danger { color: #C0392B; border-color: #F5C4C0; }
 .table-card__btn--danger:hover { background: #FEF3F2; border-color: #F5C4C0; }
 
 .table-card__btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ─── Status indicator (top stripe) ─── */
-.table-card[data-status="AVAILABLE"]::before,
-.table-card[data-status="available"]::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: #4A7C59;
+.table-card[data-status="AVAILABLE"],
+.table-card[data-status="available"] {
+  border-color: #b8ddc1;
 }
 
-.table-card[data-status="ĐÃ CÓ KHÁCH"]::before,
-.table-card[data-status="ĐÃ CÓ KHÁCH"]::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: #C0392B;
+.table-card[data-status="OCCUPIED"],
+.table-card[data-status="occupied"],
+.table-card[data-status="IN_USE"],
+.table-card[data-status="IN USE"] {
+  border-color: #bfd7ff;
+}
+
+.table-card__status {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--tm-border);
+  background: #fff;
+  color: var(--tm-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.table-card__status--green {
+  color: #256c3b;
+  border-color: #b8ddc1;
+  background: #f1fbf4;
+}
+
+.table-card__status--blue {
+  color: #2356b8;
+  border-color: #bfd7ff;
+  background: #f2f7ff;
+}
+
+.table-card__status--yellow {
+  color: #946200;
+  border-color: #f5e0a0;
+  background: #fef9ec;
+}
+
+.table-card__status--muted {
+  color: #6b7280;
+  border-color: #d1d5db;
+  background: #f9fafb;
 }
 
 /* ─── Modal / Dialog ─── */
@@ -315,6 +431,8 @@
 
 @media (max-width: 600px) {
   .table-mgmt__grid { grid-template-columns: 1fr 1fr; }
+  .table-mgmt__toolbar { align-items: stretch; }
+  .table-mgmt__search { max-width: none; }
 }
 
 @media (max-width: 400px) {

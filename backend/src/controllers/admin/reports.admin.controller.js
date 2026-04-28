@@ -1,6 +1,29 @@
 import { ok } from '../../utils/response.js'
 import { query } from '../../config/db.js'
 
+function toDateStart(raw) {
+  const s = String(raw || '').slice(0, 10)
+  if (!s) return null
+  const dt = new Date(`${s}T00:00:00`)
+  return Number.isNaN(dt.getTime()) ? null : dt
+}
+
+function ymd(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+
+function previousRange(fromDate, toDate) {
+  const fromDt = toDateStart(fromDate)
+  const toDt = toDateStart(toDate)
+  if (!fromDt || !toDt) return { previousFrom: null, previousTo: null }
+  const days = Math.max(1, Math.round((toDt.getTime() - fromDt.getTime()) / 86400000) + 1)
+  const prevTo = new Date(fromDt)
+  prevTo.setDate(prevTo.getDate() - 1)
+  const prevFrom = new Date(prevTo)
+  prevFrom.setDate(prevFrom.getDate() - (days - 1))
+  return { previousFrom: ymd(prevFrom), previousTo: ymd(prevTo) }
+}
+
 /** Thống kê doanh thu theo bàn (gộp từ table_sessions và booking_tables). */
 export async function revenueByTable(req, res, next) {
   try {
@@ -164,7 +187,7 @@ export async function revenue(req, res, next) {
   try {
     const { from, to, groupBy = 'day' } = req.query || {}
 
-    const allowedGroup = new Set(['day', 'month', 'quarter', 'year'])
+    const allowedGroup = new Set(['day', 'month', 'year'])
     const grp = allowedGroup.has(String(groupBy)) ? String(groupBy) : 'day'
 
     const fromDate = from ? String(from) : null
@@ -188,20 +211,25 @@ export async function revenue(req, res, next) {
     const dateExpr =
       grp === 'month'
         ? "DATE_TRUNC('month', paid_at)::date"
-        : grp === 'quarter'
-          ? "DATE_TRUNC('quarter', paid_at)::date"
-          : grp === 'year'
+        : grp === 'year'
             ? "DATE_TRUNC('year', paid_at)::date"
             : 'DATE(paid_at)'
 
-    const totalRes = await query(
-      `SELECT COALESCE(SUM(amount), 0)::numeric AS total FROM payments WHERE ${where.join(' AND ')}`,
+    const summaryRes = await query(
+      `
+      SELECT
+        COALESCE(SUM(amount), 0)::numeric AS total,
+        COUNT(*)::int AS "invoiceCount",
+        COALESCE(AVG(amount), 0)::numeric AS "averageOrderValue"
+      FROM payments
+      WHERE ${where.join(' AND ')}
+    `,
       params,
     )
 
     const seriesRes = await query(
       `
-      SELECT ${dateExpr} AS date, COALESCE(SUM(amount), 0)::numeric AS revenue
+      SELECT TO_CHAR(${dateExpr}, 'YYYY-MM-DD') AS date, COALESCE(SUM(amount), 0)::numeric AS revenue
       FROM payments
       WHERE ${where.join(' AND ')}
       GROUP BY ${dateExpr}
@@ -210,11 +238,37 @@ export async function revenue(req, res, next) {
       params,
     )
 
+    const { previousFrom, previousTo } = previousRange(fromDate, toDate)
+    let previousTotal = 0
+    if (previousFrom && previousTo) {
+      const prevRes = await query(
+        `
+        SELECT COALESCE(SUM(amount), 0)::numeric AS total
+        FROM payments
+        WHERE status = 'PAID'
+          AND paid_at IS NOT NULL
+          AND paid_at >= $1::date
+          AND paid_at < ($2::date + INTERVAL '1 day')
+      `,
+        [previousFrom, previousTo],
+      )
+      previousTotal = Number(prevRes.rows[0]?.total || 0)
+    }
+
+    const total = Number(summaryRes.rows[0]?.total || 0)
+    const growthPercent =
+      previousTotal > 0 ? ((total - previousTotal) / previousTotal) * 100 : total > 0 ? 100 : 0
+
     return ok(res, {
       from: fromDate,
       to: toDate,
       groupBy: grp,
-      total: totalRes.rows[0]?.total ?? '0',
+      total,
+      invoiceCount: Number(summaryRes.rows[0]?.invoiceCount || 0),
+      averageOrderValue: Number(summaryRes.rows[0]?.averageOrderValue || 0),
+      previousTotal,
+      growthPercent,
+      previousRange: previousFrom && previousTo ? { from: previousFrom, to: previousTo } : null,
       series: seriesRes.rows,
     })
   } catch (e) {

@@ -1,16 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BarChart3, TableProperties, ChevronDown, ChevronRight, X } from 'lucide-react'
+import { BarChart3, TableProperties, ChevronDown, ChevronRight, X, Download, TrendingUp, CalendarRange } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { apiFetch } from '../../lib/api'
 import './RevenueReports.css'
 
 /* ─── Types ─── */
-type GroupBy = 'day' | 'month' | 'quarter' | 'year'
+type GroupBy = 'day' | 'month' | 'year'
 type ReportTab = 'period' | 'table'
 
 type SeriesRow = { date: string; revenue: string | number }
 type RevenueRes = {
   from: string | null; to: string | null; groupBy: GroupBy
-  total: string | number; series: SeriesRow[]
+  total: string | number
+  invoiceCount: number
+  averageOrderValue: string | number
+  previousTotal: string | number
+  growthPercent: number
+  previousRange: { from: string; to: string } | null
+  series: SeriesRow[]
 }
 
 type InvoiceLine = {
@@ -59,17 +66,26 @@ function formatAxisLabel(d: string, groupBy: GroupBy) {
     const [Y, M] = s.split('-').map(Number)
     if (Number.isFinite(Y) && Number.isFinite(M)) return `T${M}/${Y}`
   }
-  if (groupBy === 'quarter') {
-    const [Y, M] = s.split('-').map(Number)
-    if (Number.isFinite(Y) && Number.isFinite(M)) {
-      const q = Math.ceil(M / 3)
-      return `Q${q}/${Y}`
-    }
-  }
   return s
 }
 function formatMoney(n: number) {
   return `${n.toLocaleString('vi-VN')} ₫`
+}
+function formatPercent(n: number) {
+  const sign = n > 0 ? '+' : ''
+  return `${sign}${n.toFixed(0)}%`
+}
+function formatDateTimeExport(value: string) {
+  if (!value) return '—'
+  const dt = new Date(value)
+  if (Number.isNaN(dt.getTime())) return value
+  return dt.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 function methodLabel(m: string | null) {
   if (!m) return '—'
@@ -77,6 +93,25 @@ function methodLabel(m: string | null) {
   if (u === 'CASH') return 'Tiền mặt'
   if (u === 'BANK' || u === 'TRANSFER' || u === 'BANK_TRANSFER') return 'Chuyển khoản'
   return m
+}
+
+function BarChart({ series, groupBy, onDetail }: { series: SeriesRow[]; groupBy: GroupBy; onDetail: (row: SeriesRow) => void }) {
+  const max = Math.max(...series.map((row) => Number(row.revenue || 0)), 1)
+  return (
+    <div className="rev-chart">
+      {series.map((row) => {
+        const value = Number(row.revenue || 0)
+        const height = `${Math.max(12, (value / max) * 100)}%`
+        return (
+          <button key={String(row.date)} type="button" className="rev-chart__barWrap" onClick={() => onDetail(row)}>
+            <span className="rev-chart__value">{formatMoney(value)}</span>
+            <span className="rev-chart__bar" style={{ height }} />
+            <span className="rev-chart__label">{formatAxisLabel(String(row.date), groupBy)}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
 }
 
 /* ─── Invoice detail card (shared) ─── */
@@ -193,8 +228,114 @@ export default function RevenueReports() {
   }, [detailOpen])
 
   const total = data?.total != null ? Number(data.total) : 0
+  const invoiceCount = Number(data?.invoiceCount || 0)
+  const averageOrderValue = Number(data?.averageOrderValue || 0)
+  const previousTotal = Number(data?.previousTotal || 0)
+  const growthPercent = Number(data?.growthPercent || 0)
   const series = data?.series || []
   const tableTotal = tableData.reduce((s, r) => s + Number(r.total || 0), 0)
+
+  async function exportExcel() {
+    const q = new URLSearchParams()
+    if (from) q.set('from', from)
+    if (to) q.set('to', to)
+    const rows = await apiFetch<InvoiceRow[]>(`/admin/reports/revenue/invoices?${q}`)
+
+    const summaryAoA = [
+      ['BAO CAO DOANH THU'],
+      [],
+      ['Khoang thoi gian', `${from || '—'} den ${to || '—'}`],
+      ['Nhom xem', groupBy === 'day' ? 'Ngay' : groupBy === 'month' ? 'Thang' : 'Nam'],
+      [],
+      ['CHI SO TONG QUAN', 'GIA TRI'],
+      ['Tong doanh thu', total],
+      ['So don', invoiceCount],
+      ['Gia tri trung binh', averageOrderValue],
+      ['Ky truoc', previousTotal],
+      ['Tang truong', Number(growthPercent.toFixed(2)) / 100],
+    ]
+    const summarySheet = XLSX.utils.aoa_to_sheet(summaryAoA)
+    summarySheet['!cols'] = [{ wch: 24 }, { wch: 22 }]
+    summarySheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }]
+    ;['B7', 'B9', 'B10'].forEach((cell) => {
+      if (summarySheet[cell]) summarySheet[cell].z = '#,##0 [$₫-vi-VN]'
+    })
+    if (summarySheet.B11) summarySheet.B11.z = '0.00%'
+
+    const seriesSheet = XLSX.utils.json_to_sheet(
+      series.map((row, index) => ({
+        STT: index + 1,
+        'Kỳ báo cáo': formatAxisLabel(String(row.date), groupBy),
+        'Ngày gốc': String(row.date).slice(0, 10),
+        'Doanh thu (VND)': Number(row.revenue || 0),
+      })),
+    )
+    seriesSheet['!cols'] = [{ wch: 8 }, { wch: 18 }, { wch: 14 }, { wch: 18 }]
+    for (let i = 2; i <= series.length + 1; i += 1) {
+      const cell = `D${i}`
+      if (seriesSheet[cell]) seriesSheet[cell].z = '#,##0 [$₫-vi-VN]'
+    }
+
+    const invoiceSheet = XLSX.utils.json_to_sheet(
+      rows.map((row, index) => ({
+        STT: index + 1,
+        'Mã thanh toán': row.paymentId,
+        'Mã đơn': row.orderId,
+        'Phương thức': methodLabel(row.method),
+        'Thời gian thanh toán': formatDateTimeExport(row.paidAt),
+        'Số tiền (VND)': Number(row.amount || 0),
+      })),
+    )
+    invoiceSheet['!cols'] = [
+      { wch: 8 },
+      { wch: 14 },
+      { wch: 12 },
+      { wch: 18 },
+      { wch: 24 },
+      { wch: 18 },
+    ]
+    for (let i = 2; i <= rows.length + 1; i += 1) {
+      const cell = `F${i}`
+      if (invoiceSheet[cell]) invoiceSheet[cell].z = '#,##0 [$₫-vi-VN]'
+    }
+
+    const detailRows = rows.flatMap((row) =>
+      (row.items?.length ? row.items : [{ foodName: 'Không có chi tiết món', quantity: 0, unitPrice: 0, lineTotal: 0 }]).map((item, idx) => ({
+        'Mã thanh toán': idx === 0 ? row.paymentId : '',
+        'Mã đơn': idx === 0 ? row.orderId : '',
+        'Thời gian thanh toán': idx === 0 ? formatDateTimeExport(row.paidAt) : '',
+        'Phương thức': idx === 0 ? methodLabel(row.method) : '',
+        'Món ăn': item.foodName,
+        'Số lượng': Number(item.quantity || 0),
+        'Đơn giá (VND)': Number(item.unitPrice || 0),
+        'Thành tiền (VND)': Number(item.lineTotal || 0),
+      })),
+    )
+    const itemsSheet = XLSX.utils.json_to_sheet(detailRows)
+    itemsSheet['!cols'] = [
+      { wch: 14 },
+      { wch: 12 },
+      { wch: 24 },
+      { wch: 18 },
+      { wch: 28 },
+      { wch: 10 },
+      { wch: 16 },
+      { wch: 18 },
+    ]
+    for (let i = 2; i <= detailRows.length + 1; i += 1) {
+      ;['G', 'H'].forEach((col) => {
+        const cell = `${col}${i}`
+        if (itemsSheet[cell]) itemsSheet[cell].z = '#,##0 [$₫-vi-VN]'
+      })
+    }
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, summarySheet, 'Tong_quan')
+    XLSX.utils.book_append_sheet(wb, seriesSheet, 'Doanh_thu_theo_ky')
+    XLSX.utils.book_append_sheet(wb, invoiceSheet, 'Hoa_don')
+    XLSX.utils.book_append_sheet(wb, itemsSheet, 'Chi_tiet_mon')
+    XLSX.writeFile(wb, `doanh-thu-${from || 'all'}-${to || 'all'}.xlsx`)
+  }
 
   function openPeriodDetail(row: SeriesRow) {
     const { from: pf, to: pt } = periodBounds(String(row.date), groupBy)
@@ -210,6 +351,10 @@ export default function RevenueReports() {
             Xem báo cáo theo kỳ hoặc theo từng bàn — click vào dòng để xem chi tiết hóa đơn và món.
           </p>
         </div>
+        <button type="button" className="rev-report__exportBtn" onClick={exportExcel}>
+          <Download size={15} />
+          Xuất Excel
+        </button>
       </header>
 
       {/* ── Top-level tabs ── */}
@@ -236,7 +381,7 @@ export default function RevenueReports() {
       <section className="rev-report__filters" aria-label="Bộ lọc">
         {activeTab === 'period' && (
           <div className="rev-report__tabs" role="tablist" aria-label="Nhóm thời gian">
-            {([['day', 'Theo ngày'], ['month', 'Theo tháng'], ['quarter', 'Theo quý'], ['year', 'Theo năm']] as const).map(([k, label]) => (
+            {([['day', 'Ngày'], ['month', 'Tháng'], ['year', 'Năm']] as const).map(([k, label]) => (
               <button
                 key={k} type="button" role="tab"
                 aria-selected={groupBy === k}
@@ -248,11 +393,11 @@ export default function RevenueReports() {
         )}
         <div className="rev-report__dates">
           <label className="rev-report__date">
-            <span>Từ</span>
+            <span>Từ ngày</span>
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
           </label>
           <label className="rev-report__date">
-            <span>Đến</span>
+            <span>Đến ngày</span>
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </label>
         </div>
@@ -266,37 +411,74 @@ export default function RevenueReports() {
 
           {!loading && !err ? (
             <section className="rev-report__summary" aria-live="polite">
-              <p className="rev-report__totalLabel">Tổng trong khoảng</p>
-              <p className="rev-report__totalValue">{formatMoney(total)}</p>
+              <div className="rev-report__summaryGrid">
+                <article className="rev-report__kpi">
+                  <p className="rev-report__totalLabel">Tổng doanh thu</p>
+                  <p className="rev-report__totalValue">{formatMoney(total)}</p>
+                </article>
+                <article className="rev-report__kpi">
+                  <p className="rev-report__totalLabel">Số đơn</p>
+                  <p className="rev-report__kpiValue">{invoiceCount}</p>
+                </article>
+                <article className="rev-report__kpi">
+                  <p className="rev-report__totalLabel">Giá trị trung bình</p>
+                  <p className="rev-report__kpiValue">{formatMoney(averageOrderValue)}</p>
+                </article>
+                <article className="rev-report__kpi">
+                  <p className="rev-report__totalLabel">So với kỳ trước</p>
+                  <p className={`rev-report__kpiValue ${growthPercent >= 0 ? 'rev-report__kpiValue--up' : 'rev-report__kpiValue--down'}`}>
+                    {formatPercent(growthPercent)}
+                  </p>
+                  <p className="rev-report__compareText">
+                    {previousTotal > 0 ? `${formatPercent(growthPercent)} so với kỳ trước` : 'Chưa có dữ liệu kỳ trước'}
+                  </p>
+                </article>
+              </div>
             </section>
           ) : null}
 
           {!loading && !err && series.length > 0 ? (
-            <div className="rev-report__table-wrap">
+            <>
+              <section className="rev-report__chartCard">
+                <div className="rev-report__chartHead">
+                  <div>
+                    <h2 className="rev-report__sectionTitle">
+                      <BarChart3 size={16} />
+                      Biểu đồ doanh thu
+                    </h2>
+                    <p className="rev-report__sectionSub">
+                      <CalendarRange size={14} />
+                      {from} đến {to}
+                    </p>
+                  </div>
+                  <span className="rev-report__compareBadge">
+                    <TrendingUp size={14} />
+                    {formatPercent(growthPercent)} so với kỳ trước
+                  </span>
+                </div>
+                <BarChart series={series} groupBy={groupBy} onDetail={openPeriodDetail} />
+              </section>
+              <div className="rev-report__table-wrap">
               <table className="rev-report__table">
                 <thead>
-                  <tr><th>Kỳ</th><th>Doanh thu</th></tr>
+                  <tr><th>Kỳ</th><th>Doanh thu</th><th></th></tr>
                 </thead>
                 <tbody>
                   {series.map((row) => (
-                    <tr
-                      key={String(row.date)}
-                      className="rev-report__rowClick"
-                      tabIndex={0} role="button"
-                      aria-label={`Xem chi tiết kỳ ${formatAxisLabel(String(row.date), groupBy)}`}
-                      onClick={() => openPeriodDetail(row)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPeriodDetail(row) } }}
-                    >
+                    <tr key={String(row.date)}>
                       <td>{formatAxisLabel(String(row.date), groupBy)}</td>
-                      <td>
-                        <span className="rev-report__cellMoney">{formatMoney(Number(row.revenue || 0))}</span>
-                        <span className="rev-report__cellHint">Chi tiết →</span>
+                      <td><span className="rev-report__cellMoney">{formatMoney(Number(row.revenue || 0))}</span></td>
+                      <td className="rev-report__detailCell">
+                        <button type="button" className="rev-report__detailBtn" onClick={() => openPeriodDetail(row)}>
+                          Xem chi tiết
+                        </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
+            </>
           ) : null}
 
           {!loading && !err && series.length === 0 ? (

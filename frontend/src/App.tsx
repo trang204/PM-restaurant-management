@@ -16,6 +16,7 @@ import KitchenOrders from './pages/Staff/KitchenOrders.jsx'
 import Dashboard from './pages/Admin/Dashboard.jsx'
 import BookingManagement from './pages/Admin/BookingManagement.jsx'
 import TableManagement from './pages/Admin/TableManagement.jsx'
+import TableLayoutEditor from './pages/Admin/TableLayoutEditor.jsx'
 import MenuManagement from './pages/Admin/MenuManagement.jsx'
 import UserManagement from './pages/Admin/UserManagement.jsx'
 import Settings from './pages/Admin/Settings.jsx'
@@ -42,6 +43,7 @@ export default function App() {
         <Route index element={<Dashboard />} />
         <Route path="bookings" element={<BookingManagement />} />
         <Route path="tables" element={<TableManagement />} />
+        <Route path="tables/layout" element={<TableLayoutEditor />} />
         <Route path="menu" element={<MenuManagement />} />
         <Route path="users" element={<Navigate to="/admin/users/customers" replace />} />
         <Route path="users/:group" element={<UserManagement />} />

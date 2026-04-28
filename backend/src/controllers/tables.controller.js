@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { ok, created } from '../utils/response.js'
 import { badRequest, notFound } from '../utils/httpError.js'
 import { query } from '../config/db.js'
+import { publicOrderUrl } from '../services/tableSession.service.js'
 
 const ALLOWED_STATUS = new Set(['AVAILABLE', 'RESERVED', 'OCCUPIED', 'CLOSED'])
 const IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
@@ -25,9 +26,57 @@ async function removeUploadFileIfSafe(publicPath) {
 export async function listTables(req, res, next) {
   try {
     const r = await query(
-      'SELECT id, name, capacity, image_url, status, status_note, pos_x, pos_y, created_at FROM tables ORDER BY id ASC',
+      `
+      SELECT
+        t.id,
+        t.name,
+        t.capacity,
+        t.image_url,
+        t.status,
+        t.status_note,
+        t.pos_x,
+        t.pos_y,
+        t.created_at,
+        sess.booking_id AS active_booking_id,
+        sess.session_created_at AS active_session_created_at,
+        sess.qr_token AS active_qr_token,
+        ord.order_id AS active_order_id,
+        b.guest_name AS active_guest_name,
+        b.guest_phone AS active_guest_phone,
+        b.guests AS active_guest_count
+      FROM tables t
+      LEFT JOIN LATERAL (
+        SELECT
+          ts.booking_id,
+          ts.qr_token,
+          ts.created_at AS session_created_at
+        FROM table_sessions ts
+        WHERE ts.table_id = t.id
+          AND ts.status = 'ACTIVE'
+        ORDER BY ts.id DESC
+        LIMIT 1
+      ) sess ON true
+      LEFT JOIN bookings b ON b.id = sess.booking_id
+      LEFT JOIN LATERAL (
+        SELECT o.id AS order_id
+        FROM orders o
+        WHERE o.table_session_id IN (
+          SELECT ts2.id FROM table_sessions ts2
+          WHERE ts2.table_id = t.id AND ts2.status = 'ACTIVE'
+        )
+        ORDER BY o.id DESC
+        LIMIT 1
+      ) ord ON true
+      ORDER BY t.id ASC
+    `,
     )
-    return ok(res, r.rows)
+    return ok(
+      res,
+      r.rows.map((row) => ({
+        ...row,
+        active_order_url: row.active_qr_token ? publicOrderUrl(row.active_qr_token) : null,
+      })),
+    )
   } catch (e) {
     return next(e)
   }

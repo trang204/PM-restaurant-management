@@ -30,7 +30,7 @@ export type PublicSettings = {
     ctaTitle?: string | null
     ctaText?: string | null
     features?: HomeFeature[] | null
-  }
+  } | null
 }
 
 function normalizeBannerUrls(raw: unknown): string[] {

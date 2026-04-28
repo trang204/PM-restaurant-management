@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { apiFetch, mediaUrl, storagePathFromMediaUrl } from '../../lib/api'
+import { useNotifications } from '../../context/NotificationsContext'
 import './Settings.css'
 
 function sliceTime(v) {
@@ -168,7 +169,38 @@ const DEFAULT_FEATURES_JSON = JSON.stringify([
   { title: 'Theo dõi lịch sử', text: 'Đăng nhập để xem các lần đặt trước và chi tiết đơn.', icon: 'history' },
 ], null, 2)
 
+const DEFAULT_FEATURES = [
+  { title: 'Đặt bàn dễ dàng', text: 'Chọn ngày, giờ và số khách — xác nhận nhanh, không cần gọi điện.', icon: 'calendar' },
+  { title: 'Thực đơn rõ ràng', text: 'Xem món, giá và mô tả trước khi đến; gợi ý món phù hợp buổi tối.', icon: 'menu' },
+  { title: 'Theo dõi lịch sử', text: 'Đăng nhập để xem các lần đặt trước và chi tiết đơn.', icon: 'history' },
+]
+
+const tabs = [
+  { id: 'general', label: 'Thông tin chung' },
+  { id: 'payment', label: 'Thanh toán' },
+  { id: 'content', label: 'Nội dung website' },
+  { id: 'banner', label: 'Giao diện / Banner' },
+]
+
+function parseFeaturesJson(raw) {
+  if (!raw) return DEFAULT_FEATURES
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return DEFAULT_FEATURES
+    const safe = parsed.slice(0, 3).map((item, index) => ({
+      title: String(item?.title || DEFAULT_FEATURES[index]?.title || ''),
+      text: String(item?.text || DEFAULT_FEATURES[index]?.text || ''),
+      icon: String(item?.icon || DEFAULT_FEATURES[index]?.icon || 'calendar'),
+    }))
+    while (safe.length < 3) safe.push({ ...DEFAULT_FEATURES[safe.length] })
+    return safe
+  } catch {
+    return DEFAULT_FEATURES
+  }
+}
+
 export default function Settings() {
+  const { toast } = useNotifications()
   const [form, setForm] = useState({
     restaurantName: '',
     phone: '',
@@ -191,8 +223,9 @@ export default function Settings() {
     featuresDesc: 'Giao diện gọn, thao tác nhanh — phù hợp cả khách lẻ lẫn nhóm bạn.',
     ctaTitle: 'Sẵn sàng đặt bàn?',
     ctaText: 'Chỉ mất vài phút — chọn giờ và số khách phù hợp.',
-    featuresJson: DEFAULT_FEATURES_JSON,
   })
+  const [features, setFeatures] = useState(DEFAULT_FEATURES)
+  const [activeTab, setActiveTab] = useState('general')
   const [logoUrl, setLogoUrl] = useState('')
   const [bannerUrls, setBannerUrls] = useState([])
   const [bannerEnabled, setBannerEnabled] = useState(true)
@@ -202,7 +235,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
-  const [okMsg, setOkMsg] = useState(null)
+  const [fieldErrors, setFieldErrors] = useState({})
 
   useEffect(() => {
     setLoading(true)
@@ -231,8 +264,8 @@ export default function Settings() {
           featuresDesc: d.home_features_desc ?? prev.featuresDesc,
           ctaTitle: d.home_cta_title ?? prev.ctaTitle,
           ctaText: d.home_cta_text ?? prev.ctaText,
-          featuresJson: d.home_features_json ?? prev.featuresJson,
         }))
+        setFeatures(parseFeaturesJson(d.home_features_json ?? DEFAULT_FEATURES_JSON))
         const lu = d.logo_url != null ? String(d.logo_url) : ''
         setLogoUrl(lu ? mediaUrl(lu) : '')
         setBannerUrls(Array.isArray(d.banner_urls) ? d.banner_urls.map((x) => mediaUrl(String(x))) : [])
@@ -248,17 +281,51 @@ export default function Settings() {
   function onChange(e) {
     const { name, value } = e.target
     setForm((f) => ({ ...f, [name]: value }))
+    setFieldErrors((prev) => ({ ...prev, [name]: '' }))
   }
 
   function onHomeChange(e) {
     const { name, value } = e.target
     setHomeForm((f) => ({ ...f, [name]: value }))
+    setFieldErrors((prev) => ({ ...prev, [name]: '' }))
+  }
+
+  function onFeatureChange(index, key, value) {
+    setFeatures((prev) => prev.map((item, i) => (i === index ? { ...item, [key]: value } : item)))
+  }
+
+  const featureJson = useMemo(() => JSON.stringify(features, null, 2), [features])
+
+  function validateForm() {
+    const nextErrors = {}
+    if (!form.restaurantName.trim()) nextErrors.restaurantName = 'Tên nhà hàng là bắt buộc.'
+    const phone = form.phone.trim().replace(/[.\s-]/g, '')
+    if (!phone) nextErrors.phone = 'Số điện thoại là bắt buộc.'
+    else if (!/^(?:\+?84|0)\d{9,10}$/.test(phone)) nextErrors.phone = 'Số điện thoại không hợp lệ.'
+    if (!form.email.trim()) nextErrors.email = 'Email là bắt buộc.'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) nextErrors.email = 'Email không hợp lệ.'
+    if (!form.address.trim()) nextErrors.address = 'Địa chỉ là bắt buộc.'
+    if (!form.openTime) nextErrors.openTime = 'Chọn giờ mở cửa.'
+    if (!form.closeTime) nextErrors.closeTime = 'Chọn giờ đóng cửa.'
+    if (form.openTime && form.closeTime && form.openTime >= form.closeTime) nextErrors.closeTime = 'Giờ đóng cửa phải sau giờ mở cửa.'
+    if (form.paymentBankAccount.trim() && !/^\d{6,20}$/.test(form.paymentBankAccount.trim())) {
+      nextErrors.paymentBankAccount = 'Số tài khoản nên gồm 6-20 chữ số.'
+    }
+    features.forEach((item, index) => {
+      if (!item.title.trim()) nextErrors[`feature-title-${index}`] = 'Nhập tiêu đề tính năng.'
+      if (!item.text.trim()) nextErrors[`feature-text-${index}`] = 'Nhập mô tả tính năng.'
+    })
+    setFieldErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
   }
 
   async function onSubmit(e) {
     e.preventDefault()
+    if (!validateForm()) {
+      toast('Vui lòng kiểm tra lại các trường còn thiếu hoặc chưa hợp lệ.', { variant: 'error' })
+      return
+    }
     setErr(null)
-    setOkMsg(null)
     setSaving(true)
     try {
       await apiFetch('/admin/settings', {
@@ -275,7 +342,6 @@ export default function Settings() {
           address: form.address.trim() || null,
           open_time: form.openTime || null,
           close_time: form.closeTime || null,
-          total_tables: form.totalTables ? Number(form.totalTables) : null,
           payment_bank_account: form.paymentBankAccount.trim() || null,
           payment_bank_code: form.paymentBankCode.trim() || null,
           payment_transfer_content: form.paymentTransferContent.trim() || null,
@@ -288,12 +354,14 @@ export default function Settings() {
           home_features_desc: homeForm.featuresDesc.trim() || null,
           home_cta_title: homeForm.ctaTitle.trim() || null,
           home_cta_text: homeForm.ctaText.trim() || null,
-          home_features_json: homeForm.featuresJson.trim() || null,
+          home_features_json: featureJson,
         }),
       })
-      setOkMsg('Đã lưu cài đặt. Trang chủ sẽ cập nhật khi khách F5 lại trang.')
+      toast('Đã lưu cài đặt.', { variant: 'success' })
     } catch (e2) {
-      setErr(e2?.message || String(e2))
+      const message = e2?.message || String(e2)
+      setErr(message)
+      toast(message, { variant: 'error' })
     } finally {
       setSaving(false)
     }
@@ -303,7 +371,6 @@ export default function Settings() {
     const file = e.target.files?.[0]
     if (!file) return
     setErr(null)
-    setOkMsg(null)
     try {
       const token = localStorage.getItem('luxeat_token')
       const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
@@ -318,9 +385,11 @@ export default function Settings() {
       if (!json?.success) throw new Error(json?.error?.message || 'Upload lỗi')
       const url = json.data?.logo_url
       if (url) setLogoUrl(mediaUrl(String(url)))
-      setOkMsg('Đã cập nhật logo.')
+      toast('Đã cập nhật logo.', { variant: 'success' })
     } catch (e2) {
-      setErr(e2?.message || String(e2))
+      const message = e2?.message || String(e2)
+      setErr(message)
+      toast(message, { variant: 'error' })
     }
   }
 
@@ -328,7 +397,6 @@ export default function Settings() {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
     setErr(null)
-    setOkMsg(null)
     try {
       const token = localStorage.getItem('luxeat_token')
       const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
@@ -343,9 +411,11 @@ export default function Settings() {
       if (!json?.success) throw new Error(json?.error?.message || 'Upload lỗi')
       const urls = Array.isArray(json.data?.banner_urls) ? json.data.banner_urls : []
       setBannerUrls(urls.map((x) => mediaUrl(String(x))))
-      setOkMsg('Đã cập nhật banner.')
+      toast('Đã cập nhật banner.', { variant: 'success' })
     } catch (e2) {
-      setErr(e2?.message || String(e2))
+      const message = e2?.message || String(e2)
+      setErr(message)
+      toast(message, { variant: 'error' })
     } finally {
       e.target.value = ''
     }
@@ -353,7 +423,6 @@ export default function Settings() {
 
   async function removeBanner(url) {
     setErr(null)
-    setOkMsg(null)
     try {
       const token = localStorage.getItem('luxeat_token')
       const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
@@ -369,9 +438,11 @@ export default function Settings() {
       if (!json?.success) throw new Error(json?.error?.message || 'Xóa lỗi')
       const urls = Array.isArray(json.data?.banner_urls) ? json.data.banner_urls : []
       setBannerUrls(urls.map((x) => mediaUrl(String(x))))
-      setOkMsg('Đã xóa banner.')
+      toast('Đã xóa banner.', { variant: 'success' })
     } catch (e2) {
-      setErr(e2?.message || String(e2))
+      const message = e2?.message || String(e2)
+      setErr(message)
+      toast(message, { variant: 'error' })
     }
   }
 
@@ -386,38 +457,79 @@ export default function Settings() {
 
       {loading ? <p>Đang tải...</p> : null}
       {err ? <p className="settings-page__err">{err}</p> : null}
-      {okMsg ? <p className="settings-page__ok">{okMsg}</p> : null}
 
       <form className="settings-card" onSubmit={onSubmit}>
+        <div className="settings-tabs" role="tablist" aria-label="Nhóm cài đặt">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              className={`settings-tabs__btn${activeTab === tab.id ? ' settings-tabs__btn--active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'general' ? (
         <div className="settings-card__grid">
           <label className="settings-field">
             <span>Tên nhà hàng</span>
             <input name="restaurantName" value={form.restaurantName} onChange={onChange} required />
+            {fieldErrors.restaurantName ? <small className="settings-field__error">{fieldErrors.restaurantName}</small> : null}
           </label>
           <label className="settings-field">
             <span>Điện thoại</span>
             <input name="phone" value={form.phone} onChange={onChange} required />
+            {fieldErrors.phone ? <small className="settings-field__error">{fieldErrors.phone}</small> : null}
           </label>
           <label className="settings-field">
             <span>Email</span>
             <input name="email" type="email" value={form.email} onChange={onChange} required />
+            {fieldErrors.email ? <small className="settings-field__error">{fieldErrors.email}</small> : null}
           </label>
           <label className="settings-field settings-field--full">
             <span>Địa chỉ</span>
             <input name="address" value={form.address} onChange={onChange} required />
+            {fieldErrors.address ? <small className="settings-field__error">{fieldErrors.address}</small> : null}
           </label>
           <label className="settings-field">
             <span>Mở cửa</span>
             <input name="openTime" type="time" value={form.openTime} onChange={onChange} required />
+            {fieldErrors.openTime ? <small className="settings-field__error">{fieldErrors.openTime}</small> : null}
           </label>
           <label className="settings-field">
             <span>Đóng cửa</span>
             <input name="closeTime" type="time" value={form.closeTime} onChange={onChange} required />
+            {fieldErrors.closeTime ? <small className="settings-field__error">{fieldErrors.closeTime}</small> : null}
           </label>
-          <label className="settings-field">
-            <span>Tổng số bàn (tham khảo)</span>
-            <input name="totalTables" value={form.totalTables} onChange={onChange} inputMode="numeric" />
+          <label className="settings-field settings-field--readonly">
+            <span>Tổng số bàn</span>
+            <input name="totalTables" value={form.totalTables} inputMode="numeric" readOnly />
+            <small className="settings-field__hint">Tự động lấy từ danh sách bàn hiện có.</small>
           </label>
+          <div className="settings-logo settings-field--full">
+            <span className="settings-logo__label">Logo nhà hàng</span>
+            <div className="settings-logo__row">
+              <label className="settings-logo__upload">
+                <input type="file" accept="image/*" onChange={onLogoChange} />
+                <span>Tải logo lên server</span>
+              </label>
+              {logoUrl ? (
+                <div className="settings-logo__preview">
+                  <img src={logoUrl} alt="Logo" />
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+        ) : null}
+
+        {activeTab === 'payment' ? (
+        <div className="settings-card__grid">
           <div className="settings-field--full settings-payment">
             <span className="settings-payment__label">Thanh toán chuyển khoản (QR SePay)</span>
             <p className="settings-payment__hint">
@@ -433,6 +545,7 @@ export default function Settings() {
                   onChange={onChange}
                   placeholder="VD: 1234567890"
                 />
+                {fieldErrors.paymentBankAccount ? <small className="settings-field__error">{fieldErrors.paymentBankAccount}</small> : null}
               </label>
               <label className="settings-field">
                 <span>Ngân hàng</span>
@@ -461,8 +574,11 @@ export default function Settings() {
               </label>
             </div>
           </div>
+        </div>
+        ) : null}
 
-          {/* ── Nội dung trang chủ ── */}
+        {activeTab === 'content' ? (
+        <div className="settings-card__grid">
           <div className="settings-field--full settings-home-section">
             <span className="settings-home-section__label">Nội dung trang chủ</span>
             <p className="settings-home-section__hint">
@@ -551,40 +667,40 @@ export default function Settings() {
                   maxLength={200}
                 />
               </label>
-              <label className="settings-field settings-field--full">
-                <span>
-                  Các thẻ tính năng (JSON) —{' '}
-                  <small style={{ color: '#888' }}>
-                    Mảng gồm 3 object: <code>{`[{"title":"...","text":"...","icon":"calendar|menu|history"}]`}</code>
-                  </small>
-                </span>
-                <textarea
-                  name="featuresJson"
-                  value={homeForm.featuresJson}
-                  onChange={onHomeChange}
-                  rows={8}
-                  className="settings-textarea settings-textarea--mono"
-                  spellCheck={false}
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="settings-logo settings-field--full">
-            <span className="settings-logo__label">Logo nhà hàng</span>
-            <div className="settings-logo__row">
-              <label className="settings-logo__upload">
-                <input type="file" accept="image/*" onChange={onLogoChange} />
-                <span>Tải logo lên server</span>
-              </label>
-              {logoUrl ? (
-                <div className="settings-logo__preview">
-                  <img src={logoUrl} alt="Logo" />
+              <div className="settings-field settings-field--full">
+                <span>Các thẻ tính năng</span>
+                <div className="settings-featureList">
+                  {features.map((item, index) => (
+                    <div key={index} className="settings-featureCard">
+                      <label className="settings-field">
+                        <span>Tiêu đề #{index + 1}</span>
+                        <input value={item.title} onChange={(e) => onFeatureChange(index, 'title', e.target.value)} />
+                        {fieldErrors[`feature-title-${index}`] ? <small className="settings-field__error">{fieldErrors[`feature-title-${index}`]}</small> : null}
+                      </label>
+                      <label className="settings-field">
+                        <span>Mô tả</span>
+                        <textarea rows={3} className="settings-textarea" value={item.text} onChange={(e) => onFeatureChange(index, 'text', e.target.value)} />
+                        {fieldErrors[`feature-text-${index}`] ? <small className="settings-field__error">{fieldErrors[`feature-text-${index}`]}</small> : null}
+                      </label>
+                      <label className="settings-field">
+                        <span>Biểu tượng</span>
+                        <select value={item.icon} onChange={(e) => onFeatureChange(index, 'icon', e.target.value)}>
+                          <option value="calendar">Lịch</option>
+                          <option value="menu">Thực đơn</option>
+                          <option value="history">Lịch sử</option>
+                        </select>
+                      </label>
+                    </div>
+                  ))}
                 </div>
-              ) : null}
+              </div>
             </div>
           </div>
+        </div>
+        ) : null}
 
+        {activeTab === 'banner' ? (
+        <div className="settings-card__grid">
           <div className="settings-logo settings-field--full">
             <span className="settings-logo__label">Banner / Trình chiếu</span>
             <div className="settings-logo__row">
@@ -627,6 +743,7 @@ export default function Settings() {
             )}
           </div>
         </div>
+        ) : null}
         <div className="settings-card__footer">
           <button type="submit" className="settings-save" disabled={saving}>
             {saving ? 'Đang lưu...' : 'Lưu cài đặt'}

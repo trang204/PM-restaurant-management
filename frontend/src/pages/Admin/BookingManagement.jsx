@@ -24,6 +24,11 @@ const STATUS_LABELS = {
   PAID: 'Đã thanh toán',
 }
 
+function statusLabel(status) {
+  const key = String(status || '').trim().toUpperCase()
+  return STATUS_LABELS[key] || key || '—'
+}
+
 function normDate(d) {
   if (d == null || d === '') return ''
   return String(d).slice(0, 10)
@@ -1035,7 +1040,7 @@ export default function BookingManagement({ staffMode = false }) {
                         </div>
                       </td>
                       <td data-label="Trạng thái">
-                        <span className={badgeClass(r.status)}>{STATUS_LABELS[r.status] || r.status}</span>
+                        <span className={badgeClass(r.status)}>{statusLabel(r.status)}</span>
                       </td>
                       <td data-label="Thao tác">
                         <div className="booking-mgmt__actions">

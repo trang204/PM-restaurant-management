@@ -1,15 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
-import { NavLink, useParams } from 'react-router-dom'
-import { apiFetch } from '../../lib/api'
+import { useNavigate, useParams } from 'react-router-dom'
+import { apiFetch, mediaUrl, uploadUserAvatar } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import './UserManagement.css'
 
 const roles = ['CUSTOMER', 'STAFF', 'ADMIN']
+const statuses = ['ACTIVE', 'LOCKED']
 
 const ROLE_LABELS = {
   CUSTOMER: 'Khách hàng',
   STAFF: 'Nhân viên',
   ADMIN: 'Quản trị viên',
+}
+
+const STATUS_LABELS = {
+  ACTIVE: 'Hoạt động',
+  LOCKED: 'Bị khóa',
 }
 
 function groupMeta(group) {
@@ -21,55 +27,95 @@ function groupMeta(group) {
 
 export default function UserManagement() {
   const { toast, confirm } = useNotifications()
+  const navigate = useNavigate()
   const { group } = useParams()
   const meta = useMemo(() => groupMeta(group), [group])
   const [users, setUsers] = useState([])
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 10, total: 0, totalPages: 1 })
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
   const [q, setQ] = useState('')
-  const [roleModal, setRoleModal] = useState(null)
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [createdFrom, setCreatedFrom] = useState('')
+  const [createdTo, setCreatedTo] = useState('')
+  const [page, setPage] = useState(1)
+  const [editModal, setEditModal] = useState(null)
   const [addModalOpen, setAddModalOpen] = useState(false)
-  const [addForm, setAddForm] = useState({ email: '', password: '', fullName: '' })
+  const [addForm, setAddForm] = useState({ email: '', password: '', fullName: '', phone: '', status: 'ACTIVE', role: meta.role })
+  const [avatarFile, setAvatarFile] = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState('')
+
+  useEffect(() => {
+    setPage(1)
+  }, [meta.role, q, statusFilter, createdFrom, createdTo])
 
   function load() {
     setLoading(true)
+    setErr(null)
     const qs = new URLSearchParams()
     if (meta.role) qs.set('role', meta.role)
     if (q.trim()) qs.set('q', q.trim())
+    if (statusFilter !== 'ALL') qs.set('status', statusFilter)
+    if (createdFrom) qs.set('createdFrom', createdFrom)
+    if (createdTo) qs.set('createdTo', createdTo)
+    qs.set('page', String(page))
+    qs.set('pageSize', '10')
     apiFetch(`/admin/users?${qs.toString()}`)
-      .then((d) => setUsers(Array.isArray(d) ? d : []))
+      .then((d) => {
+        setUsers(Array.isArray(d?.items) ? d.items : [])
+        setPagination(d?.pagination || { page: 1, pageSize: 10, total: 0, totalPages: 1 })
+      })
       .catch((e) => setErr(e.message))
       .finally(() => setLoading(false))
   }
 
   useEffect(() => {
     load()
-  }, [meta.role])
+  }, [meta.role, page])
 
   useEffect(() => {
     const t = window.setTimeout(() => load(), 250)
     return () => window.clearTimeout(t)
-  }, [q])
+  }, [q, statusFilter, createdFrom, createdTo])
 
-  function openRoleModal(id) {
-    const user = users.find((u) => u.id === id)
-    if (!user) return
-    setRoleModal({ id, role: user.role })
+  function openEditModal(user) {
+    setAvatarFile(null)
+    setAvatarPreview('')
+    setEditModal({
+      id: user.id,
+      fullName: user.fullName || user.name || '',
+      email: user.email || '',
+      phone: user.phone || '',
+      role: user.role || meta.role,
+      status: user.status || 'ACTIVE',
+      avatar_url: user.avatar_url || null,
+    })
   }
 
-  async function submitRole() {
-    if (!roleModal) return
-    const trimmed = String(roleModal.role || '').trim()
-    if (!roles.includes(trimmed)) {
+  async function submitEdit() {
+    if (!editModal) return
+    const trimmedRole = String(editModal.role || '').trim()
+    if (!roles.includes(trimmedRole)) {
       toast('Vai trò không hợp lệ.', { variant: 'error' })
       return
     }
     try {
-      await apiFetch(`/admin/users/${roleModal.id}/role`, {
+      const updated = await apiFetch(`/admin/users/${editModal.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ role: trimmed }),
+        body: JSON.stringify({
+          fullName: editModal.fullName,
+          email: editModal.email,
+          phone: editModal.phone,
+          role: trimmedRole,
+          status: editModal.status,
+        }),
       })
-      setRoleModal(null)
+      if (avatarFile) {
+        await uploadUserAvatar(editModal.id, avatarFile)
+      }
+      setEditModal(null)
+      setAvatarFile(null)
+      setAvatarPreview('')
       load()
     } catch (e) {
       toast(e.message, { variant: 'error' })
@@ -88,7 +134,9 @@ export default function UserManagement() {
   }
 
   function openAddModal() {
-    setAddForm({ email: '', password: '', fullName: '' })
+    setAddForm({ email: '', password: '', fullName: '', phone: '', status: 'ACTIVE', role: meta.role })
+    setAvatarFile(null)
+    setAvatarPreview('')
     setAddModalOpen(true)
   }
 
@@ -96,6 +144,7 @@ export default function UserManagement() {
     const email = addForm.email.trim()
     const password = addForm.password
     const fullName = addForm.fullName.trim()
+    const phone = addForm.phone.trim()
     if (!email) {
       toast('Nhập email.', { variant: 'info' })
       return
@@ -105,16 +154,66 @@ export default function UserManagement() {
       return
     }
     try {
-      await apiFetch('/admin/users', {
+      const created = await apiFetch('/admin/users', {
         method: 'POST',
-        body: JSON.stringify({ email, password, name: fullName, fullName, role: meta.role }),
+        body: JSON.stringify({
+          email,
+          password,
+          name: fullName,
+          fullName,
+          phone: phone || null,
+          role: addForm.role,
+          status: addForm.status,
+        }),
       })
+      if (avatarFile && created?.id != null) {
+        await uploadUserAvatar(Number(created.id), avatarFile)
+      }
       setAddModalOpen(false)
-      setAddForm({ email: '', password: '', fullName: '' })
+      setAddForm({ email: '', password: '', fullName: '', phone: '', status: 'ACTIVE', role: meta.role })
+      setAvatarFile(null)
+      setAvatarPreview('')
       load()
     } catch (e) {
       toast(e.message, { variant: 'error' })
     }
+  }
+
+  function onAvatarChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAvatarFile(file)
+    const nextPreview = URL.createObjectURL(file)
+    setAvatarPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return nextPreview
+    })
+  }
+
+  function avatarSrc(user) {
+    if (avatarPreview) return avatarPreview
+    if (user?.avatar_url) return mediaUrl(user.avatar_url)
+    return ''
+  }
+
+  useEffect(() => () => {
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview)
+  }, [avatarPreview])
+
+  function formatDate(value) {
+    if (!value) return '—'
+    const dt = new Date(value)
+    if (Number.isNaN(dt.getTime())) return value
+    return dt.toLocaleDateString('vi-VN')
+  }
+
+  function userInitials(user) {
+    const source = String(user?.fullName || user?.name || user?.email || 'U').trim()
+    return source
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join('')
   }
 
   return (
@@ -125,17 +224,6 @@ export default function UserManagement() {
           <p className="user-mgmt__subtitle">Tìm theo họ tên, email hoặc số điện thoại.</p>
         </div>
         <div className="user-mgmt__headRight">
-          <div className="user-mgmt__tabs" role="tablist" aria-label="Nhóm người dùng">
-            <NavLink to="/admin/users/customers" className={({ isActive }) => `user-mgmt__tab${isActive ? ' user-mgmt__tab--on' : ''}`}>
-              Khách hàng
-            </NavLink>
-            <NavLink to="/admin/users/staff" className={({ isActive }) => `user-mgmt__tab${isActive ? ' user-mgmt__tab--on' : ''}`}>
-              Nhân viên
-            </NavLink>
-            <NavLink to="/admin/users/admins" className={({ isActive }) => `user-mgmt__tab${isActive ? ' user-mgmt__tab--on' : ''}`}>
-              Quản trị viên
-            </NavLink>
-          </div>
           <button type="button" className="user-mgmt__add" onClick={openAddModal}>
             Thêm {meta.label}
           </button>
@@ -143,6 +231,21 @@ export default function UserManagement() {
       </header>
 
       <div className="user-mgmt__toolbar">
+        <select
+          className="user-mgmt__filterSelect"
+          value={meta.role}
+          onChange={(e) => {
+            const nextRole = e.target.value
+            const nextGroup = nextRole === 'ADMIN' ? 'admins' : nextRole === 'STAFF' ? 'staff' : 'customers'
+            navigate(`/admin/users/${nextGroup}`)
+          }}
+        >
+          {roles.map((role) => (
+            <option key={role} value={role}>
+              {ROLE_LABELS[role]}
+            </option>
+          ))}
+        </select>
         <input
           className="user-mgmt__search"
           value={q}
@@ -150,6 +253,16 @@ export default function UserManagement() {
           placeholder="Tìm theo tên/email/SĐT…"
           type="search"
         />
+        <select className="user-mgmt__filterSelect" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="ALL">Tất cả trạng thái</option>
+          {statuses.map((status) => (
+            <option key={status} value={status}>
+              {STATUS_LABELS[status]}
+            </option>
+          ))}
+        </select>
+        <input className="user-mgmt__date" type="date" value={createdFrom} onChange={(e) => setCreatedFrom(e.target.value)} />
+        <input className="user-mgmt__date" type="date" value={createdTo} onChange={(e) => setCreatedTo(e.target.value)} />
       </div>
 
       {loading ? <p>Đang tải...</p> : null}
@@ -162,6 +275,8 @@ export default function UserManagement() {
               <th>Họ tên</th>
               <th>Email</th>
               <th>SĐT</th>
+              <th>Ngày tạo</th>
+              <th>Trạng thái</th>
               <th>Vai trò</th>
               <th>Thao tác</th>
             </tr>
@@ -169,16 +284,33 @@ export default function UserManagement() {
           <tbody>
             {users.map((u) => (
               <tr key={u.id}>
-                <td data-label="Họ tên">{u.fullName || u.name || '—'}</td>
+                <td data-label="Họ tên">
+                  <div className="user-mgmt__userCell">
+                    {u.avatar_url ? (
+                      <img className="user-mgmt__avatar" src={mediaUrl(u.avatar_url)} alt="" />
+                    ) : (
+                      <span className="user-mgmt__avatar user-mgmt__avatar--fallback">{userInitials(u)}</span>
+                    )}
+                    <div>
+                      <strong className="user-mgmt__userName">{u.fullName || u.name || '—'}</strong>
+                    </div>
+                  </div>
+                </td>
                 <td data-label="Email">{u.email}</td>
                 <td data-label="SĐT">{u.phone || '—'}</td>
+                <td data-label="Ngày tạo">{formatDate(u.created_at)}</td>
+                <td data-label="Trạng thái">
+                  <span className="user-mgmt__status" data-status={u.status}>
+                    {STATUS_LABELS[u.status] || u.status || '—'}
+                  </span>
+                </td>
                 <td data-label="Vai trò">
-                  <span className="user-mgmt__role">{ROLE_LABELS[u.role] || u.role}</span>
+                  <span className="user-mgmt__role" data-role={u.role}>{ROLE_LABELS[u.role] || u.role}</span>
                 </td>
                 <td data-label="Thao tác">
                   <div className="user-mgmt__actions">
-                    <button type="button" className="user-mgmt__btn user-mgmt__btn--secondary" onClick={() => openRoleModal(u.id)}>
-                      Đổi vai trò
+                    <button type="button" className="user-mgmt__btn user-mgmt__btn--secondary" onClick={() => openEditModal(u)}>
+                      Chỉnh sửa
                     </button>
                     <button type="button" className="user-mgmt__btn user-mgmt__btn--danger" onClick={() => deleteUser(u.id)}>
                       Xóa
@@ -191,23 +323,52 @@ export default function UserManagement() {
         </table>
       </div>
 
-      {roleModal ? (
+      {!loading && !err ? (
+        <div className="user-mgmt__pagination">
+          <p className="user-mgmt__paginationText">
+            Hiển thị {(pagination.page - 1) * pagination.pageSize + (users.length ? 1 : 0)}-{(pagination.page - 1) * pagination.pageSize + users.length} / {pagination.total}
+          </p>
+          <div className="user-mgmt__paginationActions">
+            <button type="button" className="user-mgmt__btn user-mgmt__btn--ghost" disabled={pagination.page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              Trước
+            </button>
+            <span className="user-mgmt__pageIndicator">Trang {pagination.page}/{pagination.totalPages}</span>
+            <button type="button" className="user-mgmt__btn user-mgmt__btn--ghost" disabled={pagination.page >= pagination.totalPages} onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}>
+              Sau
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {editModal ? (
         <div
           className="user-mgmt__backdrop"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="user-role-title"
-          onClick={() => setRoleModal(null)}
+          aria-labelledby="user-edit-title"
+          onClick={() => setEditModal(null)}
         >
           <div className="user-mgmt__dialog" onClick={(e) => e.stopPropagation()}>
-            <h2 id="user-role-title" className="user-mgmt__dialogTitle">
-              Đổi vai trò
+            <h2 id="user-edit-title" className="user-mgmt__dialogTitle">
+              Chỉnh sửa người dùng
             </h2>
+            <label className="user-mgmt__dialogField">
+              <span>Họ tên</span>
+              <input value={editModal.fullName} onChange={(e) => setEditModal((m) => (m ? { ...m, fullName: e.target.value } : m))} />
+            </label>
+            <label className="user-mgmt__dialogField">
+              <span>Email</span>
+              <input type="email" value={editModal.email} onChange={(e) => setEditModal((m) => (m ? { ...m, email: e.target.value } : m))} />
+            </label>
+            <label className="user-mgmt__dialogField">
+              <span>Số điện thoại</span>
+              <input value={editModal.phone} onChange={(e) => setEditModal((m) => (m ? { ...m, phone: e.target.value } : m))} />
+            </label>
             <label className="user-mgmt__dialogField">
               <span>Vai trò</span>
               <select
-                value={roleModal.role}
-                onChange={(e) => setRoleModal((m) => (m ? { ...m, role: e.target.value } : m))}
+                value={editModal.role}
+                onChange={(e) => setEditModal((m) => (m ? { ...m, role: e.target.value } : m))}
               >
                 {roles.map((r) => (
                   <option key={r} value={r}>
@@ -216,11 +377,33 @@ export default function UserManagement() {
                 ))}
               </select>
             </label>
+            <label className="user-mgmt__dialogField">
+              <span>Trạng thái</span>
+              <select
+                value={editModal.status}
+                onChange={(e) => setEditModal((m) => (m ? { ...m, status: e.target.value } : m))}
+              >
+                {statuses.map((status) => (
+                  <option key={status} value={status}>
+                    {STATUS_LABELS[status]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="user-mgmt__dialogField">
+              <span>Avatar</span>
+              <input type="file" accept="image/*" onChange={onAvatarChange} />
+            </label>
+            {avatarSrc(editModal) ? (
+              <div className="user-mgmt__avatarPreview">
+                <img src={avatarSrc(editModal)} alt="Avatar preview" />
+              </div>
+            ) : null}
             <div className="user-mgmt__dialogActions">
-              <button type="button" className="user-mgmt__btn user-mgmt__btn--ghost" onClick={() => setRoleModal(null)}>
+              <button type="button" className="user-mgmt__btn user-mgmt__btn--ghost" onClick={() => setEditModal(null)}>
                 Hủy
               </button>
-              <button type="button" className="user-mgmt__btn user-mgmt__btn--primary" onClick={submitRole}>
+              <button type="button" className="user-mgmt__btn user-mgmt__btn--primary" onClick={submitEdit}>
                 Lưu
               </button>
             </div>
@@ -241,6 +424,14 @@ export default function UserManagement() {
               Thêm {meta.label}
             </h2>
             <label className="user-mgmt__dialogField">
+              <span>Họ tên</span>
+              <input
+                type="text"
+                value={addForm.fullName}
+                onChange={(e) => setAddForm((f) => ({ ...f, fullName: e.target.value }))}
+              />
+            </label>
+            <label className="user-mgmt__dialogField">
               <span>Email</span>
               <input
                 type="email"
@@ -259,13 +450,42 @@ export default function UserManagement() {
               />
             </label>
             <label className="user-mgmt__dialogField">
-              <span>Họ tên</span>
+              <span>Số điện thoại</span>
               <input
                 type="text"
-                value={addForm.fullName}
-                onChange={(e) => setAddForm((f) => ({ ...f, fullName: e.target.value }))}
+                value={addForm.phone}
+                onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value }))}
               />
             </label>
+            <label className="user-mgmt__dialogField">
+              <span>Vai trò</span>
+              <select value={addForm.role} onChange={(e) => setAddForm((f) => ({ ...f, role: e.target.value }))}>
+                {roles.map((r) => (
+                  <option key={r} value={r}>
+                    {ROLE_LABELS[r]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="user-mgmt__dialogField">
+              <span>Trạng thái</span>
+              <select value={addForm.status} onChange={(e) => setAddForm((f) => ({ ...f, status: e.target.value }))}>
+                {statuses.map((status) => (
+                  <option key={status} value={status}>
+                    {STATUS_LABELS[status]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="user-mgmt__dialogField">
+              <span>Avatar</span>
+              <input type="file" accept="image/*" onChange={onAvatarChange} />
+            </label>
+            {avatarSrc(addForm) ? (
+              <div className="user-mgmt__avatarPreview">
+                <img src={avatarSrc(addForm)} alt="Avatar preview" />
+              </div>
+            ) : null}
             <div className="user-mgmt__dialogActions">
               <button type="button" className="user-mgmt__btn user-mgmt__btn--ghost" onClick={() => setAddModalOpen(false)}>
                 Hủy

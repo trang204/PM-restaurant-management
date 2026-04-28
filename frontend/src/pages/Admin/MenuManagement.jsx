@@ -9,7 +9,15 @@ const placeholderImg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260" viewBox="0 0 400 260"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#e8f5e9"/><stop offset="100%" stop-color="#c8e6c9"/></linearGradient></defs><rect width="400" height="260" fill="url(#g)"/><text x="200" y="132" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" fill="#52796f">Ảnh món</text></svg>`,
   )
 
-const emptyForm = { name: '', price: '', categoryId: '', imageUrl: '', image: placeholderImg }
+const emptyForm = {
+  name: '',
+  price: '',
+  categoryId: '',
+  imageUrl: '',
+  image: placeholderImg,
+  description: '',
+  status: 'AVAILABLE',
+}
 
 function formatPrice(n) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(n)
@@ -22,11 +30,13 @@ export default function MenuManagement() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [detailItem, setDetailItem] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [imageFile, setImageFile] = useState(null)
   /** 'all' | string category id */
   const [filterCat, setFilterCat] = useState('all')
+  const [search, setSearch] = useState('')
 
   function load() {
     setLoading(true)
@@ -51,6 +61,7 @@ export default function MenuManagement() {
       ...emptyForm,
       categoryId: first?.id != null ? String(first.id) : '',
     })
+    setDetailItem(null)
     setModalOpen(true)
   }
 
@@ -69,8 +80,16 @@ export default function MenuManagement() {
             : '',
       imageUrl: img,
       image: img ? mediaUrl(img) : placeholderImg,
+      description: item.description || '',
+      status: String(item.status || 'AVAILABLE').toUpperCase() === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'AVAILABLE',
     })
+    setDetailItem(null)
     setModalOpen(true)
+  }
+
+  function openDetail(item) {
+    setDetailItem(item)
+    setModalOpen(false)
   }
 
   function closeModal() {
@@ -78,13 +97,27 @@ export default function MenuManagement() {
     setImageFile(null)
   }
 
+  function closeDetail() {
+    setDetailItem(null)
+  }
+
   async function saveItem(e) {
     e.preventDefault()
     const priceNum = Number.parseInt(String(form.price).replace(/\D/g, ''), 10)
     const price = Number.isFinite(priceNum) ? priceNum : 0
     const catId = Number(form.categoryId)
+    const cleanName = String(form.name || '').trim()
+    const cleanDescription = String(form.description || '').trim()
     if (!Number.isFinite(catId) || catId <= 0) {
       toast('Chọn danh mục.', { variant: 'info' })
+      return
+    }
+    if (!cleanName) {
+      toast('Nhập tên món.', { variant: 'info' })
+      return
+    }
+    if (!Number.isFinite(price) || price <= 0) {
+      toast('Giá món phải lớn hơn 0.', { variant: 'info' })
       return
     }
     try {
@@ -94,12 +127,12 @@ export default function MenuManagement() {
         await apiFetch(`/admin/menu-items/${editingId}`, {
           method: 'PATCH',
           body: JSON.stringify({
-            name: form.name.trim() || 'Món mới',
+            name: cleanName,
             price,
             category_id: catId,
             image_url: imageUrl,
-            description: null,
-            status: 'AVAILABLE',
+            description: cleanDescription || null,
+            status: form.status,
           }),
         })
         if (imageFile) {
@@ -109,12 +142,12 @@ export default function MenuManagement() {
         const created = await apiFetch('/admin/menu-items', {
           method: 'POST',
           body: JSON.stringify({
-            name: form.name.trim() || 'Món mới',
+            name: cleanName,
             price,
             category_id: catId,
             image_url: null,
-            description: null,
-            status: 'AVAILABLE',
+            description: cleanDescription || null,
+            status: form.status,
           }),
         })
         if (imageFile && created?.id != null) {
@@ -158,7 +191,11 @@ export default function MenuManagement() {
 
   const sections = useMemo(() => {
     const byKey = new Map()
+    const searchNeedle = search.trim().toLowerCase()
     for (const it of items) {
+      const name = String(it.name || '').toLowerCase()
+      const categoryName = String(it.category_name || '').toLowerCase()
+      if (searchNeedle && !name.includes(searchNeedle) && !categoryName.includes(searchNeedle)) continue
       const cid = it.category_id != null && it.category_id !== '' ? String(it.category_id) : '_none'
       const cname = it.category_name || 'Chưa phân loại'
       const key = `${cid}`
@@ -176,7 +213,17 @@ export default function MenuManagement() {
     const n = Number(filterCat)
     if (!Number.isFinite(n)) return arr
     return arr.filter((s) => Number(s.category_id) === n)
-  }, [items, filterCat])
+  }, [items, filterCat, search])
+
+  const visibleCount = sections.reduce((sum, sec) => sum + sec.items.length, 0)
+
+  function ingredientText(item) {
+    const count = Number(item?.ingredient_count)
+    if (Number.isFinite(count) && count >= 0) {
+      return `Nguyên liệu: ${count} loại`
+    }
+    return 'Nguyên liệu: Chưa liên kết'
+  }
 
   return (
     <div className="menu-mgmt">
@@ -192,6 +239,22 @@ export default function MenuManagement() {
 
       {loading ? <p>Đang tải...</p> : null}
       {err ? <p style={{ color: 'crimson' }}>{err}</p> : null}
+
+      {!loading && !err ? (
+        <div className="menu-mgmt__toolbar">
+          <label className="menu-mgmt__search">
+            <span className="sr-only">Tìm món</span>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Tìm món..."
+              autoComplete="off"
+            />
+          </label>
+          <p className="menu-mgmt__resultCount">Hiển thị {visibleCount} món</p>
+        </div>
+      ) : null}
 
       {!loading && !err && (items.length > 0 || categories.length > 0) ? (
         <div className="menu-mgmt__filters" role="tablist" aria-label="Lọc theo danh mục">
@@ -224,7 +287,7 @@ export default function MenuManagement() {
       ) : null}
 
       {!loading && !err && sections.length === 0 ? (
-        <p className="menu-mgmt__empty">Chưa có món nào{filterCat !== 'all' ? ' trong danh mục này' : ''}.</p>
+        <p className="menu-mgmt__empty">Không tìm thấy món nào phù hợp.</p>
       ) : null}
 
       {!loading && !err
@@ -236,7 +299,19 @@ export default function MenuManagement() {
               </h2>
               <div className="menu-mgmt__grid">
                 {sec.items.map((it) => (
-                  <article key={it.id} className="menu-card">
+                  <article
+                    key={it.id}
+                    className="menu-card menu-card--clickable"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openDetail(it)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        openDetail(it)
+                      }
+                    }}
+                  >
                     <div className="menu-card__image-wrap">
                       <img
                         className="menu-card__image"
@@ -248,14 +323,29 @@ export default function MenuManagement() {
                       <h3 className="menu-card__name">{it.name}</h3>
                       <p className="menu-card__price">{formatPrice(Number(it.price) || 0)}</p>
                       <p className="menu-card__category">{it.category_name || '—'}</p>
+                      <p className="menu-card__meta">{ingredientText(it)}</p>
                       <p className="menu-card__status" data-status={String(it.status || '').toUpperCase()}>
                         {String(it.status || '').toUpperCase() === 'AVAILABLE' ? 'Đang bán' : 'Ngừng bán'}
                       </p>
                       <div className="menu-card__actions">
-                        <button type="button" className="menu-card__btn menu-card__btn--secondary" onClick={() => openEdit(it)}>
+                        <button
+                          type="button"
+                          className="menu-card__btn menu-card__btn--secondary"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openEdit(it)
+                          }}
+                        >
                           Sửa
                         </button>
-                        <button type="button" className="menu-card__btn menu-card__btn--danger" onClick={() => deleteItem(it.id)}>
+                        <button
+                          type="button"
+                          className="menu-card__btn menu-card__btn--danger"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            deleteItem(it.id)
+                          }}
+                        >
                           Xóa
                         </button>
                       </div>
@@ -309,6 +399,24 @@ export default function MenuManagement() {
                 </select>
               </label>
               <label className="menu-modal__field">
+                <span>Mô tả</span>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="Mô tả ngắn về món ăn"
+                />
+              </label>
+              <label className="menu-modal__field">
+                <span>Trạng thái</span>
+                <select
+                  value={form.status}
+                  onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+                >
+                  <option value="AVAILABLE">Đang bán</option>
+                  <option value="UNAVAILABLE">Ngừng bán</option>
+                </select>
+              </label>
+              <label className="menu-modal__field">
                 <span>URL ảnh (tuỳ chọn)</span>
                 <input
                   value={form.imageUrl}
@@ -332,6 +440,69 @@ export default function MenuManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {detailItem ? (
+        <div className="menu-modal" role="dialog" aria-modal="true" aria-labelledby="menu-detail-title">
+          <div className="menu-modal__backdrop" onClick={closeDetail} aria-hidden />
+          <div className="menu-modal__panel menu-modal__panel--detail">
+            <h2 id="menu-detail-title" className="menu-modal__title">
+              Chi tiết món ăn
+            </h2>
+            <div className="menu-detail">
+              <div className="menu-detail__imageWrap">
+                <img
+                  className="menu-detail__image"
+                  src={detailItem.image_url ? mediaUrl(detailItem.image_url) : placeholderImg}
+                  alt=""
+                />
+              </div>
+              <div className="menu-detail__body">
+                <div className="menu-detail__head">
+                  <div>
+                    <h3 className="menu-detail__name">{detailItem.name}</h3>
+                    <p className="menu-detail__price">{formatPrice(Number(detailItem.price) || 0)}</p>
+                  </div>
+                  <span className="menu-card__status" data-status={String(detailItem.status || '').toUpperCase()}>
+                    {String(detailItem.status || '').toUpperCase() === 'AVAILABLE' ? 'Đang bán' : 'Ngừng bán'}
+                  </span>
+                </div>
+
+                <div className="menu-detail__grid">
+                  <div className="menu-detail__item">
+                    <span className="menu-detail__label">Danh mục</span>
+                    <strong>{detailItem.category_name || '—'}</strong>
+                  </div>
+                  <div className="menu-detail__item">
+                    <span className="menu-detail__label">Nguyên liệu</span>
+                    <strong>{ingredientText(detailItem).replace('Nguyên liệu: ', '')}</strong>
+                  </div>
+                </div>
+
+                <div className="menu-detail__desc">
+                  <span className="menu-detail__label">Mô tả</span>
+                  <p>{detailItem.description?.trim() || 'Chưa có mô tả cho món này.'}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="menu-modal__footer">
+              <button type="button" className="menu-modal__cancel" onClick={closeDetail}>
+                Đóng
+              </button>
+              <button
+                type="button"
+                className="menu-modal__submit"
+                onClick={() => {
+                  closeDetail()
+                  openEdit(detailItem)
+                }}
+              >
+                Chỉnh sửa
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

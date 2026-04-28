@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { apiFetch, mediaUrl, uploadTableImage } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import './TableManagement.css'
@@ -7,10 +8,17 @@ function statusMeta(status) {
   const s = String(status || '').toUpperCase()
   if (s === 'AVAILABLE') return { className: 'table-card__status table-card__status--green', label: 'Trống' }
   if (s === 'RESERVED') return { className: 'table-card__status table-card__status--yellow', label: 'Đã giữ' }
-  if (s === 'OCCUPIED') return { className: 'table-card__status table-card__status--red', label: 'Có khách' }
+  if (s === 'OCCUPIED') return { className: 'table-card__status table-card__status--blue', label: 'Đang dùng' }
   if (s === 'CLOSED') return { className: 'table-card__status table-card__status--muted', label: 'Đóng' }
-  if (s === 'IN_USE' || s === 'IN USE') return { className: 'table-card__status table-card__status--red', label: 'Đang sử dụng' }
+  if (s === 'IN_USE' || s === 'IN USE') return { className: 'table-card__status table-card__status--blue', label: 'Đang dùng' }
   return { className: 'table-card__status', label: status }
+}
+
+function formatCheckInTime(value) {
+  if (!value) return '—'
+  const dt = new Date(value)
+  if (Number.isNaN(dt.getTime())) return '—'
+  return dt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
 }
 
 const placeholderImg =
@@ -24,6 +32,7 @@ const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
 export default function TableManagement() {
   const { toast, confirm } = useNotifications()
+  const navigate = useNavigate()
   const [tables, setTables] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
@@ -33,6 +42,8 @@ export default function TableManagement() {
   const [imageFile, setImageFile] = useState(null)
   const [closeModal, setCloseModal] = useState(null)
   const [closeReason, setCloseReason] = useState('')
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('ALL')
 
   function load() {
     setLoading(true)
@@ -118,7 +129,11 @@ export default function TableManagement() {
   }
 
   async function deleteTable(id) {
-    const okDel = await confirm({ title: 'Xóa bàn', message: 'Xóa bàn này?' })
+    const table = tables.find((x) => x.id === id)
+    const okDel = await confirm({
+      title: 'Xóa bàn',
+      message: `Bạn có chắc chắn muốn xóa ${table?.name || `bàn #${id}`} không?`,
+    })
     if (!okDel) return
     try {
       await apiFetch(`/tables/${id}`, { method: 'DELETE' })
@@ -161,6 +176,46 @@ export default function TableManagement() {
     }
   }
 
+  async function releaseGuest(table) {
+    const bookingId = Number(table?.active_booking_id)
+    if (!Number.isFinite(bookingId)) {
+      toast('Không tìm thấy phiên khách đang dùng bàn.', { variant: 'info' })
+      return
+    }
+    const okClose = await confirm({
+      title: 'Đóng bàn',
+      message: `Bạn có chắc chắn muốn đóng bàn ${table?.name || ''} không?`,
+    })
+    if (!okClose) return
+    try {
+      await apiFetch(`/admin/reservations/${bookingId}/release-guest`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      })
+      toast('Đã đóng bàn và trả về trạng thái trống.', { variant: 'success' })
+      load()
+    } catch (e) {
+      toast(e.message, { variant: 'error' })
+    }
+  }
+
+  function openOrder(table) {
+    const orderId = Number(table?.active_order_id)
+    if (!Number.isFinite(orderId)) {
+      toast('Bàn này chưa có đơn để xem.', { variant: 'info' })
+      return
+    }
+    navigate(`/admin/kitchen?orderId=${orderId}`)
+  }
+
+  function openCallOrder(table) {
+    if (!table?.active_order_url) {
+      toast('Bàn này chưa có link gọi món.', { variant: 'info' })
+      return
+    }
+    window.open(table.active_order_url, '_blank', 'noopener,noreferrer')
+  }
+
   function onFileChange(e) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -189,6 +244,24 @@ export default function TableManagement() {
         ? mediaUrl(form.imageUrl)
         : form.image || placeholderImg
 
+  const filteredTables = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return tables.filter((t) => {
+      const name = String(t.name || '').toLowerCase()
+      const status = String(t.status || '').toUpperCase()
+      const matchQ = !q || name.includes(q)
+      const matchStatus =
+        statusFilter === 'ALL'
+          ? true
+          : statusFilter === 'AVAILABLE'
+            ? status === 'AVAILABLE'
+            : statusFilter === 'OCCUPIED'
+              ? status === 'OCCUPIED' || status === 'IN_USE' || status === 'IN USE'
+              : true
+      return matchQ && matchStatus
+    })
+  }, [tables, search, statusFilter])
+
   return (
     <div className="table-mgmt">
       <header className="table-mgmt__header">
@@ -201,12 +274,43 @@ export default function TableManagement() {
         </button>
       </header>
 
+      <div className="table-mgmt__toolbar">
+        <input
+          className="table-mgmt__search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Tìm theo tên bàn"
+        />
+        <div className="table-mgmt__filters">
+          {[
+            ['ALL', 'Tất cả'],
+            ['AVAILABLE', 'Trống'],
+            ['OCCUPIED', 'Đang dùng'],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={`table-mgmt__filterBtn${statusFilter === key ? ' table-mgmt__filterBtn--active' : ''}`}
+              onClick={() => setStatusFilter(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <button type="button" className="table-mgmt__layoutLink" onClick={() => navigate('/admin/tables/layout')}>
+          Chỉnh sơ đồ bàn
+        </button>
+      </div>
+
       {loading ? <p>Đang tải...</p> : null}
       {err ? <p style={{ color: 'crimson' }}>{err}</p> : null}
 
       <div className="table-mgmt__grid">
-        {tables.map((t) => {
+        {filteredTables.map((t) => {
           const st = statusMeta(t.status)
+          const status = String(t.status || '').toUpperCase()
+          const isOccupied = status === 'OCCUPIED' || status === 'IN_USE' || status === 'IN USE'
+          const isAvailable = status === 'AVAILABLE'
           return (
             <article key={t.id} className="table-card" data-status={t.status}>
               {t.image_url ? (
@@ -221,13 +325,51 @@ export default function TableManagement() {
               <p className="table-card__capacity">
                 Sức chứa: <strong>{t.capacity}</strong> khách
               </p>
+              {isOccupied ? (
+                <div className="table-card__guestInfo">
+                  <p>
+                    Khách: <strong>{t.active_guest_name || '—'}</strong>
+                  </p>
+                  <p>
+                    Số khách: <strong>{t.active_guest_count || '—'}</strong>
+                  </p>
+                  <p>
+                    Giờ vào: <strong>{formatCheckInTime(t.active_session_created_at)}</strong>
+                  </p>
+                </div>
+              ) : null}
               {t.status_note ? (
                 <p className="table-card__note" title={t.status_note}>
                   {t.status_note}
                 </p>
               ) : null}
               <div className="table-card__actions">
-                {String(t.status || '').toUpperCase() === 'CLOSED' ? (
+                {isAvailable ? (
+                  <>
+                    <button type="button" className="table-card__btn table-card__btn--secondary" onClick={() => openEdit(t)}>
+                      Chỉnh sửa
+                    </button>
+                    <button type="button" className="table-card__btn table-card__btn--danger" onClick={() => deleteTable(t.id)}>
+                      Xóa
+                    </button>
+                  </>
+                ) : null}
+
+                {isOccupied ? (
+                  <>
+                    <button type="button" className="table-card__btn table-card__btn--secondary" onClick={() => openOrder(t)}>
+                      Xem đơn
+                    </button>
+                    <button type="button" className="table-card__btn table-card__btn--primary" onClick={() => openCallOrder(t)}>
+                      Gọi món
+                    </button>
+                    <button type="button" className="table-card__btn table-card__btn--danger" onClick={() => releaseGuest(t)}>
+                      Đóng bàn
+                    </button>
+                  </>
+                ) : null}
+
+                {status === 'CLOSED' ? (
                   <button
                     type="button"
                     className="table-card__btn table-card__btn--primary"
@@ -235,7 +377,9 @@ export default function TableManagement() {
                   >
                     Mở phục vụ
                   </button>
-                ) : (
+                ) : null}
+
+                {status === 'RESERVED' ? (
                   <button
                     type="button"
                     className="table-card__btn table-card__btn--secondary"
@@ -243,13 +387,7 @@ export default function TableManagement() {
                   >
                     Bảo trì bàn
                   </button>
-                )}
-                <button type="button" className="table-card__btn table-card__btn--secondary" onClick={() => openEdit(t)}>
-                  Sửa
-                </button>
-                <button type="button" className="table-card__btn table-card__btn--danger" onClick={() => deleteTable(t.id)}>
-                  Xóa
-                </button>
+                ) : null}
               </div>
             </article>
           )
