@@ -87,7 +87,7 @@ export async function login(req, res, next) {
     )
 
     const row = rows[0]
-    if (!row) throw unauthorized('Sai email hoặc mật khẩu')
+    if (!row) throw unauthorized('Email không tồn tại')
 
     const okPass = await bcrypt.compare(String(password), String(row.password))
     if (!okPass) throw unauthorized('Sai email hoặc mật khẩu')

@@ -8,10 +8,10 @@ import './AuthPages.css'
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [brand, setBrand] = useState('Luxeat')
   const [banner, setBanner] = useState<string | null>(null)
+  const [fieldErr, setFieldErr] = useState<{ email?: string; password?: string } | null>(null)
 
   useEffect(() => {
     fetchPublicSettings()
@@ -31,12 +31,30 @@ export default function Login() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError(null)
+    setFieldErr(null)
     setLoading(true)
     try {
+      const nextEmail = email.trim().toLowerCase()
+      const nextPassword = password
+      if (!nextEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+        setFieldErr({ email: 'Email không hợp lệ' })
+        setLoading(false)
+        return
+      }
+      if (!nextPassword) {
+        setFieldErr({ password: 'Vui lòng nhập mật khẩu' })
+        setLoading(false)
+        return
+      }
+      if (String(nextPassword).length < 6) {
+        setFieldErr({ password: 'Mật khẩu tối thiểu 6 ký tự' })
+        setLoading(false)
+        return
+      }
+
       const data = await apiFetch<{ token: string; user: { role?: string } }>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: nextEmail, password: nextPassword }),
       })
       setToken(data.token)
       if (data.user?.role === 'ADMIN') {
@@ -49,7 +67,16 @@ export default function Login() {
       }
       window.location.href = '/'
     } catch (err) {
-      setError((err as Error).message)
+      const msg = (err as Error).message || 'Đăng nhập thất bại'
+      if (/email không tồn tại/i.test(msg)) {
+        setFieldErr({ email: 'Email không tồn tại' })
+      } else if (/sai email hoặc mật khẩu/i.test(msg)) {
+        setFieldErr({ password: 'Sai email hoặc mật khẩu' })
+      } else if (/email và password là bắt buộc/i.test(msg)) {
+        setFieldErr({ email: 'Email không hợp lệ', password: 'Vui lòng nhập mật khẩu' })
+      } else {
+        setFieldErr({ password: msg })
+      }
     } finally {
       setLoading(false)
     }
@@ -81,28 +108,35 @@ export default function Login() {
             </label>
             <input
               id="login-email"
-              className="authField__input"
+              className={`authField__input${fieldErr?.email ? ' authField__input--error' : ''}`}
               type="email"
               autoComplete="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setFieldErr((p) => ({ ...(p || {}), email: undefined }))
+                setEmail(e.target.value)
+              }}
               placeholder="tenban@email.com"
               disabled={loading}
+              aria-invalid={Boolean(fieldErr?.email) || undefined}
             />
+            {fieldErr?.email ? <span className="authField__error">{fieldErr.email}</span> : null}
           </div>
 
           <PasswordField
             label="Mật khẩu"
             value={password}
-            onChange={setPassword}
+            onChange={(v) => {
+              setFieldErr((p) => ({ ...(p || {}), password: undefined }))
+              setPassword(v)
+            }}
             autoComplete="current-password"
             required
             disabled={loading}
             placeholder="••••••••"
+            error={fieldErr?.password || null}
           />
-
-          {error ? <p className="authError">{error}</p> : null}
 
           <button className="authSubmit" type="submit" disabled={loading}>
             {loading ? 'Đang đăng nhập…' : 'Đăng nhập'}

@@ -170,6 +170,25 @@
 
 .authField__input:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.authField__input--error {
+  border-color: #E16A62;
+  background: #FFF7F6;
+}
+
+.authField__input--error:focus {
+  border-color: #C0392B;
+  box-shadow: 0 0 0 3px rgba(192,57,43,0.18);
+  background: #fff;
+}
+
+.authField__error {
+  margin-top: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #C0392B;
+  line-height: 1.35;
+}
+
 .authField__input--withToggle { padding-right: 46px; }
 
 .authField__passwordWrap {
