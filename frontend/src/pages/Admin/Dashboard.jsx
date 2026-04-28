@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   CalendarDays,
   DollarSign,
@@ -7,14 +7,24 @@ import {
   Users,
   BarChart3,
   ChefHat,
-  UtensilsCrossed,
-  TrendingUp,
+  PlusCircle,
+  ClipboardList,
+  LogIn,
+  RefreshCw,
   Clock,
 } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import './Dashboard.css'
 
 const vnd = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })
+
+function todayYmdLocal() {
+  const n = new Date()
+  const y = n.getFullYear()
+  const m = String(n.getMonth() + 1).padStart(2, '0')
+  const d = String(n.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
 
 function statusBadge(status) {
   const s = String(status || '').toUpperCase()
@@ -36,37 +46,103 @@ const STATUS_LABELS = {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
-  const [revenue, setRevenue] = useState(null)
+  const [revenueToday, setRevenueToday] = useState(null)
   const [bookings, setBookings] = useState([])
   const [tables, setTables] = useState([])
   const [users, setUsers] = useState([])
+  const [q, setQ] = useState('')
+  const [status, setStatus] = useState('ALL')
+  const [busy, setBusy] = useState(false)
 
-  useEffect(() => {
-    let c = false
-    setLoading(true)
+  function load({ soft = false } = {}) {
+    let cancelled = false
+    if (!soft) setLoading(true)
+    setBusy(true)
+    setErr(null)
+    const today = todayYmdLocal()
     Promise.all([
-      apiFetch('/admin/reports/revenue'),
+      apiFetch(`/admin/reports/revenue?from=${encodeURIComponent(today)}&to=${encodeURIComponent(today)}`),
       apiFetch('/admin/reservations'),
       apiFetch('/tables'),
       apiFetch('/admin/users'),
     ])
-      .then(([rev, res, tbl, usr]) => {
-        if (c) return
-        setRevenue(rev)
+      .then(([revToday, res, tbl, usr]) => {
+        if (cancelled) return
+        setRevenueToday(revToday)
         setBookings(Array.isArray(res) ? res : [])
         setTables(Array.isArray(tbl) ? tbl : [])
         setUsers(Array.isArray(usr) ? usr : [])
       })
-      .catch((e) => { if (!c) setErr(e.message) })
-      .finally(() => { if (!c) setLoading(false) })
-    return () => { c = true }
+      .catch((e) => {
+        if (!cancelled) setErr(e?.message || String(e))
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setBusy(false)
+          if (!soft) setLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }
+
+  useEffect(() => {
+    const cancel = load()
+    return cancel
   }, [])
 
-  const totalRevenue = revenue?.total != null ? Number(revenue.total) : 0
-  const recent = bookings.slice(0, 8)
+  const today = todayYmdLocal()
+  const totalRevenueToday = revenueToday?.total != null ? Number(revenueToday.total) : 0
   const occupiedTables = tables.filter((t) => String(t.status || '').toUpperCase() === 'OCCUPIED').length
+
+  const todayBookingsCount = useMemo(() => {
+    return bookings.filter((b) => String(b?.date || '').slice(0, 10) === today).length
+  }, [bookings, today])
+
+  const filteredRecent = useMemo(() => {
+    const qq = q.trim().toLowerCase()
+    const st = String(status || 'ALL').toUpperCase()
+    const out = bookings.filter((b) => {
+      const name = String(b?.fullName || '').toLowerCase()
+      const phone = String(b?.phone || '').toLowerCase()
+      const email = String(b?.userEmail || '').toLowerCase()
+      const okQ = !qq || name.includes(qq) || phone.includes(qq) || email.includes(qq) || String(b?.id || '').includes(qq)
+      const s = String(b?.status || '').toUpperCase()
+      const okSt = st === 'ALL' ? true : s === st
+      return okQ && okSt
+    })
+    return out.slice(0, 10)
+  }, [bookings, q, status])
+
+  async function confirmBooking(id) {
+    setBusy(true)
+    setErr(null)
+    try {
+      await apiFetch(`/admin/reservations/${id}/confirm`, { method: 'POST', body: '{}' })
+      load({ soft: true })
+    } catch (e) {
+      setErr(e?.message || String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function cancelBooking(id) {
+    setBusy(true)
+    setErr(null)
+    try {
+      await apiFetch(`/admin/reservations/${id}/cancel`, { method: 'POST', body: '{}' })
+      load({ soft: true })
+    } catch (e) {
+      setErr(e?.message || String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -94,25 +170,25 @@ export default function Dashboard() {
         <article className="dash__stat">
           <p className="dash__stat-label">
             <CalendarDays size={14} />
-            Đặt bàn
+            Đặt bàn hôm nay
           </p>
-          <p className="dash__stat-value">{bookings.length}</p>
-          <p className="dash__stat-sub">Tổng số đơn đặt bàn</p>
+          <p className="dash__stat-value">{todayBookingsCount}</p>
+          <p className="dash__stat-sub">Số đơn theo ngày hiện tại</p>
         </article>
         <article className="dash__stat">
           <p className="dash__stat-label">
             <DollarSign size={14} />
-            Doanh thu
+            Doanh thu hôm nay
           </p>
           <p className="dash__stat-value" style={{ fontSize: '1.4rem' }}>
-            {vnd.format(totalRevenue)}
+            {vnd.format(totalRevenueToday)}
           </p>
-          <p className="dash__stat-sub">Theo báo cáo hệ thống</p>
+          <p className="dash__stat-sub">Tổng thanh toán (PAID) trong ngày</p>
         </article>
         <article className="dash__stat">
           <p className="dash__stat-label">
             <TableProperties size={14} />
-            Bàn đang dùng
+            Bàn đang sử dụng
           </p>
           <p className="dash__stat-value">{occupiedTables} / {tables.length}</p>
           <p className="dash__stat-sub">Bàn đang phục vụ khách</p>
@@ -120,7 +196,7 @@ export default function Dashboard() {
         <article className="dash__stat">
           <p className="dash__stat-label">
             <Users size={14} />
-            Tài khoản
+            Tổng người dùng
           </p>
           <p className="dash__stat-value">{users.length}</p>
           <p className="dash__stat-sub">Người dùng đã đăng ký</p>
@@ -130,10 +206,58 @@ export default function Dashboard() {
       <div className="dash__grid">
         {/* Recent bookings */}
         <div className="dash__section" style={{ gridColumn: '1 / -1' }}>
-          <h2 className="dash__section-title">
-            <Clock size={16} />
-            Đơn đặt bàn gần đây
-          </h2>
+          <div className="dash__sectionHead">
+            <h2 className="dash__section-title" style={{ marginBottom: 0, borderBottom: 'none', paddingBottom: 0 }}>
+              <Clock size={16} />
+              Đơn đặt bàn gần đây
+            </h2>
+            <div className="dash__sectionActions">
+              <button
+                type="button"
+                className="dash__btn dash__btn--ghost"
+                onClick={() => load({ soft: true })}
+                disabled={busy}
+                title="Làm mới dữ liệu"
+              >
+                <RefreshCw size={16} />
+                Làm mới
+              </button>
+              <Link to="/admin/bookings" className="dash__btn dash__btn--primary">
+                Xem tất cả
+              </Link>
+            </div>
+          </div>
+
+          <div className="dash__filters" aria-label="Tìm kiếm và lọc">
+            <div className="dash__filter">
+              <label className="dash__filterLabel" htmlFor="dash-q">Tìm theo tên</label>
+              <input
+                id="dash-q"
+                className="dash__input"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Nhập tên / SĐT / email / mã..."
+              />
+            </div>
+            <div className="dash__filter">
+              <label className="dash__filterLabel" htmlFor="dash-status">Lọc theo trạng thái</label>
+              <select
+                id="dash-status"
+                className="dash__select"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="ALL">Tất cả</option>
+                <option value="PENDING">Chờ xác nhận</option>
+                <option value="HOLD">Đang giữ bàn</option>
+                <option value="CONFIRMED">Đã xác nhận</option>
+                <option value="CHECKED_IN">Đã vào bàn</option>
+                <option value="COMPLETED">Hoàn thành</option>
+                <option value="CANCELLED">Đã hủy</option>
+              </select>
+            </div>
+          </div>
+
           <div style={{ overflowX: 'auto' }}>
             <table className="dash__table">
               <thead>
@@ -145,14 +269,15 @@ export default function Dashboard() {
                   <th>Giờ</th>
                   <th>Số khách</th>
                   <th>Trạng thái</th>
+                  <th style={{ textAlign: 'right' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {recent.length === 0 ? (
+                {filteredRecent.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="dash__empty">Chưa có đơn đặt bàn nào.</td>
+                    <td colSpan={8} className="dash__empty">Không có đơn phù hợp.</td>
                   </tr>
-                ) : recent.map((r) => (
+                ) : filteredRecent.map((r) => (
                   <tr key={r.id}>
                     <td style={{ fontWeight: 600, color: '#7A7069', fontSize: '0.82rem' }}>#{r.id}</td>
                     <td style={{ fontWeight: 500 }}>{r.fullName || '—'}</td>
@@ -165,6 +290,34 @@ export default function Dashboard() {
                         {STATUS_LABELS[String(r.status || '').toUpperCase()] || r.status}
                       </span>
                     </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <div className="dash__rowActions">
+                        <button
+                          type="button"
+                          className="dash__btn dash__btn--sm"
+                          onClick={() => navigate('/admin/bookings')}
+                          title="Xem trong trang quản lý đặt bàn"
+                        >
+                          Xem
+                        </button>
+                        <button
+                          type="button"
+                          className="dash__btn dash__btn--sm dash__btn--primary"
+                          disabled={busy || !['PENDING', 'HOLD'].includes(String(r.status || '').toUpperCase())}
+                          onClick={() => confirmBooking(r.id)}
+                        >
+                          Xác nhận
+                        </button>
+                        <button
+                          type="button"
+                          className="dash__btn dash__btn--sm dash__btn--danger"
+                          disabled={busy || ['CANCELLED', 'COMPLETED', 'CHECKED_IN'].includes(String(r.status || '').toUpperCase())}
+                          onClick={() => cancelBooking(r.id)}
+                        >
+                          Huỷ
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -176,33 +329,25 @@ export default function Dashboard() {
       {/* Quick links */}
       <div className="dash__section" style={{ marginTop: 20 }}>
         <h2 className="dash__section-title">
-          <TrendingUp size={16} />
+          <ClipboardList size={16} />
           Truy cập nhanh
         </h2>
         <div className="dash__links">
           <Link to="/admin/bookings" className="dash__link">
-            <CalendarDays size={22} />
-            Đặt bàn
-          </Link>
-          <Link to="/admin/tables" className="dash__link">
-            <TableProperties size={22} />
-            Quản lý bàn
+            <PlusCircle size={22} />
+            Tạo đặt bàn
           </Link>
           <Link to="/admin/kitchen" className="dash__link">
             <ChefHat size={22} />
-            Bếp & gọi món
+            Thêm món
           </Link>
-          <Link to="/admin/menu" className="dash__link">
-            <UtensilsCrossed size={22} />
-            Thực đơn
+          <Link to="/admin/bookings" className="dash__link">
+            <LogIn size={22} />
+            Check-in khách
           </Link>
-          <Link to="/admin/users/customers" className="dash__link">
-            <Users size={22} />
-            Người dùng
-          </Link>
-          <Link to="/admin/reports" className="dash__link">
-            <BarChart3 size={22} />
-            Doanh thu
+          <Link to="/admin/tables" className="dash__link">
+            <TableProperties size={22} />
+            Xem bàn trống
           </Link>
         </div>
       </div>

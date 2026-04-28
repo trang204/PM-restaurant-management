@@ -163,6 +163,8 @@ export default function BookingManagement({ staffMode = false }) {
   const [paymentModal, setPaymentModal] = useState(null)
   const [paymentBusy, setPaymentBusy] = useState(false)
   const [qrBusy, setQrBusy] = useState(false)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('ALL') // ALL | PENDING | CONFIRMED | COMPLETED
 
   function load() {
     setLoading(true)
@@ -248,6 +250,43 @@ export default function BookingManagement({ staffMode = false }) {
   const activeDayGuest = activeDayRows.reduce((s, r) => s + Number(r.guestCount || 0), 0)
   const activeIsToday = Boolean(activeDateKey && activeDateKey === todayYmd)
 
+  function matchesStatusFilter(r) {
+    const st = String(r?.status || '').toUpperCase()
+    if (statusFilter === 'ALL') return true
+    if (statusFilter === 'PENDING') return st === 'PENDING' || st === 'HOLD'
+    if (statusFilter === 'CONFIRMED') return st === 'CONFIRMED'
+    if (statusFilter === 'COMPLETED') return st === 'COMPLETED' || st === 'PAID' || st === 'CANCELLED'
+    return true
+  }
+
+  const filteredDayRows = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return activeDayRows.filter((r) => {
+      if (!matchesStatusFilter(r)) return false
+      if (!q) return true
+      const name = String(r.fullName || '').toLowerCase()
+      const phone = String(r.phone || '').toLowerCase()
+      return name.includes(q) || phone.includes(q) || String(r.id || '').includes(q)
+    })
+  }, [activeDayRows, search, statusFilter])
+
+  function tableStatusVi(st) {
+    const s = String(st || '').toUpperCase()
+    if (s === 'AVAILABLE' || s === '') return 'còn trống'
+    if (s === 'OCCUPIED') return 'đang dùng'
+    if (s === 'RESERVED') return 'đang giữ'
+    if (s === 'CLOSED') return 'đang đóng'
+    return String(st || '').toLowerCase() || '—'
+  }
+
+  function rowActionType(r) {
+    const st = String(r?.status || '').toUpperCase()
+    if (st === 'PENDING' || st === 'HOLD') return 'PENDING'
+    if (st === 'CONFIRMED') return 'CONFIRMED'
+    if (st === 'CHECKED_IN') return 'CHECKED_IN'
+    return 'DONE'
+  }
+
   function goToday() {
     const idx = sortedDateKeys.indexOf(todayYmd)
     if (idx >= 0) setDayPage(idx)
@@ -290,19 +329,40 @@ export default function BookingManagement({ staffMode = false }) {
       toast('Chọn bàn trước.', { variant: 'info' })
       return
     }
+    const booking = rows.find((x) => x.id === bookingId)
+    const table = tables.find((x) => String(x.id) === String(tid))
+    if (booking && table) {
+      const cap = Number(table.capacity)
+      const need = Number(booking.guestCount)
+      if (Number.isFinite(cap) && Number.isFinite(need) && cap > 0 && need > 0 && cap < need) {
+        toast('Bàn không đủ chỗ.', { variant: 'error' })
+        return
+      }
+      const st = String(table.status || '').toUpperCase()
+      if (st !== 'AVAILABLE') {
+        toast('Bàn đang được sử dụng.', { variant: 'error' })
+        return
+      }
+    }
     try {
       await apiFetch(`/admin/reservations/${bookingId}/assign-table`, {
         method: 'POST',
         body: JSON.stringify({ tableId: Number(tid) }),
       })
       load()
+      refreshTables()
     } catch (e) {
       toast(e.message, { variant: 'error' })
     }
   }
 
   async function cancelBooking(id) {
-    const okCancel = await askConfirm({ title: 'Hủy đơn', message: 'Hủy đơn này?' })
+    const row = rows.find((x) => x.id === id)
+    const who = row?.fullName ? ` (${row.fullName})` : ''
+    const okCancel = await askConfirm({
+      title: 'Hủy đơn',
+      message: `Bạn có chắc chắn muốn hủy đơn #${id}${who} không?`,
+    })
     if (!okCancel) return
     try {
       await apiFetch(`/admin/reservations/${id}/cancel`, { method: 'POST', body: '{}' })
@@ -859,6 +919,53 @@ export default function BookingManagement({ staffMode = false }) {
               {activeIsToday ? <span className="booking-mgmt__dayBadge">Hôm nay</span> : null}
             </p>
           </div>
+          <div
+            className="booking-mgmt__toolbar"
+            style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '10px 0 14px' }}
+          >
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Tìm theo tên / SĐT"
+              className="booking-mgmt__search"
+              style={{
+                flex: '1 1 260px',
+                minWidth: 220,
+                padding: '10px 12px',
+                borderRadius: 10,
+                border: '1px solid #E2D9CC',
+                background: '#fff',
+                outline: 'none',
+              }}
+            />
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[
+                ['ALL', 'Tất cả'],
+                ['PENDING', 'Chờ'],
+                ['CONFIRMED', 'Đã xác nhận'],
+                ['COMPLETED', 'Hoàn thành'],
+              ].map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  className={`booking-mgmt__btn booking-mgmt__btn--ghost booking-mgmt__btn--sm${statusFilter === k ? ' booking-mgmt__btn--active' : ''}`}
+                  onClick={() => setStatusFilter(k)}
+                >
+                  {label}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="booking-mgmt__btn booking-mgmt__btn--secondary booking-mgmt__btn--sm"
+                onClick={() => {
+                  load()
+                  refreshTables()
+                }}
+              >
+                Làm mới
+              </button>
+            </div>
+          </div>
           <div className="booking-mgmt__table-wrap">
             <table className="booking-mgmt__table">
               <thead>
@@ -876,9 +983,10 @@ export default function BookingManagement({ staffMode = false }) {
                 </tr>
               </thead>
               <tbody>
-                {activeDayRows.map((r) => {
-                  const selectableTables = tablesSelectableForRow(tables, rows, r, assignPick)
+                {filteredDayRows.map((r) => {
                   const tableClosed = assignedTableIsClosed(tables, r)
+                  const takenByOthers = tableIdsTakenByOtherBookings(rows, r)
+                  const actionType = rowActionType(r)
                   return (
                     <tr key={r.id}>
                       <td data-label="Khách">{r.fullName}</td>
@@ -902,16 +1010,24 @@ export default function BookingManagement({ staffMode = false }) {
                             aria-label="Chọn bàn"
                           >
                             <option value="">— Chọn —</option>
-                            {selectableTables.map((t) => (
-                              <option key={t.id} value={t.id}>
-                                {t.name || `Bàn ${t.id}`}
-                              </option>
-                            ))}
+                            {tables.map((t) => {
+                              const id = String(t.id)
+                              const st = String(t.status || '').toUpperCase()
+                              const isKeep = id === String(r.assignedTableId || '') || id === String(assignPick[r.id] || '')
+                              const disabled = !isKeep && (st !== 'AVAILABLE' || takenByOthers.has(id))
+                              const name = t.name || `Bàn ${t.id}`
+                              const cap = Number(t.capacity) || 0
+                              return (
+                                <option key={t.id} value={t.id} disabled={disabled}>
+                                  {name} ({cap} chỗ - {tableStatusVi(t.status)})
+                                </option>
+                              )
+                            })}
                           </select>
                           <button
                             type="button"
                             className="booking-mgmt__btn booking-mgmt__btn--ghost booking-mgmt__btn--sm"
-                            disabled={r.status === 'CANCELLED' || r.status === 'COMPLETED'}
+                            disabled={actionType !== 'PENDING'}
                             onClick={() => assignTable(r.id)}
                           >
                             Gán
@@ -923,111 +1039,78 @@ export default function BookingManagement({ staffMode = false }) {
                       </td>
                       <td data-label="Thao tác">
                         <div className="booking-mgmt__actions">
-                          <button
-                            type="button"
-                            className="booking-mgmt__btn booking-mgmt__btn--primary"
-                            disabled={(r.status !== 'PENDING' && r.status !== 'HOLD') || tableClosed}
-                            title={
-                              tableClosed
-                                ? 'Bàn đang đóng — chuyển khách sang bàn khác hoặc mở lại bàn trước'
-                                : r.status !== 'PENDING' && r.status !== 'HOLD'
-                                  ? 'Chỉ xác nhận được khi đơn đang chờ hoặc đang giữ bàn'
-                                  : undefined
-                            }
-                            onClick={() => confirmReservation(r.id)}
-                          >
-                            Xác nhận
-                          </button>
-                          <button
-                            type="button"
-                            className="booking-mgmt__btn booking-mgmt__btn--secondary"
-                            disabled={(r.status !== 'CONFIRMED' && r.status !== 'HOLD') || tableClosed}
-                            title={
-                              r.status === 'PENDING'
-                                ? 'Cần xác nhận đơn trước khi khách vào bàn'
-                                : r.status === 'CHECKED_IN'
-                                  ? 'Khách đã vào bàn rồi'
-                                  : tableClosed
-                                    ? 'Bàn đang đóng — chuyển khách sang bàn khác hoặc mở lại bàn trước'
-                                    : undefined
-                            }
-                            onClick={() => checkIn(r.id)}
-                          >
-                            Vào bàn
-                          </button>
-                          <button
-                            type="button"
-                            className="booking-mgmt__btn booking-mgmt__btn--qr"
-                            disabled={
-                              qrBusy ||
-                              !r.assignedTableId ||
-                              r.status !== 'CHECKED_IN' ||
-                              r.status === 'CANCELLED' ||
-                              r.status === 'COMPLETED'
-                            }
-                            title={
-                              !r.assignedTableId
-                                ? 'Cần gán bàn trước'
-                                : r.status === 'CANCELLED' || r.status === 'COMPLETED'
-                                  ? 'Đơn đã kết thúc'
-                                  : r.status !== 'CHECKED_IN'
-                                    ? 'Chỉ xem QR sau khi khách đã vào bàn'
-                                  : 'Xem QR gọi món / vào trang order cho khách'
-                            }
-                            onClick={() => openOrderQr(r)}
-                          >
-                            QR gọi món
-                          </button>
-                          <button
-                            type="button"
-                            className="booking-mgmt__btn booking-mgmt__btn--pay"
-                            disabled={paymentBusy || r.status === 'CANCELLED' || r.status === 'COMPLETED'}
-                            title="Tạo QR chuyển khoản thanh toán cho đơn này"
-                            onClick={() => openPaymentQr(r)}
-                          >
-                            QR CK
-                          </button>
-                          <button
-                            type="button"
-                            className="booking-mgmt__btn booking-mgmt__btn--danger"
-                            disabled={
-                              r.status === 'CANCELLED' ||
-                              r.status === 'COMPLETED' ||
-                              r.status === 'CHECKED_IN'
-                            }
-                            title={r.status === 'CHECKED_IN' ? 'Khách đang ngồi tại bàn — không thể hủy' : undefined}
-                            onClick={() => cancelBooking(r.id)}
-                          >
-                            Hủy
-                          </button>
+                          {actionType === 'PENDING' ? (
+                            <>
+                              <button
+                                type="button"
+                                className="booking-mgmt__btn booking-mgmt__btn--primary"
+                                disabled={tableClosed}
+                                title={tableClosed ? 'Bàn đang đóng — chuyển khách sang bàn khác hoặc mở lại bàn trước' : undefined}
+                                onClick={() => confirmReservation(r.id)}
+                              >
+                                Xác nhận
+                              </button>
+                              <button
+                                type="button"
+                                className="booking-mgmt__btn booking-mgmt__btn--danger"
+                                onClick={() => cancelBooking(r.id)}
+                              >
+                                Hủy
+                              </button>
+                            </>
+                          ) : null}
+
+                          {actionType === 'CONFIRMED' ? (
                             <button
                               type="button"
-                              className="booking-mgmt__btn booking-mgmt__btn--ghost"
-                              disabled={
-                                !r.assignedTableId || r.status === 'CANCELLED' || r.status === 'COMPLETED'
-                              }
-                              onClick={() => openTransfer(r)}
+                              className="booking-mgmt__btn booking-mgmt__btn--secondary"
+                              disabled={tableClosed}
+                              title={tableClosed ? 'Bàn đang đóng — chuyển khách sang bàn khác hoặc mở lại bàn trước' : undefined}
+                              onClick={() => checkIn(r.id)}
                             >
-                              Chuyển bàn
+                              Vào bàn
                             </button>
-                            <button
-                              type="button"
-                              className="booking-mgmt__btn booking-mgmt__btn--ghost"
-                              disabled={
-                                !r.assignedTableId ||
-                                r.status === 'CANCELLED' ||
-                                r.status === 'COMPLETED' ||
-                                r.status !== 'CHECKED_IN'
-                              }
-                              title={
-                                r.status !== 'CHECKED_IN'
-                                  ? 'Chỉ trả bàn khi khách đã vào bàn (đã check-in)'
-                                  : 'Gỡ khách — bàn trống lại (không phải bảo trì bàn)'
-                              }
-                              onClick={() => openReleaseGuest(r)}
-                            >
-                              Trả bàn
-                            </button>
+                          ) : null}
+
+                          {actionType === 'CHECKED_IN' ? (
+                            <>
+                              <button
+                                type="button"
+                                className="booking-mgmt__btn booking-mgmt__btn--qr"
+                                disabled={qrBusy || !r.assignedTableId}
+                                title={!r.assignedTableId ? 'Cần gán bàn trước' : 'Xem QR gọi món / vào trang order cho khách'}
+                                onClick={() => openOrderQr(r)}
+                              >
+                                QR gọi món
+                              </button>
+                              <button
+                                type="button"
+                                className="booking-mgmt__btn booking-mgmt__btn--ghost"
+                                disabled={!r.assignedTableId}
+                                onClick={() => openTransfer(r)}
+                              >
+                                Chuyển bàn
+                              </button>
+                              <button
+                                type="button"
+                                className="booking-mgmt__btn booking-mgmt__btn--ghost"
+                                disabled={!r.assignedTableId}
+                                title="Đóng phiên bàn và trả bàn về trống"
+                                onClick={() => openReleaseGuest(r)}
+                              >
+                                Đóng bàn
+                              </button>
+                              <button
+                                type="button"
+                                className="booking-mgmt__btn booking-mgmt__btn--pay"
+                                disabled={paymentBusy}
+                                title="QR thanh toán chuyển khoản cho đơn này"
+                                onClick={() => openPaymentQr(r)}
+                              >
+                                QR thanh toán
+                              </button>
+                            </>
+                          ) : null}
                           </div>
                         </td>
                       </tr>
