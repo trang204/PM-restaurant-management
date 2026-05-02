@@ -136,7 +136,7 @@ export default function ReservationHistory() {
                 <Link
                   to={`/reservations/${r.id}`}
                   className="nav__link nav__cta"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 30, width: 115}}
                 >
                   Xem chi tiết
                 </Link>

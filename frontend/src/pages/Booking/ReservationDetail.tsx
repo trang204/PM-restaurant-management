@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import { normalizeReservation, type ReservationRow } from '../../lib/reservation'
+import { Calendar, MapPin, Pin, Users } from 'lucide-react'
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: 'Chờ xác nhận',
@@ -120,13 +121,23 @@ export default function ReservationDetail() {
               <strong>{data.fullName}</strong> · {data.phone}
             </p>
             <p>
-              {data.date} · {data.time} · {data.guestCount} khách
+              <Calendar size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
+                                {(data.date)} - {(data.time)}
+              <br />
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Users size={16} aria-hidden="true" />
+                <span>{data.guestCount} khách</span>
+              </span>
             </p>
             <p>
-              Trạng thái: <StatusBadge status={String(data.status || '')} />
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                <Pin size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
+                                Trạng thái: <StatusBadge status={String(data.status || '')} />
+  </span>
             </p>
             {data.tables?.length ? (
-              <p>Bàn: {data.tables.join(', ')}</p>
+              
+              <p><MapPin size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />Bàn: {data.tables.join(', ')}</p>
             ) : data.assignedTableId ? (
               <p>Bàn (mã): {data.assignedTableId}</p>
             ) : null}
