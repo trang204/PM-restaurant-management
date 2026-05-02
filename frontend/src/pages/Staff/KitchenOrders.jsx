@@ -12,7 +12,8 @@ function formatPrice(n) {
 
 export default function KitchenOrders() {
   const { confirm } = useNotifications()
-  const { pathname } = useLocation()
+  const location = useLocation()
+  const { pathname } = location
   const base = pathname.startsWith('/admin') ? '/admin' : '/staff'
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -33,6 +34,14 @@ export default function KitchenOrders() {
     const t = window.setInterval(load, 12000)
     return () => window.clearInterval(t)
   }, [load])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const orderId = Number(params.get('orderId'))
+    if (Number.isFinite(orderId) && orderId > 0) {
+      openDetail(orderId)
+    }
+  }, [location.search])
 
   async function openDetail(orderId) {
     setErr(null)

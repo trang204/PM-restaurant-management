@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiFetch, mediaUrl } from '../../lib/api'
+import { mediaUrl, publicApiFetch } from '../../lib/api'
+import { requiredMessage } from '../../lib/validation'
 import { fetchPublicSettings } from '../../lib/settings'
 import './AuthPages.css'
 
@@ -8,6 +9,7 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [fieldErr, setFieldErr] = useState<{ email?: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [brand, setBrand] = useState('Luxeat')
   const [banner, setBanner] = useState<string | null>(null)
@@ -32,11 +34,21 @@ export default function ForgotPassword() {
     e.preventDefault()
     setErr(null)
     setMsg(null)
+    setFieldErr(null)
+    const nextEmail = email.trim().toLowerCase()
+    if (!nextEmail) {
+      setFieldErr({ email: requiredMessage('Email') })
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+      setFieldErr({ email: 'Email không hợp lệ' })
+      return
+    }
     setLoading(true)
     try {
-      const data = await apiFetch<{ message?: string }>('/auth/forgot-password', {
+      const data = await publicApiFetch<{ message?: string }>('/auth/forgot-password', {
         method: 'POST',
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: nextEmail }),
       })
       setMsg(data?.message || 'Đã gửi yêu cầu.')
     } catch (e) {
@@ -55,39 +67,44 @@ export default function ForgotPassword() {
         <p className="authPage__eyebrow">Hỗ trợ</p>
         <h1 className="authPage__title">Quên mật khẩu ({brand})</h1>
         <p className="authPage__lead">
-          Nhập email đã đăng ký. Nếu tài khoản tồn tại, hệ thống sẽ gửi hướng dẫn đặt lại mật khẩu.
+          Nhập email đã đăng ký. Nếu tài khoản tồn tại, hệ thống sẽ gửi email kèm liên kết để bạn đổi mật khẩu.
         </p>
       </div>
 
       <div className="authCard">
         <div className="authCard__head">
           <h2 className="authCard__title">Khôi phục truy cập</h2>
-          <p className="authCard__subtitle">Chúng tôi sẽ xử lý yêu cầu theo email bạn cung cấp.</p>
+          <p className="authCard__subtitle">Chúng tôi sẽ gửi email khôi phục đến tài khoản đã liên kết.</p>
         </div>
 
-        <form className="authForm" onSubmit={onSubmit}>
+        <form className="authForm" onSubmit={onSubmit} noValidate>
           <div className="authField">
             <label htmlFor="forgot-email" className="authField__label">
               Email
             </label>
             <input
               id="forgot-email"
-              className="authField__input"
+              className={`authField__input${fieldErr?.email ? ' authField__input--error' : ''}`}
               required
               type="email"
               autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setFieldErr((prev) => ({ ...(prev || {}), email: undefined }))
+                setEmail(e.target.value)
+              }}
               placeholder="tenban@email.com"
               disabled={loading}
+              aria-invalid={Boolean(fieldErr?.email) || undefined}
             />
+            {fieldErr?.email ? <span className="authField__error">{fieldErr.email}</span> : null}
           </div>
 
           {err ? <p className="authError">{err}</p> : null}
           {msg ? <p className="authSuccess">{msg}</p> : null}
 
           <button className="authSubmit" type="submit" disabled={loading}>
-            {loading ? 'Đang gửi…' : 'Gửi liên kết'}
+            {loading ? 'Đang gửi…' : 'Gửi email khôi phục'}
           </button>
         </form>
 

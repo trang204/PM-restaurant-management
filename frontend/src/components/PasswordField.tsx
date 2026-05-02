@@ -10,6 +10,7 @@ type Props = {
   placeholder?: string
   /** class thêm cho wrapper (vd. authField--compact) */
   className?: string
+  error?: string | null
 }
 
 function IconEyeOpen() {
@@ -39,9 +40,11 @@ export default function PasswordField({
   disabled,
   placeholder,
   className = '',
+  error = null,
 }: Props) {
   const uid = useId()
   const inputId = `pw-${uid}`
+  const errId = error ? `${inputId}-err` : undefined
   const [visible, setVisible] = useState(false)
 
   return (
@@ -52,7 +55,7 @@ export default function PasswordField({
       <div className="authField__passwordWrap">
         <input
           id={inputId}
-          className="authField__input authField__input--withToggle"
+          className={`authField__input authField__input--withToggle${error ? ' authField__input--error' : ''}`}
           type={visible ? 'text' : 'password'}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -60,6 +63,8 @@ export default function PasswordField({
           required={required}
           disabled={disabled}
           placeholder={placeholder}
+          aria-invalid={Boolean(error) || undefined}
+          aria-describedby={errId}
         />
         <button
           type="button"
@@ -73,6 +78,11 @@ export default function PasswordField({
           {visible ? <IconEyeOff /> : <IconEyeOpen />}
         </button>
       </div>
+      {error ? (
+        <span id={errId} className="authField__error">
+          {error}
+        </span>
+      ) : null}
     </div>
   )
 }

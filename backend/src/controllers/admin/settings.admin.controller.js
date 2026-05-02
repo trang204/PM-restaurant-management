@@ -32,8 +32,12 @@ function normalizeBannerPath(u) {
 
 export async function getSettings(req, res, next) {
   try {
-    const r = await query('SELECT * FROM settings ORDER BY id LIMIT 1')
-    return ok(res, r.rows[0] || null)
+    const [settingsRes, tablesRes] = await Promise.all([
+      query('SELECT * FROM settings ORDER BY id LIMIT 1'),
+      query('SELECT COUNT(*)::int AS total FROM tables'),
+    ])
+    const row = settingsRes.rows[0] || null
+    return ok(res, row ? { ...row, total_tables: Number(tablesRes.rows[0]?.total || 0) } : null)
   } catch (e) {
     return next(e)
   }
@@ -54,7 +58,6 @@ export async function updateSettings(req, res, next) {
       footer_copyright,
       footer_links,
       social_links,
-      total_tables,
       address,
       phone,
       email,
@@ -75,8 +78,22 @@ export async function updateSettings(req, res, next) {
       home_features_json,
     } = req.body || {}
 
+    const phoneValue = phone != null ? String(phone).trim() : ''
+    if (phoneValue && !/^(?:\+?84|0)\d{9,10}$/.test(phoneValue.replace(/[.\s-]/g, ''))) {
+      throw badRequest('Số điện thoại không hợp lệ')
+    }
+    const emailValue = email != null ? String(email).trim() : ''
+    if (emailValue && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
+      throw badRequest('Email không hợp lệ')
+    }
+    if (open_time && close_time && String(open_time) >= String(close_time)) {
+      throw badRequest('Giờ đóng cửa phải sau giờ mở cửa')
+    }
+
     // Đảm bảo row id=1 tồn tại trước.
     await query(`INSERT INTO settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING`)
+    const tablesRes = await query('SELECT COUNT(*)::int AS total FROM tables')
+    const totalTablesAuto = Number(tablesRes.rows[0]?.total || 0)
 
     // Build SET động: chỉ cập nhật các cột đã biết — tránh INSERT ON CONFLICT liệt kê cột
     // cứng (lỗi khi DB chưa migrate đủ cột mới).
@@ -99,7 +116,7 @@ export async function updateSettings(req, res, next) {
     col('footer_copyright', footer_copyright ?? null)
     col('footer_links', Array.isArray(footer_links) ? footer_links : [])
     col('social_links', Array.isArray(social_links) ? social_links : [])
-    col('total_tables', total_tables ?? null)
+    col('total_tables', totalTablesAuto)
     col('address', address ?? null)
     col('phone', phone ?? null)
     col('email', email ?? null)
@@ -140,7 +157,7 @@ export async function updateSettings(req, res, next) {
       `UPDATE settings SET ${sets.join(', ')} WHERE id = 1 RETURNING *`,
       vals,
     )
-    return ok(res, r.rows[0] || null)
+    return ok(res, r.rows[0] ? { ...r.rows[0], total_tables: totalTablesAuto } : null)
   } catch (e) {
     return next(e)
   }

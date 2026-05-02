@@ -17,6 +17,9 @@ export type PublicSettings = {
   email: string | null
   openTime: string | null
   closeTime: string | null
+  footer?: {
+    socials?: Array<{ label?: string; url?: string }> | null
+  } | null
   home?: {
     heroEyebrow?: string | null
     heroLead?: string | null
@@ -27,7 +30,7 @@ export type PublicSettings = {
     ctaTitle?: string | null
     ctaText?: string | null
     features?: HomeFeature[] | null
-  }
+  } | null
 }
 
 function normalizeBannerUrls(raw: unknown): string[] {
@@ -65,6 +68,7 @@ export async function fetchPublicSettings(): Promise<PublicSettings> {
     email: d?.email ?? null,
     openTime: d?.openTime ?? null,
     closeTime: d?.closeTime ?? null,
+    footer: d?.footer ?? null,
     home: d?.home ?? null,
   }
 }

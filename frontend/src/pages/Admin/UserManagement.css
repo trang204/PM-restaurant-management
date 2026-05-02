@@ -71,6 +71,26 @@
   flex-wrap: wrap;
 }
 
+.user-mgmt__filterSelect,
+.user-mgmt__date {
+  min-width: 150px;
+  padding: 9px 13px;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--um-text);
+  background: var(--um-card);
+  border: 1px solid var(--um-border);
+  border-radius: 9px;
+  outline: none;
+  transition: border-color var(--um-ease), box-shadow var(--um-ease);
+}
+
+.user-mgmt__filterSelect:focus,
+.user-mgmt__date:focus {
+  border-color: var(--um-gold);
+  box-shadow: 0 0 0 3px rgba(184,147,90,0.14);
+}
+
 .user-mgmt__search {
   flex: 1;
   min-width: 180px;
@@ -107,7 +127,7 @@
   transition: all var(--um-ease);
 }
 
-.user-mgmt__btn:hover { background: #FDFAF7; border-color: rgba(184,147,90,0.3); }
+.user-mgmt__btn:hover { background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%); border-color: rgba(184,147,90,0.38); }
 
 .user-mgmt__btn--primary {
   background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
@@ -119,7 +139,7 @@
 .user-mgmt__btn--primary:hover { filter: brightness(1.06); border-color: transparent; }
 .user-mgmt__btn--secondary { color: var(--um-text); }
 .user-mgmt__btn--ghost { background: transparent; border-color: var(--um-border); color: var(--um-muted); }
-.user-mgmt__btn--ghost:hover { color: var(--um-text); background: #FDFAF7; }
+.user-mgmt__btn--ghost:hover { color: var(--um-text); background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%); }
 .user-mgmt__btn--danger { color: #C0392B; border-color: #F5C4C0; }
 .user-mgmt__btn--danger:hover { background: #FEF3F2; border-color: #F5C4C0; }
 .user-mgmt__btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -158,7 +178,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9rem;
-  min-width: 560px;
+  min-width: 860px;
 }
 
 .user-mgmt__table thead tr { background: #FDFAF7; }
@@ -200,6 +220,48 @@
 .user-mgmt__role[data-role="ADMIN"] { background: #F4ECE0; color: #8B6E41; border: 1px solid rgba(184,147,90,0.3); }
 .user-mgmt__role[data-role="STAFF"] { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
 .user-mgmt__role[data-role="CUSTOMER"] { background: #F5F2ED; color: #7A7069; border: 1px solid #E2D9CC; }
+
+.user-mgmt__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.user-mgmt__status[data-status="ACTIVE"] { background: #effaf2; color: #166534; border: 1px solid #bbf7d0; }
+.user-mgmt__status[data-status="LOCKED"] { background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
+
+.user-mgmt__userCell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-mgmt__avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--um-border);
+  background: #f4ece0;
+  flex: 0 0 auto;
+}
+
+.user-mgmt__avatar--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--um-gold-d);
+}
+
+.user-mgmt__userName {
+  display: block;
+  margin-bottom: 2px;
+}
 
 /* ─── Actions cell ─── */
 .user-mgmt__actions {
@@ -273,6 +335,13 @@
   background: #fff;
 }
 
+.user-mgmt__dialogError {
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #C0392B;
+}
+
 .user-mgmt__dialogActions {
   display: flex;
   gap: 10px;
@@ -283,12 +352,33 @@
   flex-wrap: wrap;
 }
 
+.user-mgmt__avatarPreview {
+  border: 1px solid var(--um-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fdfaf7;
+}
+
+.user-mgmt__avatarPreview img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+}
+
+.user-mgmt__pagination {
+  margin-top: 14px;
+}
+
 @media (max-width: 600px) {
   .user-mgmt__header { flex-direction: column; align-items: stretch; }
   .user-mgmt__headRight { flex-wrap: wrap; }
   .user-mgmt__add { width: 100%; justify-content: center; }
   .user-mgmt__toolbar { flex-direction: column; align-items: stretch; }
   .user-mgmt__search { min-width: 0; width: 100%; }
-  .user-mgmt__tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .user-mgmt__dialog { padding: 18px; }
+  .user-mgmt__filterSelect,
+  .user-mgmt__date {
+    width: 100%;
+  }
 }

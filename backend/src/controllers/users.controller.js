@@ -66,20 +66,40 @@ export async function updateMe(req, res, next) {
     const id = Number(req.user?.sub)
     if (!Number.isFinite(id)) throw badRequest('Thiếu thông tin người dùng')
 
-    const { fullName, name, phone } = req.body || {}
+    const { fullName, name, phone, email } = req.body || {}
     const nextNameRaw = fullName ?? name
     const nextName = nextNameRaw != null ? String(nextNameRaw).trim() : ''
-    const nextPhone = phone != null && String(phone).trim() ? String(phone).trim() : null
+    const nextPhoneRaw = phone != null && String(phone).trim() ? String(phone).trim() : null
+    const nextEmailRaw = email != null && String(email).trim() ? String(email).trim().toLowerCase() : null
     if (!nextName) throw badRequest('fullName là bắt buộc')
+
+    // Validate phone (VN). Cho phép để trống.
+    const nextPhone = nextPhoneRaw
+      ? String(nextPhoneRaw).replace(/[.\s-]/g, '')
+      : null
+    if (nextPhone && !/^(?:\+?84|0)\d{9,10}$/.test(nextPhone)) {
+      throw badRequest('Số điện thoại không hợp lệ')
+    }
+
+    // Validate + unique email nếu có gửi lên
+    let nextEmail = null
+    if (nextEmailRaw) {
+      nextEmail = String(nextEmailRaw).trim().toLowerCase()
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+        throw badRequest('Email không hợp lệ')
+      }
+      const exists = await query('SELECT id FROM users WHERE email = $1 AND id <> $2 LIMIT 1', [nextEmail, id])
+      if (exists.rows.length) throw badRequest('Email đã tồn tại')
+    }
 
     const r = await query(
       `
       UPDATE users
-      SET name = $1, phone = $2
-      WHERE id = $3
+      SET name = $1, phone = $2, email = COALESCE($3, email)
+      WHERE id = $4
       RETURNING id, name, email, phone, avatar_url, role_id, created_at
     `,
-      [nextName, nextPhone, id],
+      [nextName, nextPhone, nextEmail, id],
     )
     if (!r.rows.length) throw notFound('Không tìm thấy người dùng')
 

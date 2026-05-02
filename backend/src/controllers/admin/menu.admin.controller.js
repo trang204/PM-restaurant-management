@@ -90,6 +90,7 @@ export async function create(req, res, next) {
     if (priceNum == null || !Number.isFinite(priceNum)) {
       throw badRequest('price không hợp lệ')
     }
+    assertPriceInRange(priceNum)
     const catNum = Number(category_id)
     if (!Number.isFinite(catNum)) throw badRequest('category_id không hợp lệ')
 

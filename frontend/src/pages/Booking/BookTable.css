@@ -195,6 +195,12 @@
 
 .bookField--guest { align-self: end; }
 
+.bookField__error {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #C0392B;
+}
+
 .bookField input,
 .bookField select {
   padding: 10px 13px;

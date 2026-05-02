@@ -13,6 +13,36 @@ const STATUS_LABELS: Record<string, string> = {
   PAID: 'Đã thanh toán',
 }
 
+function statusBadgeStyle(statusRaw: string): React.CSSProperties {
+  const s = String(statusRaw || '').toUpperCase()
+  if (s === 'COMPLETED') return { color: '#0f5132', background: '#d1e7dd', border: '1px solid #badbcc' } // xanh
+  if (s === 'CANCELLED') return { color: '#842029', background: '#f8d7da', border: '1px solid #f5c2c7' } // đỏ
+  if (s === 'PENDING') return { color: '#664d03', background: '#fff3cd', border: '1px solid #ffecb5' } // vàng
+  return { color: 'inherit', background: 'transparent', border: '1px solid transparent' }
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const label = STATUS_LABELS[status] || status
+  const style = statusBadgeStyle(status)
+  return (
+    <span
+      style={{
+        ...style,
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '2px 8px',
+        borderRadius: 999,
+        fontWeight: 700,
+        fontSize: '0.82rem',
+        lineHeight: 1.2,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </span>
+  )
+}
+
 export default function ReservationDetail() {
   const { toast, confirm } = useNotifications()
   const { id } = useParams()
@@ -92,7 +122,9 @@ export default function ReservationDetail() {
             <p>
               {data.date} · {data.time} · {data.guestCount} khách
             </p>
-            <p>Trạng thái: {STATUS_LABELS[data.status] || data.status}</p>
+            <p>
+              Trạng thái: <StatusBadge status={String(data.status || '')} />
+            </p>
             {data.tables?.length ? (
               <p>Bàn: {data.tables.join(', ')}</p>
             ) : data.assignedTableId ? (
@@ -106,16 +138,13 @@ export default function ReservationDetail() {
                 </Link>
               </p>
             ) : null}
-            <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="nav__link"
-                disabled={cancelling || data.status !== 'PENDING'}
-                onClick={cancel}
-              >
-                {cancelling ? 'Đang hủy...' : 'Hủy đơn'}
-              </button>
-            </div>
+            {['PENDING', 'HOLD'].includes(String(data.status || '').toUpperCase()) ? (
+              <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button type="button" className="nav__link" disabled={cancelling} onClick={cancel}>
+                  {cancelling ? 'Đang hủy...' : 'Hủy đơn'}
+                </button>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </section>

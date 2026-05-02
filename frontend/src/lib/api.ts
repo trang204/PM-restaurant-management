@@ -83,6 +83,22 @@ export async function uploadFoodImage(itemId: number, file: File): Promise<{ id:
   throw new Error(json.error?.message || 'Upload ảnh thất bại')
 }
 
+/** Upload ảnh đại diện người dùng (admin). */
+export async function uploadUserAvatar(userId: number, file: File): Promise<{ id: number; avatar_url: string }> {
+  const token = getToken()
+  const fd = new FormData()
+  fd.append('avatar', file)
+  const res = await fetch(`${API_BASE}/admin/users/${userId}/avatar`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: fd,
+  })
+  const json = (await res.json().catch(() => null)) as ApiResponse<{ id: number; avatar_url: string }> | null
+  if (!json) throw new Error('Invalid API response')
+  if (json.success) return json.data
+  throw new Error(json.error?.message || 'Upload ảnh đại diện thất bại')
+}
+
 /** Upload ảnh bàn (admin). Trả về `image_url` lưu trong DB (/uploads/...). */
 export async function uploadTableImage(tableId: number, file: File): Promise<{ id: number; image_url: string }> {
   const token = getToken()
@@ -97,6 +113,43 @@ export async function uploadTableImage(tableId: number, file: File): Promise<{ i
   if (!json) throw new Error('Invalid API response')
   if (json.success) return json.data
   throw new Error(json.error?.message || 'Upload ảnh thất bại')
+}
+
+export type TableLayoutDetection = {
+  x: number
+  y: number
+  width: number
+  height: number
+  confidence: number
+  source?: string
+}
+
+export type AnalyzeTableLayoutResult = {
+  canvasWidth: number
+  canvasHeight: number
+  imageWidth: number
+  imageHeight: number
+  source: string
+  tableCount: number
+  mode: string
+  detections: TableLayoutDetection[]
+  warnings?: string[]
+}
+
+export async function analyzeTableLayoutImage(file: File): Promise<AnalyzeTableLayoutResult> {
+  const token = getToken()
+  const fd = new FormData()
+  fd.append('image', file)
+  fd.append('mode', 'layout_only')
+  const res = await fetch(`${API_BASE}/admin/tables/layout/analyze-image`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: fd,
+  })
+  const json = (await res.json().catch(() => null)) as ApiResponse<AnalyzeTableLayoutResult> | null
+  if (!json) throw new Error('Invalid API response')
+  if (json.success) return json.data
+  throw new Error(json.error?.message || 'Phân tích sơ đồ thất bại')
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {

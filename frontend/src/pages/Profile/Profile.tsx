@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { apiFetch, mediaUrl, setToken } from '../../lib/api'
+import { useNavigate } from 'react-router-dom'
+import { apiFetch, mediaUrl } from '../../lib/api'
+import { requiredMessage } from '../../lib/validation'
 import './Profile.css'
 
 const ROLE_LABELS: Record<string, string> = {
@@ -21,12 +22,14 @@ export default function Profile() {
     role?: string | null
     createdAt?: string | null
   } | null>(null)
-  const [form, setForm] = useState({ fullName: '', phone: '' })
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState({ fullName: '', email: '', phone: '' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [okMsg, setOkMsg] = useState<string | null>(null)
+  const [fieldErr, setFieldErr] = useState<{ fullName?: string; email?: string; phone?: string } | null>(null)
 
   useEffect(() => {
     const token = localStorage.getItem('luxeat_token')
@@ -40,6 +43,7 @@ export default function Profile() {
         setMe(d)
         setForm({
           fullName: String(d?.fullName ?? ''),
+          email: String(d?.email ?? ''),
           phone: String(d?.phone ?? ''),
         })
       })
@@ -52,26 +56,60 @@ export default function Profile() {
     setSaving(true)
     setError(null)
     setOkMsg(null)
+    setFieldErr(null)
     try {
+      const nextFullName = form.fullName.trim()
+      const nextEmail = form.email.trim().toLowerCase()
+      const nextPhoneRaw = form.phone.trim()
+      const nextPhone = nextPhoneRaw ? nextPhoneRaw.replace(/[.\s-]/g, '') : ''
+      if (!nextFullName) {
+        setFieldErr({ fullName: requiredMessage('Họ tên') })
+        setSaving(false)
+        return
+      }
+      // MM: bắt buộc nhập và đúng format
+      if (!nextPhone) {
+        setFieldErr({ phone: requiredMessage('Số điện thoại') })
+        setSaving(false)
+        return
+      }
+      if (!/^(?:\+?84|0)\d{9,10}$/.test(nextPhone)) {
+        setFieldErr({ phone: 'Số điện thoại không hợp lệ' })
+        setSaving(false)
+        return
+      }
+      if (!nextEmail) {
+        setFieldErr({ email: requiredMessage('Email') })
+        setSaving(false)
+        return
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+        setFieldErr({ email: 'Email không hợp lệ' })
+        setSaving(false)
+        return
+      }
       const d = await apiFetch<any>('/users/me', {
         method: 'PATCH',
         body: JSON.stringify({
-          fullName: form.fullName.trim(),
+          fullName: nextFullName,
+          email: nextEmail,
           phone: form.phone.trim() || null,
         }),
       })
       setMe(d)
+      setForm({
+        fullName: String(d?.fullName ?? ''),
+        email: String(d?.email ?? ''),
+        phone: String(d?.phone ?? ''),
+      })
       setOkMsg('Đã cập nhật thông tin.')
+      setEditing(false)
+      window.dispatchEvent(new Event('luxeat:me-updated'))
     } catch (e) {
       setError((e as Error).message)
     } finally {
       setSaving(false)
     }
-  }
-
-  function logout() {
-    setToken(null)
-    window.location.href = '/'
   }
 
   async function onAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -99,22 +137,6 @@ export default function Profile() {
     }
   }
 
-  async function clearAvatar() {
-    setAvatarUploading(true)
-    setError(null)
-    setOkMsg(null)
-    try {
-      const d = await apiFetch<any>('/users/me/avatar', { method: 'DELETE' })
-      setMe(d)
-      window.dispatchEvent(new Event('luxeat:me-updated'))
-      setOkMsg('Đã xóa ảnh đại diện.')
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setAvatarUploading(false)
-    }
-  }
-
   return (
     <main className="profilePage">
       <header className="profileHero">
@@ -122,16 +144,8 @@ export default function Profile() {
           <p className="profileHero__eyebrow">Tài khoản</p>
           <h1 className="profileHero__title">Thông tin cá nhân</h1>
           <p className="profileHero__subtitle">
-            Cập nhật ảnh đại diện, họ tên và số điện thoại để đặt bàn nhanh hơn.
+            Xem và cập nhật thông tin tài khoản của bạn.
           </p>
-        </div>
-        <div className="profileHero__actions">
-          <Link to="/reservations" className="profileBtn profileBtn--ghost">
-            Lịch sử đặt bàn
-          </Link>
-          <button type="button" className="profileBtn profileBtn--danger" onClick={logout}>
-            Đăng xuất
-          </button>
         </div>
       </header>
 
@@ -142,7 +156,7 @@ export default function Profile() {
 
         {me ? (
           <div className="profileGrid">
-            <form className="profileCard" onSubmit={save}>
+            <form className="profileCard" onSubmit={save} noValidate>
               <h2 className="profileCard__title">Thông tin</h2>
               <div className="profileAvatar">
                 <div className="profileAvatar__preview">
@@ -175,43 +189,144 @@ export default function Profile() {
                     disabled={avatarUploading}
                     onClick={() => avatarInputRef.current?.click()}
                   >
-                    {avatarUploading ? 'Đang tải…' : me.avatarUrl ? 'Đổi ảnh' : 'Tải ảnh lên'}
+                    {avatarUploading ? 'Đang tải…' : 'Tải ảnh lên'}
                   </button>
-                  {me.avatarUrl ? (
-                    <button
-                      type="button"
-                      className="profileBtn profileBtn--danger"
-                      disabled={avatarUploading}
-                      onClick={clearAvatar}
-                    >
-                      Xóa ảnh
-                    </button>
-                  ) : null}
                 </div>
                 <p className="profileAvatar__hint">JPEG, PNG, WebP hoặc GIF — tối đa 5MB.</p>
               </div>
-              <label className="profileField">
+              <div className="profileField">
                 <span>Họ tên</span>
-                <input
-                  value={form.fullName}
-                  onChange={(e) => setForm((p) => ({ ...p, fullName: e.target.value }))}
-                  required
-                  placeholder="Nguyễn Văn A"
-                />
-              </label>
-              <label className="profileField">
+                {!editing ? (
+                  <button
+                    type="button"
+                    className="profileValue profileValue--button"
+                    onClick={() => {
+                      setEditing(true)
+                      setOkMsg(null)
+                      setError(null)
+                      setFieldErr(null)
+                    }}
+                    aria-label="Chỉnh sửa họ tên"
+                  >
+                    {me.fullName || '—'}
+                  </button>
+                ) : (
+                  <>
+                    <input
+                      value={form.fullName}
+                      onChange={(e) => {
+                        setFieldErr((prev) => ({ ...(prev || {}), fullName: undefined }))
+                        setForm((p) => ({ ...p, fullName: e.target.value }))
+                      }}
+                      required
+                      placeholder="Nguyễn Văn A"
+                    />
+                    {fieldErr?.fullName ? <span className="profileField__error">{fieldErr.fullName}</span> : null}
+                  </>
+                )}
+              </div>
+              <div className="profileField">
+                <span>Email</span>
+                {!editing ? (
+                  <button
+                    type="button"
+                    className="profileValue profileValue--button"
+                    onClick={() => {
+                      setEditing(true)
+                      setOkMsg(null)
+                      setError(null)
+                      setFieldErr(null)
+                    }}
+                    aria-label="Chỉnh sửa email"
+                  >
+                    {me.email || '—'}
+                  </button>
+                ) : (
+                  <>
+                    <input
+                      value={form.email}
+                      onChange={(e) => {
+                        setFieldErr((prev) => ({ ...(prev || {}), email: undefined }))
+                        setForm((p) => ({ ...p, email: e.target.value }))
+                      }}
+                      required
+                      placeholder="email@domain.com"
+                      inputMode="email"
+                    />
+                    {fieldErr?.email ? <span className="profileField__error">{fieldErr.email}</span> : null}
+                  </>
+                )}
+              </div>
+              <div className="profileField">
                 <span>Số điện thoại</span>
-                <input
-                  value={form.phone}
-                  onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-                  placeholder="09xxxxxxxx"
-                  inputMode="tel"
-                />
-              </label>
+                {!editing ? (
+                  <button
+                    type="button"
+                    className="profileValue profileValue--button"
+                    onClick={() => {
+                      setEditing(true)
+                      setOkMsg(null)
+                      setError(null)
+                      setFieldErr(null)
+                    }}
+                    aria-label="Chỉnh sửa số điện thoại"
+                  >
+                    {me.phone || '—'}
+                  </button>
+                ) : (
+                  <>
+                    <input
+                      value={form.phone}
+                      onChange={(e) => {
+                        setFieldErr((prev) => ({ ...(prev || {}), phone: undefined }))
+                        setForm((p) => ({ ...p, phone: e.target.value }))
+                      }}
+                      placeholder="09xxxxxxxx"
+                      inputMode="tel"
+                    />
+                    {fieldErr?.phone ? <span className="profileField__error">{fieldErr.phone}</span> : null}
+                  </>
+                )}
+              </div>
               <div className="profileActions">
-                <button type="submit" className="profileBtn profileBtn--primary" disabled={saving}>
-                  {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
-                </button>
+                {!editing ? (
+                  <button
+                    type="button"
+                    className="profileBtn profileBtn--primary"
+                    onClick={() => {
+                      setEditing(true)
+                      setOkMsg(null)
+                      setError(null)
+                      setFieldErr(null)
+                    }}
+                  >
+                    Chỉnh sửa
+                  </button>
+                ) : (
+                  <>
+                    <button type="submit" className="profileBtn profileBtn--primary" disabled={saving}>
+                      {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
+                    </button>
+                    <button
+                      type="button"
+                      className="profileBtn profileBtn--ghost"
+                      disabled={saving}
+                      onClick={() => {
+                        setEditing(false)
+                        setFieldErr(null)
+                        setError(null)
+                        setOkMsg(null)
+                        setForm({
+                          fullName: String(me.fullName ?? ''),
+                          email: String(me.email ?? ''),
+                          phone: String(me.phone ?? ''),
+                        })
+                      }}
+                    >
+                      Hủy
+                    </button>
+                  </>
+                )}
               </div>
             </form>
 
@@ -219,21 +334,14 @@ export default function Profile() {
               <h2 className="profileCard__title">Tài khoản</h2>
               <div className="profileInfo">
                 <div className="profileInfo__row">
-                  <span>Email</span>
-                  <strong>{me.email}</strong>
-                </div>
-                <div className="profileInfo__row">
                   <span>Vai trò</span>
                   <strong>{ROLE_LABELS[me?.role ?? ''] || me?.role || 'Khách hàng'}</strong>
                 </div>
                 <div className="profileInfo__row">
-                  <span>Mã</span>
+                  <span>User ID:</span>
                   <strong>#{me.id}</strong>
                 </div>
               </div>
-              <p className="profileHint">
-                Gợi ý: sau khi vào bàn, bạn có thể gọi món bằng QR (nếu nhà hàng bật).
-              </p>
             </aside>
           </div>
         ) : null}

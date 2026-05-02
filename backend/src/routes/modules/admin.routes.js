@@ -12,6 +12,7 @@ import * as adminReports from '../../controllers/admin/reports.admin.controller.
 import * as adminDashboard from '../../controllers/admin/dashboard.admin.controller.js'
 import * as adminSettings from '../../controllers/admin/settings.admin.controller.js'
 import * as adminTables from '../../controllers/admin/tables.admin.controller.js'
+import * as adminTableLayout from '../../controllers/admin/tableLayout.admin.controller.js'
 import * as adminKitchen from '../../controllers/admin/kitchen.admin.controller.js'
 import * as adminNotifications from '../../controllers/admin/notifications.admin.controller.js'
 
@@ -50,7 +51,8 @@ router.delete('/categories/:id', ...adminOnly, adminCategories.remove)
 
 router.get('/users', ...adminOnly, adminUsers.list)
 router.post('/users', ...adminOnly, adminUsers.create)
-router.patch('/users/:id/role', ...adminOnly, adminUsers.updateRole)
+router.patch('/users/:id', ...adminOnly, adminUsers.update)
+router.post('/users/:id/avatar', ...adminOnly, upload.single('avatar'), adminUsers.uploadAvatar)
 router.delete('/users/:id', ...adminOnly, adminUsers.remove)
 
 router.get('/reports/revenue/by-table', ...staff, adminReports.revenueByTable)
@@ -59,6 +61,7 @@ router.get('/reports/revenue', ...staff, adminReports.revenue)
 
 router.post('/tables/:id/close', ...staff, adminTables.closeTable)
 router.post('/tables/:id/reopen', ...staff, adminTables.reopenTable)
+router.post('/tables/layout/analyze-image', ...staff, upload.single('image'), adminTableLayout.analyzeImage)
 
 router.get('/kitchen/orders', ...staff, adminKitchen.listTableOrders)
 router.get('/kitchen/orders/:orderId', ...staff, adminKitchen.getOrderDetail)
