@@ -282,7 +282,7 @@ export default function UserManagement() {
           ))}
         </select>
         <input className="user-mgmt__date" type="date" value={createdFrom} onChange={(e) => setCreatedFrom(e.target.value)} />
-        <input className="user-mgmt__date" type="date" value={createdTo} onChange={(e) => setCreatedTo(e.target.value)} />
+        {/* <input className="user-mgmt__date" type="date" value={createdTo} onChange={(e) => setCreatedTo(e.target.value)} /> */}
       </div>
 
       {loading ? <p>Đang tải...</p> : null}
