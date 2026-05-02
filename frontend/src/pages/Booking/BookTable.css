@@ -279,14 +279,14 @@
 }
 
 [class*="bookTableBtn"].bookTableBtn--active {
-  border-color: rgba(184,147,90,0.9);
-  background: linear-gradient(145deg, rgba(184,147,90,0.16), rgba(244,236,224,0.8));
+  border-color: rgba(181, 117, 21, 0.9);
+  background: linear-gradient(145deg, rgba(184,147,90,0.16), rgba(143, 116, 77, 0.8));
   box-shadow: 0 10px 26px rgba(184,147,90,0.18);
   transform: translateY(-1px);
 }
 
 [class*="bookTableBtn"]:hover:not(:disabled) {
-  border-color: rgba(184,147,90,0.4);
+  border-color: rgba(220, 138, 14, 0.4);
   background: var(--bk2-gold-s);
 }
 
