@@ -28,7 +28,7 @@
 }
 
 .user-mgmt__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.55rem;
   font-weight: 600;
   color: var(--um-text);
@@ -296,7 +296,7 @@
 }
 
 .user-mgmt__dialogTitle {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.15rem;
   font-weight: 600;
   color: var(--um-text);

@@ -10,7 +10,7 @@
 }
 
 .dash__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.6rem;
   font-weight: 600;
   color: var(--dash-text);
@@ -73,7 +73,7 @@
 .dash__stat-label svg { color: var(--dash-gold); }
 
 .dash__stat-value {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 2rem;
   font-weight: 700;
   color: var(--dash-text);
@@ -98,7 +98,7 @@
 }
 
 .dash__section-title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--dash-text);

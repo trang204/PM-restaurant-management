@@ -29,7 +29,7 @@
 }
 
 .booking-mgmt__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.55rem;
   font-weight: 600;
   color: var(--bk-text);
@@ -110,7 +110,7 @@
 }
 
 .booking-mgmt__walkInTitle {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1rem;
   font-weight: 600;
   color: var(--bk-text);
@@ -196,7 +196,7 @@
 }
 
 .booking-mgmt__todayDate {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--bk-text);
@@ -288,7 +288,7 @@
 }
 
 .booking-mgmt__dayTitle {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.15rem;
   font-weight: 600;
   color: var(--bk-text);
@@ -449,7 +449,7 @@
 .booking-mgmt__modal--wide { width: min(660px, 100%); }
 
 .booking-mgmt__modal-title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.15rem;
   font-weight: 600;
   color: var(--bk-text);

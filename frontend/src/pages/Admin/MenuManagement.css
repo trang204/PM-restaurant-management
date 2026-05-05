@@ -40,7 +40,7 @@
 }
 
 .menu-mgmt__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.55rem;
   font-weight: 600;
   color: var(--mn-text);
@@ -126,7 +126,7 @@
 }
 
 .menu-mgmt__sectionTitle {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--mn-text);
@@ -217,7 +217,7 @@
 }
 
 .menu-card__name {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1rem;
   font-weight: 600;
   color: var(--mn-text);
@@ -342,7 +342,7 @@
 }
 
 .menu-modal__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.15rem;
   font-weight: 600;
   color: var(--mn-text);
@@ -495,7 +495,7 @@
 
 .menu-detail__name {
   margin: 0 0 6px;
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.35rem;
 }
 

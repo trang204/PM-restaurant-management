@@ -28,7 +28,7 @@
 }
 
 .kitchen__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.55rem;
   font-weight: 600;
   color: var(--ko-text);
@@ -99,7 +99,7 @@
   padding: 12px 16px;
   background: #FDFAF7;
   border-bottom: 1px solid var(--ko-border);
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1rem;
   font-weight: 600;
   color: var(--ko-text);
@@ -111,7 +111,7 @@
 }
 
 .kitchen__h3 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--ko-text);

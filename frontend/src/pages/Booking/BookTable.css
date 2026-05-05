@@ -44,7 +44,7 @@
 }
 
 .bookHero__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: clamp(1.8rem, 4vw, 2.4rem);
   font-weight: 700;
   color: #FAF8F4;
@@ -104,7 +104,7 @@
 
 .bookHero__stat-val {
   display: block;
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.8rem;
   font-weight: 700;
   color: #FAF8F4;
@@ -148,7 +148,7 @@
 .bookCard__titles {}
 
 .bookCard__titles h2, .bookCard__titles > :first-child {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1rem;
   font-weight: 600;
   color: var(--bk2-text);
@@ -367,7 +367,7 @@
 }
 
 .bookPreorder__group-title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--bk2-text);
@@ -452,7 +452,7 @@
 .bookSummary { padding: 22px; }
 
 .bookSummary__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1rem;
   font-weight: 600;
   color: var(--bk2-text);

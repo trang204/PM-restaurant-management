@@ -106,7 +106,7 @@
 }
 
 .tableOrder__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.05rem;
   font-weight: 600;
   color: #EDE6DC;
@@ -351,7 +351,7 @@
 }
 
 .tableOrder__h2 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.15rem;
   font-weight: 600;
   color: var(--to-text);
@@ -416,7 +416,7 @@
 }
 
 .tableOrder__name {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--to-text);

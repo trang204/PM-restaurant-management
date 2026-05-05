@@ -28,7 +28,7 @@
 }
 
 .rev-report__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.55rem;
   font-weight: 600;
   color: var(--rr-text);
@@ -204,7 +204,7 @@
 }
 
 .rev-report__totalValue {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 2rem;
   font-weight: 700;
   color: var(--rr-text);
@@ -214,7 +214,7 @@
 
 .rev-report__kpiValue {
   margin: 0;
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.5rem;
   font-weight: 700;
 }
@@ -423,7 +423,7 @@
 }
 
 .rev-report__modalTitle {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.15rem;
   font-weight: 600;
   color: var(--rr-text);
@@ -617,7 +617,7 @@
 }
 
 .rev-report__tableBlockTotal {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--rr-text);

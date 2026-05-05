@@ -80,7 +80,7 @@
 
 .authPage__title {
   margin: 0 0 14px;
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: clamp(1.9rem, 4.5vw, 2.8rem);
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -109,7 +109,7 @@
 
 .authCard__title {
   margin: 0 0 6px;
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.4rem;
   font-weight: 600;
   letter-spacing: -0.01em;
