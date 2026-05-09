@@ -9,7 +9,7 @@ import ResetPassword from './pages/Auth/ResetPassword'
 import Profile from './pages/Profile/Profile'
 import BookTable from './pages/Booking/BookTable'
 import ReservationHistory from './pages/Booking/ReservationHistory'
-import ReservationDetail from './pages/Booking/ReservationDetail'
+import ReservationsIdRedirect from './pages/Booking/ReservationsIdRedirect'
 import AdminLayout from './layouts/AdminLayout/AdminLayout.jsx'
 import StaffLayout from './layouts/StaffLayout/StaffLayout.jsx'
 import StaffDesk from './pages/Staff/StaffDesk.jsx'
@@ -37,7 +37,7 @@ export default function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/book" element={<BookTable />} />
         <Route path="/reservations" element={<ReservationHistory />} />
-        <Route path="/reservations/:id" element={<ReservationDetail />} />
+        <Route path="/reservations/:id" element={<ReservationsIdRedirect />} />
         <Route path="/order/table/:token" element={<TableOrder />} />
       </Route>
 

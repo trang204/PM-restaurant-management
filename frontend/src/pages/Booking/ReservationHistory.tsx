@@ -1,47 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Calendar, MapPin, Pin, Users } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import { normalizeReservation, type ReservationRow } from '../../lib/reservation'
-
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: 'Chờ xác nhận',
-  CONFIRMED: 'Đã xác nhận',
-  CHECKED_IN: 'Đã vào bàn',
-  COMPLETED: 'Hoàn thành',
-  CANCELLED: 'Đã hủy',
-  PAID: 'Đã thanh toán',
-}
-
-function statusBadgeStyle(statusRaw: string): React.CSSProperties {
-  const s = String(statusRaw || '').toUpperCase()
-  if (s === 'COMPLETED') return { color: '#0f5132', background: '#d1e7dd', border: '1px solid #badbcc' } // xanh
-  if (s === 'CANCELLED') return { color: '#842029', background: '#f8d7da', border: '1px solid #f5c2c7' } // đỏ
-  if (s === 'PENDING') return { color: '#664d03', background: '#fff3cd', border: '1px solid #ffecb5' } // vàng
-  return { color: 'inherit', background: 'transparent', border: '1px solid transparent' }
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const label = STATUS_LABELS[status] || status
-  const style = statusBadgeStyle(status)
-  return (
-    <span
-      style={{
-        ...style,
-        display: 'inline-flex',
-        alignItems: 'center',
-        padding: '2px 8px',
-        borderRadius: 999,
-        fontWeight: 700,
-        fontSize: '0.82rem',
-        lineHeight: 1.2,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {label}
-    </span>
-  )
-}
+import ReservationDetailView, { StatusBadge } from './ReservationDetailView'
 
 function formatDateVi(isoDate: string) {
   const s = String(isoDate || '').trim()
@@ -61,6 +23,25 @@ export default function ReservationHistory() {
   const [rows, setRows] = useState<ReservationRow[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [detailId, setDetailId] = useState<string | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const detailFromUrl = searchParams.get('detail')
+
+  function reloadList() {
+    const token = localStorage.getItem('luxeat_token')
+    if (!token) return
+    apiFetch<unknown[]>('/reservations')
+      .then((d) => {
+        const arr = Array.isArray(d) ? d : []
+        setRows(
+          arr
+            .map((raw) => normalizeReservation(raw))
+            .filter((x): x is ReservationRow => x != null),
+        )
+      })
+      .catch(() => {})
+  }
 
   useEffect(() => {
     const token = localStorage.getItem('luxeat_token')
@@ -81,6 +62,28 @@ export default function ReservationHistory() {
       .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (!detailFromUrl) return
+    setDetailId(detailFromUrl)
+    setSearchParams(
+      (prev) => {
+        const n = new URLSearchParams(prev)
+        n.delete('detail')
+        return n
+      },
+      { replace: true },
+    )
+  }, [detailFromUrl, setSearchParams])
+
+  useEffect(() => {
+    if (!detailId) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setDetailId(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [detailId])
 
   return (
     <main className="menuPage">
@@ -133,18 +136,28 @@ export default function ReservationHistory() {
               </div>
 
               <div style={{ marginTop: 8 }}>
-                <Link
-                  to={`/reservations/${r.id}`}
+                <button
+                  type="button"
                   className="nav__link nav__cta"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 30, width: 115}}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 30, minWidth: 115 }}
+                  onClick={() => setDetailId(String(r.id))}
                 >
                   Xem chi tiết
-                </Link>
+                </button>
               </div>
             </li>
           ))}
         </ul>
       </section>
+
+      {detailId ? (
+        <ReservationDetailView
+          bookingId={detailId}
+          variant="modal"
+          onClose={() => setDetailId(null)}
+          onCancelled={reloadList}
+        />
+      ) : null}
     </main>
   )
 }
