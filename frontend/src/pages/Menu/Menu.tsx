@@ -15,8 +15,13 @@ type ApiMenuItem = {
   price: number
   description?: string | null
   image_url?: string | null
+  status?: string | null
   category_id?: number | null
   category_name?: string | null
+}
+
+function isUnavailableItem(item: ApiMenuItem) {
+  return String(item.status || 'AVAILABLE').toUpperCase() === 'UNAVAILABLE'
 }
 
 const LOCAL_IMG: Record<string, string> = {
@@ -46,6 +51,8 @@ export default function Menu() {
   const [items, setItems] = useState<ApiMenuItem[]>([])
   const [categories, setCategories] = useState<CategoryRow[]>([])
   const [activeCat, setActiveCat] = useState<number | 'all'>('all')
+  /** all | in_stock | out_of_stock */
+  const [availability, setAvailability] = useState<'all' | 'in_stock' | 'out_of_stock'>('all')
   const [q, setQ] = useState('')
   const [myTable, setMyTable] = useState<null | { tableName: string; url: string }>(null)
   const [loading, setLoading] = useState(true)
@@ -92,12 +99,15 @@ export default function Menu() {
     const qq = q.trim().toLowerCase()
     return items.filter((i) => {
       if (activeCat !== 'all' && Number(i.category_id) !== Number(activeCat)) return false
+      const out = isUnavailableItem(i)
+      if (availability === 'in_stock' && out) return false
+      if (availability === 'out_of_stock' && !out) return false
       if (!qq) return true
       const name = String(i.name || '').toLowerCase()
       const desc = String(i.description || '').toLowerCase()
       return name.includes(qq) || desc.includes(qq)
     })
-  }, [items, activeCat, q])
+  }, [items, activeCat, q, availability])
 
   return (
     <main className="menuPage">
@@ -147,9 +157,41 @@ export default function Menu() {
                 className="menuSearch"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Tìm món…"
+                placeholder="Tìm theo tên món"
                 type="search"
+                aria-label="Tìm theo tên món"
               />
+            </div>
+            <div className="menuSide__status" role="group" aria-labelledby="menu-availability-label">
+              <p id="menu-availability-label" className="menuStatus__label">
+                Trạng thái
+              </p>
+              <div className="menuStatus__chips">
+                <button
+                  type="button"
+                  className={`menuStatus__chip${availability === 'all' ? ' menuStatus__chip--on' : ''}`}
+                  onClick={() => setAvailability('all')}
+                  aria-pressed={availability === 'all'}
+                >
+                  Tất cả
+                </button>
+                <button
+                  type="button"
+                  className={`menuStatus__chip${availability === 'in_stock' ? ' menuStatus__chip--on' : ''}`}
+                  onClick={() => setAvailability('in_stock')}
+                  aria-pressed={availability === 'in_stock'}
+                >
+                  Còn món
+                </button>
+                <button
+                  type="button"
+                  className={`menuStatus__chip${availability === 'out_of_stock' ? ' menuStatus__chip--on' : ''}`}
+                  onClick={() => setAvailability('out_of_stock')}
+                  aria-pressed={availability === 'out_of_stock'}
+                >
+                  Hết món
+                </button>
+              </div>
             </div>
             <nav className="menuCats">
               <button
@@ -174,16 +216,18 @@ export default function Menu() {
 
           <div className="menuMain">
             {!loading && !error && visible.length === 0 ? (
-              <p>Chưa có món phù hợp. Thử đổi danh mục hoặc từ khóa.</p>
+              <p>Chưa có món phù hợp. Thử đổi danh mục, trạng thái hoặc từ khóa.</p>
             ) : null}
             <div className="menuGrid" role="list">
-              {visible.map((item) => (
+              {visible.map((item) => {
+                const out = isUnavailableItem(item)
+                return (
                 <article
-                  className="menuCard"
+                  className={`menuCard${out ? ' menuCard--out' : ''}`}
                   key={String(item.id)}
                   role="listitem"
                   tabIndex={0}
-                  aria-label={`${item.name}, giá ${vnd.format(item.price)}`}
+                  aria-label={`${item.name}, ${out ? 'Hết món' : 'Còn món'}, giá ${vnd.format(item.price)}`}
                 >
                   <div className="menuCard__media">
                     <img
@@ -195,6 +239,11 @@ export default function Menu() {
                     <span className="menuBadge" aria-label={`Danh mục ${item.category_name || ''}`}>
                       {item.category_name || 'Món'}
                     </span>
+                    {out ? (
+                      <span className="menuStockTag" aria-hidden>
+                        Hết món
+                      </span>
+                    ) : null}
                   </div>
 
                   <div className="menuCard__body">
@@ -205,7 +254,8 @@ export default function Menu() {
                     <p className="menuCard__desc">{item.description || 'Món từ thực đơn nhà hàng.'}</p>
                   </div>
                 </article>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>

@@ -149,7 +149,51 @@
 }
 
 .menuSide__search {
+  margin-bottom: 12px;
+}
+
+.menuSide__status {
   margin-bottom: 16px;
+}
+
+.menuStatus__label {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mp-muted);
+}
+
+.menuStatus__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.menuStatus__chip {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--mp-muted);
+  cursor: pointer;
+  border: 1px solid var(--mp-border);
+  background: var(--mp-card);
+  transition: all var(--mp-ease);
+}
+
+.menuStatus__chip:hover {
+  color: var(--mp-text);
+  border-color: rgba(184,147,90,0.35);
+  background: rgba(184,147,90,0.06);
+}
+
+.menuStatus__chip--on {
+  color: var(--mp-gold-d);
+  background: var(--mp-gold-s);
+  border-color: rgba(184,147,90,0.35);
 }
 
 .menuSearch {
@@ -225,6 +269,25 @@
 }
 
 .menuCard:hover { box-shadow: 0 8px 32px rgba(28,23,19,0.12); transform: translateY(-3px); }
+
+.menuCard--out {
+  opacity: 0.92;
+}
+
+.menuCard--out:hover { transform: none; }
+
+.menuStockTag {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  background: rgba(28,23,19,0.82);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
 
 .menuCard__media {
   position: relative;

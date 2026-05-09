@@ -38,7 +38,7 @@ function assertPriceInRange(n) {
 
 export async function list(req, res, next) {
   try {
-    const { categoryId, search } = req.query || {}
+    const { categoryId, search, status } = req.query || {}
     const params = []
     const where = []
 
@@ -51,6 +51,13 @@ export async function list(req, res, next) {
       if (!Number.isFinite(cId)) throw badRequest('categoryId không hợp lệ')
       params.push(cId)
       where.push(`f.category_id = $${params.length}`)
+    }
+    if (status != null && String(status).trim() !== '') {
+      const st = String(status).trim().toUpperCase()
+      if (st === 'AVAILABLE' || st === 'UNAVAILABLE') {
+        params.push(st)
+        where.push(`COALESCE(UPPER(TRIM(f.status)), 'AVAILABLE') = $${params.length}`)
+      }
     }
 
     const r = await query(
@@ -94,6 +101,9 @@ export async function create(req, res, next) {
     const catNum = Number(category_id)
     if (!Number.isFinite(catNum)) throw badRequest('category_id không hợp lệ')
 
+    let stIns = status ? String(status).trim().toUpperCase() : null
+    if (stIns && stIns !== 'AVAILABLE' && stIns !== 'UNAVAILABLE') stIns = 'AVAILABLE'
+
     const r = await query(
       `
       INSERT INTO foods (name, price, description, image_url, category_id, status)
@@ -106,7 +116,7 @@ export async function create(req, res, next) {
         description ? String(description) : null,
         image_url != null && String(image_url).trim() ? String(image_url).trim() : null,
         catNum,
-        status ? String(status) : null,
+        stIns,
       ],
     )
     return created(res, r.rows[0])
@@ -144,7 +154,8 @@ export async function update(req, res, next) {
           : String(description)
     const imageVal =
       image_url == null || String(image_url).trim() === '' ? null : String(image_url).trim()
-    const statusVal = status != null && String(status).trim() ? String(status).trim() : 'AVAILABLE'
+    let statusVal = status != null && String(status).trim() ? String(status).trim().toUpperCase() : 'AVAILABLE'
+    if (statusVal !== 'AVAILABLE' && statusVal !== 'UNAVAILABLE') statusVal = 'AVAILABLE'
 
     const r = await query(
       `

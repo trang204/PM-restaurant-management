@@ -12,6 +12,11 @@ type MenuRow = {
   categoryName?: string
   category_name?: string
   image_url?: string
+  status?: string
+}
+
+function isMenuInStock(m: MenuRow) {
+  return String(m.status || 'AVAILABLE').toUpperCase() !== 'UNAVAILABLE'
 }
 
 function menuCategory(m: MenuRow) {
@@ -57,7 +62,7 @@ export default function BookTable() {
       .then(([t, m]) => {
         if (c) return
         setTables(Array.isArray(t) ? t : [])
-        setMenu(Array.isArray(m) ? m.filter((x) => x.id) : [])
+        setMenu(Array.isArray(m) ? m.filter((x) => x.id && isMenuInStock(x)) : [])
       })
       .catch(() => {})
     return () => {

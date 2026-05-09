@@ -393,4 +393,24 @@ export async function ensureDbSchema() {
       await query(`ALTER TABLE ${table} ALTER COLUMN ${column} TYPE DECIMAL(14, 2)`)
     }
   }
+
+  // Trạng thái món (thực đơn): cột foods.status — AVAILABLE = Còn món, UNAVAILABLE = Hết món.
+  const foodSt = await query(
+    `
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'foods'
+      AND column_name = 'status'
+    LIMIT 1
+    `,
+  )
+  if (!foodSt.rows.length) {
+    await query(`ALTER TABLE foods ADD COLUMN status VARCHAR(20) DEFAULT 'AVAILABLE'`)
+  }
+  await query(`UPDATE foods SET status = 'AVAILABLE' WHERE status IS NULL OR TRIM(status) = ''`)
+  await query(
+    `UPDATE foods SET status = 'AVAILABLE' WHERE UPPER(TRIM(status)) NOT IN ('AVAILABLE', 'UNAVAILABLE')`,
+  )
+  await query(`ALTER TABLE foods ALTER COLUMN status SET DEFAULT 'AVAILABLE'`)
 }

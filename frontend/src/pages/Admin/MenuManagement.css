@@ -110,6 +110,56 @@
   font-size: 0.88rem;
 }
 
+.menu-mgmt__statusRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.menu-mgmt__statusLabel {
+  margin: 6px 0 0;
+  min-width: 88px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mn-muted);
+}
+
+.menu-mgmt__statusChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.menu-mgmt__statusChip {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--mn-muted);
+  cursor: pointer;
+  border: 1px solid var(--mn-border);
+  background: #fff;
+  font-family: inherit;
+  transition: border-color var(--mn-ease), background var(--mn-ease), color var(--mn-ease);
+}
+
+.menu-mgmt__statusChip:hover {
+  color: var(--mn-text);
+  border-color: rgba(184,147,90,0.4);
+  background: rgba(184,147,90,0.06);
+}
+
+.menu-mgmt__statusChip--on {
+  color: var(--mn-gold-d);
+  background: var(--mn-gold-s);
+  border-color: rgba(184,147,90,0.35);
+}
+
 /* ─── Category Filters ─── */
 .menu-mgmt__filters {
   display: flex;

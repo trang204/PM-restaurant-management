@@ -39,6 +39,8 @@ export default function MenuManagement() {
   const [imageFile, setImageFile] = useState(null)
   /** 'all' | string category id */
   const [filterCat, setFilterCat] = useState('all')
+  /** @type {'all' | 'in_stock' | 'out_of_stock'} */
+  const [filterStatus, setFilterStatus] = useState('all')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -205,6 +207,10 @@ export default function MenuManagement() {
     const byKey = new Map()
     const searchNeedle = search.trim().toLowerCase()
     for (const it of items) {
+      const st = String(it.status || 'AVAILABLE').toUpperCase()
+      const out = st === 'UNAVAILABLE'
+      if (filterStatus === 'in_stock' && out) continue
+      if (filterStatus === 'out_of_stock' && !out) continue
       const name = String(it.name || '').toLowerCase()
       const categoryName = String(it.category_name || '').toLowerCase()
       if (searchNeedle && !name.includes(searchNeedle) && !categoryName.includes(searchNeedle)) continue
@@ -225,11 +231,11 @@ export default function MenuManagement() {
     const n = Number(filterCat)
     if (!Number.isFinite(n)) return arr
     return arr.filter((s) => Number(s.category_id) === n)
-  }, [items, filterCat, search])
+  }, [items, filterCat, search, filterStatus])
 
   useEffect(() => {
     setPage(1)
-  }, [filterCat, search])
+  }, [filterCat, search, filterStatus])
 
   const flatItems = useMemo(
     () => sections.flatMap((sec) => sec.items.map((item) => ({ ...item, __sectionKey: String(sec.category_id ?? 'none') }))),
@@ -259,7 +265,7 @@ export default function MenuManagement() {
       <header className="menu-mgmt__header">
         <div>
           <h1 className="menu-mgmt__title">Thực đơn</h1>
-          <p className="menu-mgmt__subtitle">Thêm/sửa món, quản lý hiển thị và danh mục.</p>
+          <p className="menu-mgmt__subtitle">Thêm/sửa món, trạng thái (Còn món / Hết món) và danh mục.</p>
         </div>
         <button type="button" className="menu-mgmt__add" onClick={openAdd}>
           Thêm món
@@ -272,16 +278,51 @@ export default function MenuManagement() {
       {!loading && !err ? (
         <div className="menu-mgmt__toolbar">
           <label className="menu-mgmt__search">
-            <span className="sr-only">Tìm món</span>
+            <span className="sr-only">Tìm theo tên món</span>
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm món..."
+              placeholder="Tìm theo tên món"
               autoComplete="off"
+              aria-label="Tìm theo tên món"
             />
           </label>
           <p className="menu-mgmt__resultCount">Hiển thị {visibleCount} món</p>
+        </div>
+      ) : null}
+
+      {!loading && !err ? (
+        <div className="menu-mgmt__statusRow" role="group" aria-labelledby="admin-menu-status-label">
+          <p id="admin-menu-status-label" className="menu-mgmt__statusLabel">
+            Trạng thái
+          </p>
+          <div className="menu-mgmt__statusChips">
+            <button
+              type="button"
+              className={`menu-mgmt__statusChip${filterStatus === 'all' ? ' menu-mgmt__statusChip--on' : ''}`}
+              onClick={() => setFilterStatus('all')}
+              aria-pressed={filterStatus === 'all'}
+            >
+              Tất cả
+            </button>
+            <button
+              type="button"
+              className={`menu-mgmt__statusChip${filterStatus === 'in_stock' ? ' menu-mgmt__statusChip--on' : ''}`}
+              onClick={() => setFilterStatus('in_stock')}
+              aria-pressed={filterStatus === 'in_stock'}
+            >
+              Còn món
+            </button>
+            <button
+              type="button"
+              className={`menu-mgmt__statusChip${filterStatus === 'out_of_stock' ? ' menu-mgmt__statusChip--on' : ''}`}
+              onClick={() => setFilterStatus('out_of_stock')}
+              aria-pressed={filterStatus === 'out_of_stock'}
+            >
+              Hết món
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -316,7 +357,7 @@ export default function MenuManagement() {
       ) : null}
 
       {!loading && !err && sections.length === 0 ? (
-        <p className="menu-mgmt__empty">Không tìm thấy món nào phù hợp.</p>
+        <p className="menu-mgmt__empty">Không tìm thấy món nào phù hợp. Thử đổi danh mục, trạng thái hoặc từ khóa.</p>
       ) : null}
 
       {!loading && !err && pagedItems.length > 0 ? (
@@ -353,7 +394,7 @@ export default function MenuManagement() {
                   <p className="menu-card__category">{it.category_name || '—'}</p>
                   <p className="menu-card__meta">{ingredientText(it)}</p>
                   <p className="menu-card__status" data-status={String(it.status || '').toUpperCase()}>
-                    {String(it.status || '').toUpperCase() === 'AVAILABLE' ? 'Đang bán' : 'Ngừng bán'}
+                    {String(it.status || '').toUpperCase() === 'AVAILABLE' ? 'Còn món' : 'Hết món'}
                   </p>
                   <div className="menu-card__actions">
                     <button
@@ -462,8 +503,8 @@ export default function MenuManagement() {
                   value={form.status}
                   onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
                 >
-                  <option value="AVAILABLE">Đang bán</option>
-                  <option value="UNAVAILABLE">Ngừng bán</option>
+                  <option value="AVAILABLE">Còn món</option>
+                  <option value="UNAVAILABLE">Hết món</option>
                 </select>
               </label>
               <label className="menu-modal__field">
@@ -516,7 +557,7 @@ export default function MenuManagement() {
                     <p className="menu-detail__price">{formatPrice(Number(detailItem.price) || 0)}</p>
                   </div>
                   <span className="menu-card__status" data-status={String(detailItem.status || '').toUpperCase()}>
-                    {String(detailItem.status || '').toUpperCase() === 'AVAILABLE' ? 'Đang bán' : 'Ngừng bán'}
+                    {String(detailItem.status || '').toUpperCase() === 'AVAILABLE' ? 'Còn món' : 'Hết món'}
                   </span>
                 </div>
 
