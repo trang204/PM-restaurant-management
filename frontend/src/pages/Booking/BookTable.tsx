@@ -1,18 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { apiFetch, mediaUrl } from '../../lib/api'
+import { apiFetch, mediaUrl, publicApiFetch } from '../../lib/api'
 import { requiredMessage } from '../../lib/validation'
 import './BookTable.css'
 
 type Table = { id: string; name: string; capacity: number; status: string; zone?: string; image_url?: string }
 type MenuRow = {
-  id: string
+  id: string | number
   name: string
   price: number
   categoryName?: string
   category_name?: string
   image_url?: string
   status?: string
+}
+
+function menuRowId(m: Pick<MenuRow, 'id'>): string {
+  return String(m.id)
 }
 
 function isMenuInStock(m: MenuRow) {
@@ -55,16 +59,44 @@ export default function BookTable() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [menuLoading, setMenuLoading] = useState(true)
+  const [menuError, setMenuError] = useState<string | null>(null)
 
   useEffect(() => {
     let c = false
-    Promise.all([apiFetch<Table[]>('/tables'), apiFetch<MenuRow[]>('/menu')])
-      .then(([t, m]) => {
+    publicApiFetch<Table[]>('/tables')
+      .then((t) => {
         if (c) return
         setTables(Array.isArray(t) ? t : [])
-        setMenu(Array.isArray(m) ? m.filter((x) => x.id && isMenuInStock(x)) : [])
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!c) setTables([])
+      })
+    return () => {
+      c = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let c = false
+    setMenuLoading(true)
+    setMenuError(null)
+    publicApiFetch<MenuRow[]>('/menu')
+      .then((m) => {
+        if (c) return
+        const rows = Array.isArray(m) ? m : []
+        setMenu(rows.filter((x) => x.id != null && String(x.id).trim() !== '' && isMenuInStock(x)))
+        setMenuError(null)
+      })
+      .catch((e) => {
+        if (!c) {
+          setMenu([])
+          setMenuError((e as Error).message || 'Không tải được thực đơn')
+        }
+      })
+      .finally(() => {
+        if (!c) setMenuLoading(false)
+      })
     return () => {
       c = true
     }
@@ -89,7 +121,7 @@ export default function BookTable() {
   const preorderTotal = useMemo(() => {
     let sum = 0
     for (const m of menu) {
-      const q = qtyByMenuId[m.id] ?? 0
+      const q = qtyByMenuId[menuRowId(m)] ?? 0
       if (q > 0) sum += Number(m.price) * q
     }
     return sum
@@ -154,8 +186,9 @@ export default function BookTable() {
     }
   }
 
-  function setQty(id: string, q: number) {
-    setQtyByMenuId((prev) => ({ ...prev, [id]: Math.max(0, q) }))
+  function setQty(id: string | number, q: number) {
+    const k = String(id)
+    setQtyByMenuId((prev) => ({ ...prev, [k]: Math.max(0, q) }))
   }
 
   function bumpGuest(delta: number) {
@@ -166,10 +199,10 @@ export default function BookTable() {
     if (!preorderItems.length) return 'Chưa chọn món'
     const lines: string[] = []
     for (const { menuItemId, quantity } of preorderItems) {
-      const m = menu.find((x) => x.id === menuItemId)
+      const m = menu.find((x) => menuRowId(x) === String(menuItemId))
       if (m) lines.push(`${m.name} ×${quantity}`)
     }
-    return lines.join('\n')
+    return lines.length ? lines.join('\n') : '—'
   }, [preorderItems, menu])
 
   return (
@@ -364,17 +397,26 @@ export default function BookTable() {
               </div>
             </div>
             <div className={`bookPreorder${preorderExpanded ? ' bookPreorder--expanded' : ''}`}>
-              {menu.length === 0 ? (
+              {menuLoading ? (
                 <p style={{ margin: 0, color: 'var(--book-muted)', fontSize: '0.9rem' }}>Đang tải thực đơn…</p>
+              ) : menuError ? (
+                <p className="bookError" style={{ margin: 0, fontSize: '0.9rem' }}>
+                  {menuError}
+                </p>
+              ) : menu.length === 0 ? (
+                <p style={{ margin: 0, color: 'var(--book-muted)', fontSize: '0.9rem' }}>
+                  Hiện không có món còn phục vụ để gọi trước. Vui lòng thử lại sau.
+                </p>
               ) : (
                 Array.from(menuByCategory.entries()).map(([cat, items]) => (
                   <div key={cat}>
                     <h3 className="bookPreorder__group-title">{cat}</h3>
                     {items.map((m) => {
-                      const q = qtyByMenuId[m.id] ?? 0
+                      const mid = menuRowId(m)
+                      const q = qtyByMenuId[mid] ?? 0
                       const img = m.image_url ? mediaUrl(m.image_url) : ''
                       return (
-                        <div key={m.id} className="bookPreorder__row">
+                        <div key={mid} className="bookPreorder__row">
                           {img ? (
                             <div
                               style={{

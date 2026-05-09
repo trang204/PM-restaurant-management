@@ -44,6 +44,8 @@ export default function MenuManagement() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  /** id món đang gọi API bật/tắt trạng thái */
+  const [stockTogglingId, setStockTogglingId] = useState(null)
 
   function load() {
     setLoading(true)
@@ -183,6 +185,29 @@ export default function MenuManagement() {
       load()
     } catch (e) {
       toast(e.message, { variant: 'error' })
+    }
+  }
+
+  async function toggleStock(item) {
+    const id = item?.id
+    if (id == null) return
+    setStockTogglingId(id)
+    try {
+      const data = await apiFetch(`/admin/menu-items/${id}/toggle-active`, { method: 'POST' })
+      const nextStatus = data?.status != null ? String(data.status) : null
+      setItems((prev) =>
+        prev.map((x) =>
+          String(x.id) === String(id) ? { ...x, status: nextStatus ?? x.status } : x,
+        ),
+      )
+      setDetailItem((d) =>
+        d != null && String(d.id) === String(id) ? { ...d, status: nextStatus ?? d.status } : d,
+      )
+      toast('Đã cập nhật trạng thái món.', { variant: 'success' })
+    } catch (e) {
+      toast(e.message, { variant: 'error' })
+    } finally {
+      setStockTogglingId(null)
     }
   }
 
@@ -393,9 +418,44 @@ export default function MenuManagement() {
                   <p className="menu-card__price">{formatPrice(Number(it.price) || 0)}</p>
                   <p className="menu-card__category">{it.category_name || '—'}</p>
                   <p className="menu-card__meta">{ingredientText(it)}</p>
-                  <p className="menu-card__status" data-status={String(it.status || '').toUpperCase()}>
-                    {String(it.status || '').toUpperCase() === 'AVAILABLE' ? 'Còn món' : 'Hết món'}
-                  </p>
+                  <div
+                    className="menu-card__stockRow"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
+                    <span className="menu-card__stockTitle">Trạng thái</span>
+                    <div className="menu-card__stockActions">
+                      <span
+                        className="menu-card__status menu-card__status--row"
+                        data-status={String(it.status || '').toUpperCase()}
+                      >
+                        {String(it.status || '').toUpperCase() === 'AVAILABLE' ? 'Còn món' : 'Hết món'}
+                      </span>
+                      <button
+                        type="button"
+                        className={`menu-card__toggle${
+                          String(it.status || '').toUpperCase() !== 'UNAVAILABLE'
+                            ? ' menu-card__toggle--on'
+                            : ''
+                        }`}
+                        disabled={stockTogglingId === it.id}
+                        aria-busy={stockTogglingId === it.id}
+                        aria-label={
+                          String(it.status || '').toUpperCase() !== 'UNAVAILABLE'
+                            ? 'Đang còn món — bấm để chuyển sang hết món'
+                            : 'Đang hết món — bấm để còn món'
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          void toggleStock(it)
+                        }}
+                      >
+                        <span className="menu-card__toggleTrack">
+                          <span className="menu-card__toggleKnob" aria-hidden />
+                        </span>
+                      </button>
+                    </div>
+                  </div>
                   <div className="menu-card__actions">
                     <button
                       type="button"
@@ -556,9 +616,34 @@ export default function MenuManagement() {
                     <h3 className="menu-detail__name">{detailItem.name}</h3>
                     <p className="menu-detail__price">{formatPrice(Number(detailItem.price) || 0)}</p>
                   </div>
-                  <span className="menu-card__status" data-status={String(detailItem.status || '').toUpperCase()}>
-                    {String(detailItem.status || '').toUpperCase() === 'AVAILABLE' ? 'Còn món' : 'Hết món'}
-                  </span>
+                  <div className="menu-detail__statusBlock">
+                    <span
+                      className="menu-card__status menu-card__status--row"
+                      data-status={String(detailItem.status || '').toUpperCase()}
+                    >
+                      {String(detailItem.status || '').toUpperCase() === 'AVAILABLE' ? 'Còn món' : 'Hết món'}
+                    </span>
+                    <button
+                      type="button"
+                      className={`menu-card__toggle${
+                        String(detailItem.status || '').toUpperCase() !== 'UNAVAILABLE'
+                          ? ' menu-card__toggle--on'
+                          : ''
+                      }`}
+                      disabled={stockTogglingId === detailItem.id}
+                      aria-busy={stockTogglingId === detailItem.id}
+                      aria-label={
+                        String(detailItem.status || '').toUpperCase() !== 'UNAVAILABLE'
+                          ? 'Đang còn món — bấm để chuyển sang hết món'
+                          : 'Đang hết món — bấm để còn món'
+                      }
+                      onClick={() => void toggleStock(detailItem)}
+                    >
+                      <span className="menu-card__toggleTrack">
+                        <span className="menu-card__toggleKnob" aria-hidden />
+                      </span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="menu-detail__grid">

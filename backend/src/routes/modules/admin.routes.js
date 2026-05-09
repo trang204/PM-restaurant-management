@@ -42,7 +42,7 @@ router.post('/menu-items', ...adminOnly, adminMenu.create)
 router.post('/menu-items/:id/image', ...adminOnly, upload.single('image'), adminMenu.uploadImage)
 router.patch('/menu-items/:id', ...adminOnly, adminMenu.update)
 router.delete('/menu-items/:id', ...adminOnly, adminMenu.remove)
-router.post('/menu-items/:id/toggle-active', ...adminOnly, adminMenu.toggleActive)
+router.post('/menu-items/:id/toggle-active', ...staff, adminMenu.toggleActive)
 
 router.get('/categories', ...staff, adminCategories.list)
 router.post('/categories', ...adminOnly, adminCategories.create)
