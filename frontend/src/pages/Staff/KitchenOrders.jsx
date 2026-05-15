@@ -172,7 +172,7 @@ export default function KitchenOrders() {
                       {r.pending_kitchen > 0 ? (
                         <span className="kitchen__pill kitchen__pill--warn">{r.pending_kitchen} chờ xác nhận</span>
                       ) : (
-                        <span className="kitchen__pill kitchen__pill--ok">Đã xử lý dòng</span>
+                        <span className="kitchen__pill kitchen__pill--ok">Đã lên món</span>
                       )}
                       <span className="kitchen__pill">{r.line_count} dòng</span>
                     </div>

@@ -7,6 +7,7 @@ import { normalizeReservation, type ReservationRow } from '../../lib/reservation
 import './ReservationDetailView.css'
 
 export const STATUS_LABELS: Record<string, string> = {
+  HOLD: 'Đang giữ bàn',
   PENDING: 'Chờ xác nhận',
   CONFIRMED: 'Đã xác nhận',
   CHECKED_IN: 'Đã vào bàn',

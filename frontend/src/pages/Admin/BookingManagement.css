@@ -70,7 +70,13 @@
   box-shadow: 0 3px 12px rgba(184,147,90,0.3);
 }
 
-.booking-mgmt__btn--primary:hover { filter: brightness(1.06); border-color: transparent; }
+.booking-mgmt__btn.booking-mgmt__btn--primary:hover {
+  background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 3px 12px rgba(184,147,90,0.3);
+  filter: brightness(1.06);
+}
 
 .booking-mgmt__btn--secondary { color: var(--bk-text); }
 
@@ -352,10 +358,6 @@
 
 .booking-mgmt__table tr:last-child td { border-bottom: none; }
 .booking-mgmt__table tbody tr:hover td { background: rgba(244,236,224,0.3); }
-
-.booking-mgmt__pagination {
-  margin-top: 16px;
-}
 
 .booking-mgmt__paginationWrap {
   margin-top: 16px;

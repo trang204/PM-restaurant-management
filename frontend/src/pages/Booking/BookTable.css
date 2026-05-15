@@ -201,6 +201,11 @@
   color: #C0392B;
 }
 
+.bookField__error--block {
+  margin: 0 22px 8px;
+  padding: 0;
+}
+
 .bookField input,
 .bookField select {
   padding: 10px 13px;
@@ -285,9 +290,24 @@
   transform: translateY(-1px);
 }
 
+[class*="bookTableBtn"].bookTableBtn--invalid {
+  opacity: 0.9;
+}
+
+[class*="bookTableBtn"].bookTableBtn--invalid .bookTableBtn__badge {
+  background: #FEF3F2;
+  color: #C0392B;
+  border-color: #F5C4C0;
+}
+
 [class*="bookTableBtn"]:hover:not(:disabled) {
   border-color: rgba(220, 138, 14, 0.4);
   background: var(--bk2-gold-s);
+}
+
+[class*="bookTableBtn"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .bookTableBtn__name {

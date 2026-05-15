@@ -253,9 +253,9 @@ export default function TableLayoutEditor() {
           <button type="button" className="layout-editor__btn layout-editor__btn--ghost" onClick={() => navigate('/admin/tables')}>
             Quay lại
           </button>
-          <button type="button" className="layout-editor__btn layout-editor__btn--ghost" onClick={resetTheaterLayout} disabled={loading || saving}>
+          {/* <button type="button" className="layout-editor__btn layout-editor__btn--ghost" onClick={resetTheaterLayout} disabled={loading || saving}>
             Xếp kiểu rạp phim
-          </button>
+          </button> */}
           <button type="button" className="layout-editor__btn layout-editor__btn--primary" onClick={saveLayout} disabled={loading || saving || !dirty}>
             {saving ? 'Đang lưu...' : 'Lưu sơ đồ'}
           </button>
@@ -268,7 +268,7 @@ export default function TableLayoutEditor() {
         <span><i className="layout-editor__legendDot layout-editor__legendDot--reserved" /> Đã giữ</span>
       </div>
 
-      <section className="layout-editor__aiPanel">
+      {/* <section className="layout-editor__aiPanel">
         <div className="layout-editor__aiHead">
           <div>
             <h2 className="layout-editor__aiTitle">Nhận diện từ ảnh</h2>
@@ -297,7 +297,7 @@ export default function TableLayoutEditor() {
           </ul>
         ) : null}
         {analysisError ? <p className="layout-editor__err">{analysisError}</p> : null}
-      </section>
+      </section> */}
 
       {loading ? <p>Đang tải sơ đồ...</p> : null}
       {err ? <p className="layout-editor__err">{err}</p> : null}

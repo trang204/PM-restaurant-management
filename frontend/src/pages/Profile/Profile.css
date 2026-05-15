@@ -266,7 +266,13 @@
   box-shadow: 0 3px 12px rgba(184,147,90,0.3);
 }
 
-.profileBtn--primary:hover { filter: brightness(1.06); border-color: transparent; }
+.profileBtn.profileBtn--primary:hover {
+  background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 3px 12px rgba(184,147,90,0.3);
+  filter: brightness(1.06);
+}
 .profileBtn--ghost { color: var(--pr-text); }
 .profileBtn--danger { color: #C0392B; border-color: #F5C4C0; }
 .profileBtn--danger:hover { background: #FEF3F2; border-color: #F5C4C0; }

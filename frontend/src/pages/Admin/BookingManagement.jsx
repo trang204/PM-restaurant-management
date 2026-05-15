@@ -912,7 +912,7 @@ export default function BookingManagement({ staffMode = false }) {
                 outline: 'none',
               }}
             />
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {/* <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {[
                 ['ALL', 'Tất cả'],
                 ['PENDING', 'Chờ'],
@@ -938,6 +938,23 @@ export default function BookingManagement({ staffMode = false }) {
               >
                 Làm mới
               </button>
+            </div> */}
+            <div className="dash__filter" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <label className="dash__filterLabel" htmlFor="dash-status">Lọc theo trạng thái</label>
+              <select
+                id="dash-status"
+                className="dash__select"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="ALL">Tất cả</option>
+                <option value="PENDING">Chờ xác nhận</option>
+                <option value="HOLD">Đang giữ bàn</option>
+                <option value="CONFIRMED">Đã xác nhận</option>
+                <option value="CHECKED_IN">Đã vào bàn</option>
+                <option value="COMPLETED">Hoàn thành</option>
+                <option value="CANCELLED">Đã hủy</option>
+              </select>
             </div>
           </div>
           <div className="booking-mgmt__table-wrap">
@@ -981,6 +998,7 @@ export default function BookingManagement({ staffMode = false }) {
                           <select
                             value={assignPick[r.id] ?? ''}
                             onChange={(e) => setAssignPick((p) => ({ ...p, [r.id]: e.target.value }))}
+                            disabled={actionType !== 'PENDING' || tableClosed}
                             aria-label="Chọn bàn"
                           >
                             <option value="">— Chọn —</option>

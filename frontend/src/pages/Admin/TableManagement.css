@@ -138,14 +138,10 @@
   gap: 16px;
 }
 
-.table-mgmt__pagination {
-  margin-top: 18px;
-}
-
 /* ─── Table Card ─── */
 .table-card {
   background: var(--tm-card);
-  border: 1px solid var(--tm-border);
+  border: 2px solid var(--tm-border);
   border-radius: var(--tm-radius);
   padding: 20px 18px;
   box-shadow: var(--tm-shadow);
@@ -249,7 +245,13 @@
   box-shadow: 0 2px 8px rgba(184,147,90,0.25);
 }
 
-.table-card__btn--primary:hover { filter: brightness(1.06); border-color: transparent; }
+.table-card__btn.table-card__btn--primary:hover {
+  background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(184,147,90,0.25);
+  filter: brightness(1.06);
+}
 
 .table-card__btn--secondary { color: var(--tm-text); }
 
@@ -292,12 +294,14 @@
   color: #256c3b;
   border-color: #b8ddc1;
   background: #f1fbf4;
+  
 }
 
 .table-card__status--blue {
-  color: #2356b8;
+  color: #095fff;
   border-color: #bfd7ff;
   background: #f2f7ff;
+  
 }
 
 .table-card__status--yellow {

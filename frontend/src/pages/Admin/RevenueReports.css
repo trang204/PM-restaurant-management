@@ -107,6 +107,13 @@
   box-shadow: 0 2px 8px rgba(184,147,90,0.28);
 }
 
+.rev-report__tab.rev-report__tab--on:hover {
+  background: var(--rr-gold);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(184,147,90,0.28);
+}
+
 .rev-report__dates {
   display: flex;
   gap: 10px;
@@ -159,10 +166,6 @@
   font-size: 0.875rem;
   color: #C0392B;
   margin-bottom: 14px;
-}
-
-.rev-report__pagination {
-  margin-top: 16px;
 }
 
 /* ─── Summary ─── */
@@ -548,9 +551,19 @@
   transition: all var(--rr-ease);
 }
 
-.rev-report__mainTab:hover { border-color: rgba(184,147,90,0.35); color: var(--rr-text); }
+.rev-report__mainTab:hover {
+  border-color: rgba(184,147,90,0.35);
+  color: var(--rr-text);
+}
 
 .rev-report__mainTab--on {
+  background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 3px 12px rgba(184,147,90,0.3);
+}
+
+.rev-report__mainTab.rev-report__mainTab--on:hover {
   background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
   color: #fff;
   border-color: transparent;

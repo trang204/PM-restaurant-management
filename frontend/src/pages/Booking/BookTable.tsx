@@ -5,6 +5,33 @@ import { requiredMessage } from '../../lib/validation'
 import './BookTable.css'
 
 type Table = { id: string; name: string; capacity: number; status: string; zone?: string; image_url?: string }
+
+/** Thông báo validation bàn (đồng bộ với backend reservations) */
+const TABLE_ERR_CAPACITY = 'Bàn không đủ chỗ'
+const TABLE_ERR_IN_USE = 'Bàn đang được sử dụng'
+const TABLE_ERR_TABLE_TOO_LARGE = 'Không thể đặt bàn lớn hơn số người đi cùng'
+/** Đặt bàn online: tối đa số khách */
+const MAX_BOOKING_GUESTS = 99
+const GUEST_ERR_MAX = `Không quá ${MAX_BOOKING_GUESTS} người`
+
+function isTableAvailable(t: Table) {
+  const s = String(t.status || '').toUpperCase()
+  return s === 'AVAILABLE' || s === ''
+}
+
+/** null = hợp lệ; ngược lại là thông báo hiển thị cho khách (chỉ pass khi số khách === sức chứa bàn) */
+function tableBookingValidationError(t: Table, guestN: number): string | null {
+  if (!isTableAvailable(t)) return TABLE_ERR_IN_USE
+  const cap = Number(t.capacity)
+  if (!Number.isFinite(cap)) return TABLE_ERR_IN_USE
+  if (guestN > cap) return TABLE_ERR_CAPACITY
+  if (guestN < cap) return TABLE_ERR_TABLE_TOO_LARGE
+  return null
+}
+
+function isTableSelectable(t: Table, guestN: number) {
+  return tableBookingValidationError(t, guestN) === null
+}
 type MenuRow = {
   id: string | number
   name: string
@@ -25,11 +52,6 @@ function isMenuInStock(m: MenuRow) {
 
 function menuCategory(m: MenuRow) {
   return m.categoryName || m.category_name || 'Món ăn'
-}
-
-function isTableSelectable(t: Table) {
-  const s = String(t.status || '').toUpperCase()
-  return s === 'AVAILABLE' || s === ''
 }
 
 const vnd = new Intl.NumberFormat('vi-VN', {
@@ -127,18 +149,35 @@ export default function BookTable() {
     return sum
   }, [menu, qtyByMenuId])
 
-  const selectedTable = tables.find((t) => t.id === selectedTableId)
+  const selectedTable = tables.find((t) => String(t.id) === (selectedTableId ?? ''))
   const autoSuggestedTable = useMemo(() => {
-    // Gợi ý: chọn bàn nhỏ nhất nhưng đủ chỗ và đang AVAILABLE
     const cands = tables
-      .filter(isTableSelectable)
-      .filter((t) => Number(t.capacity) >= guestCount)
+      .filter((t) => tableBookingValidationError(t, guestCount) === null)
       .sort((a, b) => Number(a.capacity) - Number(b.capacity))
     return cands[0] || null
   }, [tables, guestCount])
 
   const effectivePreferredTableId =
-    selectedTableId === null ? autoSuggestedTable?.id ?? null : selectedTableId
+    selectedTableId === null ? (autoSuggestedTable?.id != null ? String(autoSuggestedTable.id) : null) : selectedTableId
+
+  useEffect(() => {
+    if (selectedTableId == null) {
+      setFieldErrors((prev) => (prev.table ? { ...prev, table: '' } : prev))
+      return
+    }
+    const t = tables.find((x) => String(x.id) === selectedTableId)
+    if (!t) {
+      setSelectedTableId(null)
+      return
+    }
+    const msg = tableBookingValidationError(t, guestCount)
+    if (msg) {
+      setSelectedTableId(null)
+      setFieldErrors((prev) => ({ ...prev, table: '' }))
+    } else {
+      setFieldErrors((prev) => (prev.table ? { ...prev, table: '' } : prev))
+    }
+  }, [guestCount, selectedTableId, tables])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -148,8 +187,22 @@ export default function BookTable() {
     if (!phone.trim()) nextErrors.phone = requiredMessage('Số điện thoại')
     if (!date) nextErrors.date = requiredMessage('Ngày')
     if (!time) nextErrors.time = requiredMessage('Giờ')
+    if (guestCount > MAX_BOOKING_GUESTS) nextErrors.guestCount = GUEST_ERR_MAX
     setFieldErrors(nextErrors)
     if (Object.keys(nextErrors).length) return
+
+    const tid = effectivePreferredTableId
+    if (tid) {
+      const t = tables.find((x) => String(x.id) === String(tid))
+      if (t) {
+        const tableMsg = tableBookingValidationError(t, guestCount)
+        if (tableMsg) {
+          setFieldErrors({ ...nextErrors, table: tableMsg })
+          return
+        }
+      }
+    }
+
     setLoading(true)
     try {
       const body = {
@@ -174,8 +227,8 @@ export default function BookTable() {
             method: 'POST',
             body: JSON.stringify({ tableId: effectivePreferredTableId }),
           })
-        } catch {
-          /* giữ đơn dù giữ bàn lỗi */
+        } catch (holdErr) {
+          setError((holdErr as Error).message || TABLE_ERR_IN_USE)
         }
       }
       navigate(`/reservations/${id}`)
@@ -192,7 +245,8 @@ export default function BookTable() {
   }
 
   function bumpGuest(delta: number) {
-    setGuestCount((g) => Math.max(1, Math.min(20, g + delta)))
+    setGuestCount((g) => Math.max(1, Math.min(MAX_BOOKING_GUESTS, g + delta)))
+    setFieldErrors((prev) => (prev.guestCount ? { ...prev, guestCount: '' } : prev))
   }
 
   const preorderSummaryText = useMemo(() => {
@@ -224,7 +278,7 @@ export default function BookTable() {
         <div className="bookHero__panel" aria-hidden="false">
           <div className="bookHero__stat">
             <span className="bookHero__stat-label">Bàn đang mở</span>
-            <span className="bookHero__stat-val">{tables.filter(isTableSelectable).length}</span>
+            <span className="bookHero__stat-val">{tables.filter((t) => isTableSelectable(t, guestCount)).length}</span>
           </div>
           <div className="bookHero__stat">
             <span className="bookHero__stat-label">Món trên thực đơn</span>
@@ -326,10 +380,11 @@ export default function BookTable() {
                     −
                   </button>
                   <span>{guestCount}</span>
-                  <button type="button" onClick={() => bumpGuest(1)} aria-label="Tăng">
+                  <button type="button" onClick={() => bumpGuest(1)} aria-label="Tăng" disabled={guestCount >= MAX_BOOKING_GUESTS}>
                     +
                   </button>
                 </div>
+                {fieldErrors.guestCount ? <small className="bookField__error">{fieldErrors.guestCount}</small> : null}
               </label>
             </div>
           </section>
@@ -339,14 +394,21 @@ export default function BookTable() {
               <span className="bookStep">3</span>
               <div className="bookCard__titles">
                 <h2>Chọn bàn ưu tiên</h2>
-                <p>Tuỳ chọn — có thể để nhà hàng bố trí nếu bạn chưa chọn.</p>
+                <p>
+                  Tối đa {MAX_BOOKING_GUESTS} người — chỉ chọn được bàn có đúng số chỗ trùng số khách (ví dụ 2 người chỉ
+                  đặt bàn 2 chỗ).
+                </p>
               </div>
             </div>
             <div className="bookTables">
               <button
                 type="button"
                 className={`bookTableBtn${selectedTableId === null ? ' bookTableBtn--active' : ''}`}
-                onClick={() => setSelectedTableId(null)}
+                onClick={() => {
+                  setFieldErrors((prev) => ({ ...prev, table: '' }))
+                  setError(null)
+                  setSelectedTableId(null)
+                }}
               >
                 <span className="bookTableBtn__name">Tự động</span>
                 <span className="bookTableBtn__meta">
@@ -357,26 +419,42 @@ export default function BookTable() {
                 <span className="bookTableBtn__badge">Gợi ý</span>
               </button>
               {tables.map((t) => {
-                const ok = isTableSelectable(t)
+                const selMsg = tableBookingValidationError(t, guestCount)
+                const canPick = isTableSelectable(t, guestCount)
                 const img = t.image_url ? mediaUrl(t.image_url) : tablePlaceholder
+                const tid = String(t.id)
+                const badgeLabel = selMsg
+                  ? selMsg === TABLE_ERR_IN_USE
+                    ? 'Đang dùng'
+                    : selMsg === TABLE_ERR_TABLE_TOO_LARGE
+                      ? 'Bàn quá lớn'
+                      : 'Không đủ chỗ'
+                  : 'Bàn phù hợp'
                 return (
                   <button
-                    key={t.id}
+                    key={tid}
                     type="button"
-                    disabled={!ok}
-                    className={`bookTableBtn${selectedTableId === t.id ? ' bookTableBtn--active' : ''}`}
-                    onClick={() => ok && setSelectedTableId(t.id)}
+                    disabled={!canPick}
+                    title={!canPick && selMsg ? selMsg : undefined}
+                    className={`bookTableBtn${selectedTableId === tid ? ' bookTableBtn--active' : ''}${!canPick ? ' bookTableBtn--invalid' : ''}`}
+                    onClick={() => {
+                      if (!canPick) return
+                      setFieldErrors((prev) => ({ ...prev, table: '' }))
+                      setError(null)
+                      setSelectedTableId(tid)
+                    }}
                   >
                     <span className="bookTableBtn__imageWrap" aria-hidden>
                       <img className="bookTableBtn__image" src={img} alt="" />
                     </span>
-                    <span className="bookTableBtn__name">{t.name || `Bàn ${t.id}`}</span>
+                    <span className="bookTableBtn__name">{t.name || `Bàn ${tid}`}</span>
                     <span className="bookTableBtn__meta">{t.capacity} chỗ ngồi</span>
-                    <span className="bookTableBtn__badge">{ok ? 'Còn trống' : t.status}</span>
+                    <span className="bookTableBtn__badge">{badgeLabel}</span>
                   </button>
                 )
               })}
             </div>
+            {fieldErrors.table ? <p className="bookField__error bookField__error--block">{fieldErrors.table}</p> : null}
           </section>
 
           <section className="bookCard bookCard--preorder">

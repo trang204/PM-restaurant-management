@@ -312,7 +312,13 @@
   box-shadow: 0 2px 8px rgba(184,147,90,0.3);
 }
 
-.kitchen__btn--primary:hover { filter: brightness(1.06); border-color: transparent; }
+.kitchen__btn.kitchen__btn--primary:hover {
+  background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(184,147,90,0.3);
+  filter: brightness(1.06);
+}
 
 .kitchen__btn--ghost {
   background: transparent;

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import './AdminPagination.css'
 
 function buildPageItems(page, totalPages) {
@@ -24,8 +25,12 @@ export default function AdminPagination({
   onPageSizeChange,
   pageSizeOptions = [10, 20, 50],
   showPageSize = true,
+  showVisibleRange = false,
   className = '',
 }) {
+  const [pageSizeOpen, setPageSizeOpen] = useState(false)
+  const pageSizeRef = useRef(null)
+
   const safePage = Math.max(1, Number(page) || 1)
   const safePageSize = Math.max(1, Number(pageSize) || 10)
   const safeTotal = Math.max(0, Number(total) || 0)
@@ -34,15 +39,45 @@ export default function AdminPagination({
   const visibleTo = safeTotal > 0 ? Math.min(safeTotal, (safePage - 1) * safePageSize + safePageSize) : 0
   const pageItems = buildPageItems(safePage, totalPages)
 
+  useEffect(() => {
+    if (!pageSizeOpen) return
+    const onDocMouseDown = (e) => {
+      if (pageSizeRef.current && !pageSizeRef.current.contains(e.target)) {
+        setPageSizeOpen(false)
+      }
+    }
+    const onKey = (e) => {
+      if (e.key === 'Escape') setPageSizeOpen(false)
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [pageSizeOpen])
+
   return (
     <div className={`admin-pagination ${className}`.trim()}>
-      <div className="admin-pagination__main">
+      <div className="admin-pagination__bar">
         <div className="admin-pagination__actions">
-          <button type="button" className="admin-pagination__btn" disabled={safePage <= 1} onClick={() => onPageChange(1)} aria-label="Trang đầu">
-            «
+          <button
+            type="button"
+            className="admin-pagination__nav"
+            disabled={safePage <= 1}
+            onClick={() => onPageChange(1)}
+            aria-label="Trang đầu"
+          >
+            {'<<'}
           </button>
-          <button type="button" className="admin-pagination__btn" disabled={safePage <= 1} onClick={() => onPageChange(Math.max(1, safePage - 1))} aria-label="Trang trước">
-            ‹
+          <button
+            type="button"
+            className="admin-pagination__nav"
+            disabled={safePage <= 1}
+            onClick={() => onPageChange(Math.max(1, safePage - 1))}
+            aria-label="Trang trước"
+          >
+            {'<'}
           </button>
 
           {pageItems.map((item, index) => {
@@ -50,10 +85,14 @@ export default function AdminPagination({
             const showGap = index > 0 && item - prev > 1
             return (
               <span key={item} className="admin-pagination__group">
-                {showGap ? <span className="admin-pagination__gap">…</span> : null}
+                {showGap ? <span className="admin-pagination__gap" aria-hidden>…</span> : null}
                 <button
                   type="button"
-                  className={`admin-pagination__btn${safePage === item ? ' admin-pagination__btn--active' : ''}`}
+                  className={
+                    safePage === item
+                      ? 'admin-pagination__page admin-pagination__page--active'
+                      : 'admin-pagination__page'
+                  }
                   onClick={() => onPageChange(item)}
                 >
                   {item}
@@ -62,31 +101,86 @@ export default function AdminPagination({
             )
           })}
 
-          <button type="button" className="admin-pagination__btn" disabled={safePage >= totalPages} onClick={() => onPageChange(Math.min(totalPages, safePage + 1))} aria-label="Trang sau">
-            ›
+          <button
+            type="button"
+            className="admin-pagination__nav"
+            disabled={safePage >= totalPages}
+            onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
+            aria-label="Trang sau"
+          >
+            {'>'}
           </button>
-          <button type="button" className="admin-pagination__btn" disabled={safePage >= totalPages} onClick={() => onPageChange(totalPages)} aria-label="Trang cuối">
-            »
+          <button
+            type="button"
+            className="admin-pagination__nav"
+            disabled={safePage >= totalPages}
+            onClick={() => onPageChange(totalPages)}
+            aria-label="Trang cuối"
+          >
+            {'>>'}
           </button>
         </div>
 
-        <div className="admin-pagination__meta">
-          <span className="admin-pagination__text">Tổng {safeTotal}</span>
-          {showPageSize ? (
-            <label className="admin-pagination__pageSize">
-              <select value={safePageSize} onChange={(e) => onPageSizeChange(Number(e.target.value) || safePageSize)}>
-                {pageSizeOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option} dòng mỗi trang
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-        </div>
+        <span className="admin-pagination__total">
+          <span className="admin-pagination__totalLabel">Tổng </span>
+          <strong className="admin-pagination__totalValue">{safeTotal}</strong>
+        </span>
+
+        {showPageSize ? (
+          <>
+            <span className="admin-pagination__vsep" aria-hidden="true" />
+            <div className="admin-pagination__pageSize" ref={pageSizeRef}>
+              <button
+                type="button"
+                className="admin-pagination__pageSizeBtn"
+                aria-haspopup="listbox"
+                aria-expanded={pageSizeOpen}
+                aria-label="Số dòng mỗi trang"
+                onClick={() => setPageSizeOpen((o) => !o)}
+              >
+                <span className="admin-pagination__pageSizeInner">
+                  <strong className="admin-pagination__pageSizeNum">{safePageSize}</strong>
+                  <span className="admin-pagination__pageSizeSuffix"> dòng mỗi trang</span>
+                </span>
+                <span className="admin-pagination__pageSizeChevron" aria-hidden>
+                  ▾
+                </span>
+              </button>
+              {pageSizeOpen ? (
+                <ul className="admin-pagination__pageSizeMenu" role="listbox">
+                  {pageSizeOptions.map((option) => (
+                    <li key={option} role="presentation">
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={option === safePageSize}
+                        className={
+                          option === safePageSize
+                            ? 'admin-pagination__pageSizeOpt admin-pagination__pageSizeOpt--current'
+                            : 'admin-pagination__pageSizeOpt'
+                        }
+                        onClick={() => {
+                          onPageSizeChange(option)
+                          setPageSizeOpen(false)
+                        }}
+                      >
+                        <strong>{option}</strong>
+                        <span> dòng mỗi trang</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          </>
+        ) : null}
       </div>
 
-      <p className="admin-pagination__text">Hiển thị {visibleFrom}-{visibleTo}</p>
+      {showVisibleRange ? (
+        <p className="admin-pagination__range">
+          Hiển thị {visibleFrom}-{visibleTo}
+        </p>
+      ) : null}
     </div>
   )
 }

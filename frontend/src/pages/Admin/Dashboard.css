@@ -214,9 +214,12 @@
   box-shadow: 0 4px 14px rgba(184,147,90,0.25);
 }
 
-.dash__btn--primary:hover {
-  filter: brightness(1.05);
+.dash__btn.dash__btn--primary:hover {
+  background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
   color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(184,147,90,0.25);
+  filter: brightness(1.05);
 }
 
 .dash__btn--danger {

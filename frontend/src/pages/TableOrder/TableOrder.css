@@ -185,7 +185,14 @@
   box-shadow: 0 3px 12px rgba(184,147,90,0.35);
 }
 
-.tableOrder__btn--accent:hover { filter: brightness(1.06); color: #fff; text-decoration: none; }
+.tableOrder__btn.tableOrder__btn--accent:hover {
+  background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 3px 12px rgba(184,147,90,0.35);
+  filter: brightness(1.06);
+  text-decoration: none;
+}
 .tableOrder__btn--ghost { }
 .tableOrder__btn:disabled { opacity: 0.45; cursor: not-allowed; }
 

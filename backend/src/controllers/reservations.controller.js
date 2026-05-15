@@ -26,6 +26,7 @@ export async function createReservation(req, res, next) {
 
     if (!booking_date || !booking_time || !guests) throw badRequest('Thiếu thông tin đặt bàn')
     if (guests <= 0) throw badRequest('guestCount không hợp lệ')
+    if (guests > 2) throw badRequest('Không quá 2 người')
 
     const userId = req.user?.sub ? Number(req.user.sub) : null
 
@@ -43,6 +44,20 @@ export async function createReservation(req, res, next) {
 
     const booking = await withTransaction(async (client) => {
       if (requestedTableIds.length) {
+        const tableRows = await client.query(
+          `SELECT id, capacity, COALESCE(NULLIF(TRIM(status), ''), 'AVAILABLE') AS status FROM tables WHERE id = ANY($1::int[])`,
+          [requestedTableIds],
+        )
+        if (tableRows.rows.length !== requestedTableIds.length) throw badRequest('Không tìm thấy bàn')
+        for (const row of tableRows.rows) {
+          const cap = Number(row.capacity)
+          if (!Number.isFinite(cap)) throw badRequest('Không tìm thấy bàn')
+          if (guests > cap) throw badRequest('Bàn không đủ chỗ')
+          if (guests < cap) throw badRequest('Không thể đặt bàn lớn hơn số người đi cùng')
+          const st = String(row.status || '').toUpperCase()
+          if (st !== 'AVAILABLE') throw badRequest('Bàn đang được sử dụng')
+        }
+
         const conflicts = await client.query(
           `
           SELECT bt.table_id
@@ -58,7 +73,7 @@ export async function createReservation(req, res, next) {
         `,
           [booking_date, booking_time, requestedTableIds],
         )
-        if (conflicts.rows.length) throw badRequest('Bàn đã được đặt trong khung giờ này')
+        if (conflicts.rows.length) throw badRequest('Bàn đang được sử dụng')
       }
 
       const inserted = await client.query(
@@ -265,9 +280,25 @@ export async function holdTable(req, res, next) {
     const tId = Number(tableId)
     if (!Number.isFinite(tId)) throw badRequest('tableId là bắt buộc')
 
-    const cur = await query('SELECT id, booking_date, booking_time, status FROM bookings WHERE id = $1', [id])
+    const cur = await query(
+      'SELECT id, booking_date, booking_time, status, guests FROM bookings WHERE id = $1',
+      [id],
+    )
     if (!cur.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
     if (cur.rows[0].status !== 'PENDING') throw badRequest('Chỉ giữ bàn khi đơn đang chờ xác nhận')
+
+    const guestN = Number(cur.rows[0].guests) || 0
+    if (guestN > 2) throw badRequest('Không quá 2 người')
+    const tableRow = await query(
+      `SELECT id, capacity, COALESCE(NULLIF(TRIM(status), ''), 'AVAILABLE') AS status FROM tables WHERE id = $1`,
+      [tId],
+    )
+    if (!tableRow.rows.length) throw badRequest('Không tìm thấy bàn')
+    const cap = Number(tableRow.rows[0].capacity)
+    if (!Number.isFinite(cap) || guestN > cap) throw badRequest('Bàn không đủ chỗ')
+    if (guestN < cap) throw badRequest('Không thể đặt bàn lớn hơn số người đi cùng')
+    const tblStatus = String(tableRow.rows[0].status || '').toUpperCase()
+    if (tblStatus !== 'AVAILABLE') throw badRequest('Bàn đang được sử dụng')
 
     const conflicts = await query(
       `
@@ -286,7 +317,7 @@ export async function holdTable(req, res, next) {
     `,
       [cur.rows[0].booking_date, cur.rows[0].booking_time, tId, id],
     )
-    if (conflicts.rows.length) throw badRequest('Bàn đã được đặt trong khung giờ này')
+    if (conflicts.rows.length) throw badRequest('Bàn đang được sử dụng')
 
     await withTransaction(async (client) => {
       const prev = await client.query('SELECT table_id FROM booking_tables WHERE booking_id = $1', [id])
@@ -297,7 +328,10 @@ export async function holdTable(req, res, next) {
       }
       await client.query('DELETE FROM booking_tables WHERE booking_id = $1', [id])
       await client.query('INSERT INTO booking_tables (booking_id, table_id) VALUES ($1, $2)', [id, tId])
-      await client.query(`UPDATE tables SET status = 'RESERVED' WHERE id = $1 AND status = 'AVAILABLE'`, [tId])
+      const reserved = await client.query(`UPDATE tables SET status = 'RESERVED' WHERE id = $1 AND status = 'AVAILABLE'`, [
+        tId,
+      ])
+      if (!reserved.rowCount) throw badRequest('Bàn đang được sử dụng')
       await client.query(`UPDATE bookings SET status = 'HOLD', hold_expires_at = NOW() + INTERVAL '15 minutes' WHERE id = $1`, [
         id,
       ])

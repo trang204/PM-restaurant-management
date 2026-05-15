@@ -214,7 +214,13 @@
   box-shadow: 0 3px 12px rgba(184,147,90,0.3);
 }
 
-.notify-confirm__btn--confirm:hover { filter: brightness(1.06); border-color: transparent; }
+.notify-confirm__btn.notify-confirm__btn--confirm:hover {
+  background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 3px 12px rgba(184,147,90,0.3);
+  filter: brightness(1.06);
+}
 
 .notify-confirm__btn--danger {
   background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
@@ -223,7 +229,13 @@
   box-shadow: 0 3px 12px rgba(192,57,43,0.28);
 }
 
-.notify-confirm__btn--danger:hover { filter: brightness(1.06); border-color: transparent; }
+.notify-confirm__btn.notify-confirm__btn--danger:hover {
+  background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 3px 12px rgba(192,57,43,0.28);
+  filter: brightness(1.06);
+}
 
 /* ─── Responsive ─── */
 @media (max-width: 480px) {

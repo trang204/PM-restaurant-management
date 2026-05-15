@@ -394,7 +394,7 @@ export default function RevenueReports() {
 
       {/* ── Filters (shared) ── */}
       <section className="rev-report__filters" aria-label="Bộ lọc">
-        {activeTab === 'period' && (
+        {/* {activeTab === 'period' && (
           <div className="rev-report__tabs" role="tablist" aria-label="Nhóm thời gian">
             {([['day', 'Ngày'], ['month', 'Tháng'], ['year', 'Năm']] as const).map(([k, label]) => (
               <button
@@ -405,7 +405,7 @@ export default function RevenueReports() {
               >{label}</button>
             ))}
           </div>
-        )}
+        )} */}
         <div className="rev-report__dates">
           <label className="rev-report__date">
             <span>Từ ngày</span>
@@ -485,7 +485,7 @@ export default function RevenueReports() {
                       <td><span className="rev-report__cellMoney">{formatMoney(Number(row.revenue || 0))}</span></td>
                       <td className="rev-report__detailCell">
                         <button type="button" className="rev-report__detailBtn" onClick={() => openPeriodDetail(row)}>
-                          Xem chi tiết
+                          Xem 
                         </button>
                       </td>
                     </tr>

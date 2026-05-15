@@ -300,7 +300,7 @@ export default function Dashboard() {
                         >
                           Xem
                         </button>
-                        <button
+                        {/* <button
                           type="button"
                           className="dash__btn dash__btn--sm dash__btn--primary"
                           disabled={busy || !['PENDING', 'HOLD'].includes(String(r.status || '').toUpperCase())}
@@ -315,7 +315,7 @@ export default function Dashboard() {
                           onClick={() => cancelBooking(r.id)}
                         >
                           Huỷ
-                        </button>
+                        </button> */}
                       </div>
                     </td>
                   </tr>
