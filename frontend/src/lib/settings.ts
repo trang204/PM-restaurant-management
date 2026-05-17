@@ -17,6 +17,11 @@ export type PublicSettings = {
   email: string | null
   openTime: string | null
   closeTime: string | null
+  socialLinks?: {
+    facebook?: string | null
+    instagram?: string | null
+    zalo?: string | null
+  } | null
   footer?: {
     socials?: Array<{ label?: string; url?: string }> | null
   } | null
@@ -70,6 +75,7 @@ export async function fetchPublicSettings(): Promise<PublicSettings> {
     closeTime: d?.closeTime ?? null,
     footer: d?.footer ?? null,
     home: d?.home ?? null,
+    socialLinks: d?.socialLinks ?? null,
   }
 }
 

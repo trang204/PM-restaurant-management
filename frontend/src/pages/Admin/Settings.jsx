@@ -178,6 +178,7 @@ const DEFAULT_FEATURES = [
 
 const tabs = [
   { id: 'general', label: 'Thông tin chung' },
+  { id: 'social', label: 'Mạng xã hội' },
   { id: 'payment', label: 'Thanh toán' },
   { id: 'content', label: 'Nội dung website' },
   { id: 'banner', label: 'Giao diện / Banner' },
@@ -237,6 +238,7 @@ export default function Settings() {
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
   const [fieldErrors, setFieldErrors] = useState({})
+  const [socialLinks, setSocialLinks] = useState({ facebook: '', instagram: '', zalo: '' })
 
   useEffect(() => {
     setLoading(true)
@@ -274,6 +276,23 @@ export default function Settings() {
         setBannerMode(String(d.banner_mode || 'SLIDESHOW').toUpperCase())
         setShowOnHome(Boolean(d.banner_show_on_home ?? true))
         setShowOnAuth(Boolean(d.banner_show_on_auth ?? true))
+        // Load social links — tương thích cả object mới và array cũ
+        const sl = d.social_links
+        let fb = '', ig = '', zl = ''
+        if (sl && !Array.isArray(sl) && typeof sl === 'object') {
+          fb = String(sl.facebook || '')
+          ig = String(sl.instagram || '')
+          zl = String(sl.zalo || '')
+        } else if (Array.isArray(sl)) {
+          // format cũ [{label, url}]
+          for (const item of sl) {
+            const lbl = String(item?.label || '').toLowerCase()
+            if (lbl === 'facebook') fb = String(item.url || '')
+            if (lbl === 'instagram') ig = String(item.url || '')
+            if (lbl === 'zalo') zl = String(item.url || '')
+          }
+        }
+        setSocialLinks({ facebook: fb, instagram: ig, zalo: zl })
       })
       .catch(() => setErr('Không tải được cài đặt (cần quyền admin/nhân viên).'))
       .finally(() => setLoading(false))
@@ -356,6 +375,11 @@ export default function Settings() {
           home_cta_title: homeForm.ctaTitle.trim() || null,
           home_cta_text: homeForm.ctaText.trim() || null,
           home_features_json: featureJson,
+          social_links: {
+            facebook: socialLinks.facebook.trim() || null,
+            instagram: socialLinks.instagram.trim() || null,
+            zalo: socialLinks.zalo.trim() || null,
+          },
         }),
       })
       toast('Đã lưu cài đặt.', { variant: 'success' })
@@ -524,6 +548,55 @@ export default function Settings() {
                   <img src={logoUrl} alt="Logo" />
                 </div>
               ) : null}
+            </div>
+          </div>
+        </div>
+        ) : null}
+
+        {activeTab === 'social' ? (
+        <div className="settings-card__grid">
+          <div className="settings-field--full settings-social-section">
+            <span className="settings-social-section__label">Liên kết mạng xã hội</span>
+            <p className="settings-social-section__hint">
+              Đường dẫn sẽ hiển thị ở footer trang web. Để trống nếu không dùng.
+            </p>
+            <div className="settings-card__grid" style={{ marginTop: 12 }}>
+              <label className="settings-field settings-field--full">
+                <span className="settings-social-label settings-social-label--fb">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                  Facebook
+                </span>
+                <input
+                  value={socialLinks.facebook}
+                  onChange={(e) => setSocialLinks((p) => ({ ...p, facebook: e.target.value }))}
+                  placeholder="https://facebook.com/nhahang"
+                  type="url"
+                />
+              </label>
+              <label className="settings-field settings-field--full">
+                <span className="settings-social-label settings-social-label--ig">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                  Instagram
+                </span>
+                <input
+                  value={socialLinks.instagram}
+                  onChange={(e) => setSocialLinks((p) => ({ ...p, instagram: e.target.value }))}
+                  placeholder="https://instagram.com/nhahang"
+                  type="url"
+                />
+              </label>
+              <label className="settings-field settings-field--full">
+                <span className="settings-social-label settings-social-label--zalo">
+                  <svg width="16" height="16" viewBox="0 0 48 48" fill="currentColor" aria-hidden="true"><rect width="48" height="48" rx="10" fill="#0068FF"/><text x="50%" y="56%" dominantBaseline="middle" textAnchor="middle" fill="white" fontSize="22" fontWeight="bold" fontFamily="Arial">Z</text></svg>
+                  Zalo
+                </span>
+                <input
+                  value={socialLinks.zalo}
+                  onChange={(e) => setSocialLinks((p) => ({ ...p, zalo: e.target.value }))}
+                  placeholder="https://zalo.me/nhahang"
+                  type="url"
+                />
+              </label>
             </div>
           </div>
         </div>

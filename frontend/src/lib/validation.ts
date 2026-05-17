@@ -26,12 +26,39 @@ export function validatePhone(raw: string): string | null {
   return null
 }
 
+/** Levenshtein distance đơn giản (dùng nội bộ). */
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
+  )
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+    }
+  }
+  return dp[m][n]
+}
+
 /**
- * Validate email với regex chặt hơn.
+ * Danh sách domain email phổ biến.
+ * Nếu user nhập domain sai 1-2 ký tự so với các domain này → báo typo.
+ */
+const COMMON_EMAIL_DOMAINS = [
+  'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com',
+  'icloud.com', 'live.com', 'mail.com', 'protonmail.com',
+  'ymail.com', 'googlemail.com',
+]
+
+/**
+ * Validate email với regex chặt + phát hiện typo domain phổ biến.
  * - Local part (trước @): ≥1 ký tự, không có khoảng trắng
  * - Domain: ≥2 ký tự
  * - TLD: 2–6 ký tự CHỈ chữ cái (không số) — bắt được lỗi như gmail.om, gmail.c
  * - Không có dấu chấm đôi (..) hoặc chấm đầu/cuối domain
+ * - Phát hiện typo: gmak.com, gmeil.com, yahooo.com…
  * Trả về null nếu hợp lệ, hoặc chuỗi lỗi nếu không hợp lệ.
  */
 export function validateEmail(raw: string): string | null {
@@ -70,5 +97,16 @@ export function validateEmail(raw: string): string | null {
     return 'Email không hợp lệ (VD: tenban@gmail.com).'
   }
 
+  // Phát hiện typo domain: so sánh với các domain phổ biến
+  // Nếu distance ≤ 2 nhưng không khớp chính xác → nhiều khả năng là typo
+  for (const known of COMMON_EMAIL_DOMAINS) {
+    if (domain === known) break // khớp chính xác → hợp lệ
+    const dist = levenshtein(domain, known)
+    if (dist > 0 && dist <= 2) {
+      return `Email có thể nhập sai — bạn có muốn dùng @${known} không?`
+    }
+  }
+
   return null
 }
+

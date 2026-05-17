@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
-import { requiredMessage } from '../../lib/validation'
+import { requiredMessage, validateEmail } from '../../lib/validation'
 import PasswordField from '../../components/PasswordField'
 import { fetchPublicSettings } from '../../lib/settings'
 import './AuthPages.css'
@@ -37,13 +37,9 @@ export default function Login() {
     try {
       const nextEmail = email.trim().toLowerCase()
       const nextPassword = password
-      if (!nextEmail) {
-        setFieldErr({ email: requiredMessage('Email') })
-        setLoading(false)
-        return
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
-        setFieldErr({ email: 'Email không hợp lệ' })
+      const emailErr = validateEmail(email)
+      if (emailErr) {
+        setFieldErr({ email: emailErr })
         setLoading(false)
         return
       }
@@ -122,6 +118,10 @@ export default function Login() {
               onChange={(e) => {
                 setFieldErr((p) => ({ ...(p || {}), email: undefined }))
                 setEmail(e.target.value)
+              }}
+              onBlur={() => {
+                const err = validateEmail(email)
+                if (err) setFieldErr((p) => ({ ...(p || {}), email: err }))
               }}
               placeholder="tenban@email.com"
               disabled={loading}
