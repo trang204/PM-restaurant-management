@@ -9,23 +9,31 @@ type Table = { id: string; name: string; capacity: number; status: string; zone?
 /** Thông báo validation bàn (đồng bộ với backend reservations) */
 const TABLE_ERR_CAPACITY = 'Bàn không đủ chỗ'
 const TABLE_ERR_IN_USE = 'Bàn đang được sử dụng'
-const TABLE_ERR_TABLE_TOO_LARGE = 'Không thể đặt bàn lớn hơn số người đi cùng'
+const TABLE_ERR_TABLE_TOO_LARGE = 'Bàn quá lớn so với số khách'
+/** Bàn được chọn khi: guestN <= capacity <= guestN * MAX_TABLE_RATIO */
+const MAX_TABLE_RATIO = 2
 /** Đặt bàn online: tối đa số khách */
 const MAX_BOOKING_GUESTS = 99
 const GUEST_ERR_MAX = `Không quá ${MAX_BOOKING_GUESTS} người`
+/** Số món hiển thị ở chế độ thu gọn */
+const PREORDER_PREVIEW_COUNT = 5
 
 function isTableAvailable(t: Table) {
   const s = String(t.status || '').toUpperCase()
   return s === 'AVAILABLE' || s === ''
 }
 
-/** null = hợp lệ; ngược lại là thông báo hiển thị cho khách (chỉ pass khi số khách === sức chứa bàn) */
+/**
+ * null = hợp lệ; ngược lại là thông báo hiển thị cho khách.
+ * Điều kiện hợp lệ: guestN <= capacity <= guestN * MAX_TABLE_RATIO
+ * Ví dụ: 2 khách → bàn 2–4 chỗ OK, bàn 5+ chỗ bị từ chối.
+ */
 function tableBookingValidationError(t: Table, guestN: number): string | null {
   if (!isTableAvailable(t)) return TABLE_ERR_IN_USE
   const cap = Number(t.capacity)
   if (!Number.isFinite(cap)) return TABLE_ERR_IN_USE
   if (guestN > cap) return TABLE_ERR_CAPACITY
-  if (guestN < cap) return TABLE_ERR_TABLE_TOO_LARGE
+  if (cap > guestN * MAX_TABLE_RATIO) return TABLE_ERR_TABLE_TOO_LARGE
   return null
 }
 
@@ -395,8 +403,9 @@ export default function BookTable() {
               <div className="bookCard__titles">
                 <h2>Chọn bàn ưu tiên</h2>
                 <p>
-                  Tối đa {MAX_BOOKING_GUESTS} người — chỉ chọn được bàn có đúng số chỗ trùng số khách (ví dụ 2 người chỉ
-                  đặt bàn 2 chỗ).
+                  Chọn bàn phù hợp: sức chứa từ <strong>{'{'}số khách{'}'}</strong> đến{' '}
+                  <strong>{'{'}số khách × {MAX_TABLE_RATIO}{'}'}</strong> chỗ.
+                  Ví dụ 2 người → bàn 2–4 chỗ; 3 người → bàn 3–6 chỗ.
                 </p>
               </div>
             </div>
@@ -474,7 +483,7 @@ export default function BookTable() {
                 </button>
               </div>
             </div>
-            <div className={`bookPreorder${preorderExpanded ? ' bookPreorder--expanded' : ''}`}>
+            <div className="bookPreorder">
               {menuLoading ? (
                 <p style={{ margin: 0, color: 'var(--book-muted)', fontSize: '0.9rem' }}>Đang tải thực đơn…</p>
               ) : menuError ? (
@@ -485,60 +494,91 @@ export default function BookTable() {
                 <p style={{ margin: 0, color: 'var(--book-muted)', fontSize: '0.9rem' }}>
                   Hiện không có món còn phục vụ để gọi trước. Vui lòng thử lại sau.
                 </p>
-              ) : (
-                Array.from(menuByCategory.entries()).map(([cat, items]) => (
-                  <div key={cat}>
-                    <h3 className="bookPreorder__group-title">{cat}</h3>
-                    {items.map((m) => {
-                      const mid = menuRowId(m)
-                      const q = qtyByMenuId[mid] ?? 0
-                      const img = m.image_url ? mediaUrl(m.image_url) : ''
-                      return (
-                        <div key={mid} className="bookPreorder__row">
-                          {img ? (
-                            <div
-                              style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 10,
-                                background: `url(${img}) center/cover`,
-                                flexShrink: 0,
-                                border: '1px solid var(--book-border)',
-                              }}
-                              aria-hidden
-                            />
-                          ) : (
-                            <div
-                              style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 10,
-                                background: 'linear-gradient(145deg, #e8f2ec, #f4faf6)',
-                                flexShrink: 0,
-                                border: '1px solid var(--book-border)',
-                              }}
-                              aria-hidden
-                            />
-                          )}
-                          <div className="bookPreorder__info">
-                            <div className="bookPreorder__name">{m.name}</div>
-                            <div className="bookPreorder__price">{vnd.format(Number(m.price))}</div>
-                          </div>
-                          <div className="bookQty">
-                            <button type="button" onClick={() => setQty(m.id, q - 1)} aria-label="Bớt">
-                              −
-                            </button>
-                            <span>{q}</span>
-                            <button type="button" onClick={() => setQty(m.id, q + 1)} aria-label="Thêm">
-                              +
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ))
-              )}
+              ) : (() => {
+                // Flatten toàn bộ món theo thứ tự category, sau đó slice nếu thu gọn
+                const allItems: { cat: string; m: MenuRow }[] = []
+                for (const [cat, items] of menuByCategory.entries()) {
+                  for (const m of items) allItems.push({ cat, m })
+                }
+                const visibleItems = preorderExpanded ? allItems : allItems.slice(0, PREORDER_PREVIEW_COUNT)
+                const hiddenCount = allItems.length - visibleItems.length
+
+                // Nhóm lại các món đang hiển thị theo category
+                const visibleByCategory = new Map<string, MenuRow[]>()
+                for (const { cat, m } of visibleItems) {
+                  if (!visibleByCategory.has(cat)) visibleByCategory.set(cat, [])
+                  visibleByCategory.get(cat)!.push(m)
+                }
+
+                return (
+                  <>
+                    {Array.from(visibleByCategory.entries()).map(([cat, items]) => (
+                      <div key={cat}>
+                        <h3 className="bookPreorder__group-title">{cat}</h3>
+                        {items.map((m) => {
+                          const mid = menuRowId(m)
+                          const q = qtyByMenuId[mid] ?? 0
+                          const img = m.image_url ? mediaUrl(m.image_url) : ''
+                          return (
+                            <div key={mid} className="bookPreorder__row">
+                              {img ? (
+                                <div
+                                  style={{
+                                    width: 44,
+                                    height: 44,
+                                    borderRadius: 10,
+                                    background: `url(${img}) center/cover`,
+                                    flexShrink: 0,
+                                    border: '1px solid var(--book-border)',
+                                  }}
+                                  aria-hidden
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    width: 44,
+                                    height: 44,
+                                    borderRadius: 10,
+                                    background: 'linear-gradient(145deg, #e8f2ec, #f4faf6)',
+                                    flexShrink: 0,
+                                    border: '1px solid var(--book-border)',
+                                  }}
+                                  aria-hidden
+                                />
+                              )}
+                              <div className="bookPreorder__info">
+                                <div className="bookPreorder__name">{m.name}</div>
+                                <div className="bookPreorder__price">{vnd.format(Number(m.price))}</div>
+                              </div>
+                              <div className="bookQty">
+                                <button type="button" onClick={() => setQty(m.id, q - 1)} aria-label="Bớt">
+                                  −
+                                </button>
+                                <span>{q}</span>
+                                <button type="button" onClick={() => setQty(m.id, q + 1)} aria-label="Thêm">
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ))}
+                    {!preorderExpanded && hiddenCount > 0 && (
+                      <p className="bookPreorder__hint">
+                        … và {hiddenCount} món khác.
+                        <button
+                          type="button"
+                          className="bookPreorder__hintBtn"
+                          onClick={() => setPreorderExpanded(true)}
+                        >
+                          Xem menu đầy đủ
+                        </button>
+                      </p>
+                    )}
+                  </>
+                )
+              })()}
             </div>
           </section>
 

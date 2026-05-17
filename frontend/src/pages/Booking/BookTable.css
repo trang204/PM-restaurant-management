@@ -357,12 +357,33 @@
 /* ─── Preorder ─── */
 .bookPreorder {
   padding: 16px 22px;
-  max-height: 400px;
-  overflow-y: auto;
 }
 
-.bookPreorder.bookPreorder--expanded {
-  max-height: 680px;
+.bookPreorder__hint {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: var(--bk2-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bookPreorder__hintBtn {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--bk2-gold-d);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color var(--bk2-ease);
+}
+
+.bookPreorder__hintBtn:hover {
+  color: var(--bk2-gold);
 }
 
 .bookCard__actions {
