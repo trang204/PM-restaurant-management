@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
-import { requiredMessage } from '../../lib/validation'
+import { requiredMessage, validateEmail, validatePhone, normalizePhone } from '../../lib/validation'
 import PasswordField from '../../components/PasswordField'
 import { fetchPublicSettings } from '../../lib/settings'
 import './AuthPages.css'
@@ -13,7 +13,7 @@ export default function Register() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [fieldErr, setFieldErr] = useState<{ fullName?: string; email?: string; password?: string; confirmPassword?: string } | null>(null)
+  const [fieldErr, setFieldErr] = useState<{ fullName?: string; email?: string; phone?: string; password?: string; confirmPassword?: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [brand, setBrand] = useState('Luxeat')
   const [banner, setBanner] = useState<string | null>(null)
@@ -40,18 +40,23 @@ export default function Register() {
     setFieldErr(null)
 
     const nextFullName = fullName.trim()
-    const nextEmail = email.trim().toLowerCase()
+    const emailErr = validateEmail(email)
     if (!nextFullName) {
       setFieldErr({ fullName: requiredMessage('Họ và tên') })
       return
     }
-    if (!nextEmail) {
-      setFieldErr({ email: requiredMessage('Email') })
+    if (emailErr) {
+      setFieldErr({ email: emailErr })
       return
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
-      setFieldErr({ email: 'Email không hợp lệ' })
-      return
+    // SĐT tuỳ chọn — nếu nhập thì phải đúng format
+    const phoneRaw = phone.trim()
+    if (phoneRaw) {
+      const phoneErr = validatePhone(phoneRaw)
+      if (phoneErr) {
+        setFieldErr({ phone: phoneErr })
+        return
+      }
     }
     if (!password) {
       setFieldErr({ password: requiredMessage('Mật khẩu') })
@@ -61,7 +66,6 @@ export default function Register() {
       setFieldErr({ confirmPassword: requiredMessage('Xác nhận mật khẩu') })
       return
     }
-
     if (password !== confirmPassword) {
       setFieldErr({ confirmPassword: 'Mật khẩu xác nhận không khớp.' })
       return
@@ -78,9 +82,9 @@ export default function Register() {
         body: JSON.stringify({
           name: nextFullName,
           fullName: nextFullName,
-          email: nextEmail,
+          email: email.trim().toLowerCase(),
           password,
-          phone: phone.trim() || undefined,
+          phone: phoneRaw ? normalizePhone(phoneRaw) : undefined,
         }),
       })
       setToken(data.token)
@@ -153,6 +157,10 @@ export default function Register() {
                 setFieldErr((prev) => ({ ...(prev || {}), email: undefined }))
                 setEmail(e.target.value)
               }}
+              onBlur={() => {
+                const err = validateEmail(email)
+                if (err) setFieldErr((prev) => ({ ...(prev || {}), email: err }))
+              }}
               placeholder="tenban@email.com"
               disabled={loading}
               aria-invalid={Boolean(fieldErr?.email) || undefined}
@@ -166,14 +174,25 @@ export default function Register() {
             </label>
             <input
               id="reg-phone"
-              className="authField__input"
+              className={`authField__input${fieldErr?.phone ? ' authField__input--error' : ''}`}
               type="tel"
               autoComplete="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setFieldErr((prev) => ({ ...(prev || {}), phone: undefined }))
+                setPhone(e.target.value)
+              }}
+              onBlur={() => {
+                if (phone.trim()) {
+                  const err = validatePhone(phone)
+                  if (err) setFieldErr((prev) => ({ ...(prev || {}), phone: err }))
+                }
+              }}
               placeholder="0901 234 567"
               disabled={loading}
+              aria-invalid={Boolean(fieldErr?.phone) || undefined}
             />
+            {fieldErr?.phone ? <span className="authField__error">{fieldErr.phone}</span> : null}
           </div>
 
           <PasswordField

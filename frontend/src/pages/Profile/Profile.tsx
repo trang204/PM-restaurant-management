@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch, mediaUrl } from '../../lib/api'
-import { requiredMessage } from '../../lib/validation'
+import { requiredMessage, validatePhone, validateEmail, normalizePhone } from '../../lib/validation'
 import './Profile.css'
 
 const ROLE_LABELS: Record<string, string> = {
@@ -27,6 +27,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
+  const [pendingAvatar, setPendingAvatar] = useState<{ file: File; previewUrl: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [okMsg, setOkMsg] = useState<string | null>(null)
   const [fieldErr, setFieldErr] = useState<{ fullName?: string; email?: string; phone?: string } | null>(null)
@@ -59,32 +60,21 @@ export default function Profile() {
     setFieldErr(null)
     try {
       const nextFullName = form.fullName.trim()
-      const nextEmail = form.email.trim().toLowerCase()
-      const nextPhoneRaw = form.phone.trim()
-      const nextPhone = nextPhoneRaw ? nextPhoneRaw.replace(/[.\s-]/g, '') : ''
+      const phoneRaw = form.phone.trim()
       if (!nextFullName) {
         setFieldErr({ fullName: requiredMessage('Họ tên') })
         setSaving(false)
         return
       }
-      // MM: bắt buộc nhập và đúng format
-      if (!nextPhone) {
-        setFieldErr({ phone: requiredMessage('Số điện thoại') })
+      const phoneErr = validatePhone(phoneRaw)
+      if (phoneErr) {
+        setFieldErr({ phone: phoneErr })
         setSaving(false)
         return
       }
-      if (!/^(?:\+?84|0)\d{9,10}$/.test(nextPhone)) {
-        setFieldErr({ phone: 'Số điện thoại không hợp lệ' })
-        setSaving(false)
-        return
-      }
-      if (!nextEmail) {
-        setFieldErr({ email: requiredMessage('Email') })
-        setSaving(false)
-        return
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
-        setFieldErr({ email: 'Email không hợp lệ' })
+      const emailErr = validateEmail(form.email)
+      if (emailErr) {
+        setFieldErr({ email: emailErr })
         setSaving(false)
         return
       }
@@ -92,8 +82,8 @@ export default function Profile() {
         method: 'PATCH',
         body: JSON.stringify({
           fullName: nextFullName,
-          email: nextEmail,
-          phone: form.phone.trim() || null,
+          email: form.email.trim().toLowerCase(),
+          phone: normalizePhone(phoneRaw) || null,
         }),
       })
       setMe(d)
@@ -120,16 +110,26 @@ export default function Profile() {
       setError('Vui lòng chọn file ảnh (JPEG, PNG, WebP hoặc GIF).')
       return
     }
+    // Chỉ preview, chưa upload
+    const previewUrl = URL.createObjectURL(file)
+    setPendingAvatar({ file, previewUrl })
+    setError(null)
+    setOkMsg(null)
+  }
+
+  async function uploadPendingAvatar() {
+    if (!pendingAvatar) return
     setAvatarUploading(true)
     setError(null)
     setOkMsg(null)
     try {
       const fd = new FormData()
-      fd.append('avatar', file)
+      fd.append('avatar', pendingAvatar.file)
       const d = await apiFetch<any>('/users/me/avatar', { method: 'POST', body: fd })
       setMe(d)
       window.dispatchEvent(new Event('luxeat:me-updated'))
       setOkMsg('Đã cập nhật ảnh đại diện.')
+      setPendingAvatar(null)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -160,7 +160,15 @@ export default function Profile() {
               <h2 className="profileCard__title">Thông tin</h2>
               <div className="profileAvatar">
                 <div className="profileAvatar__preview">
-                  {me.avatarUrl ? (
+                  {pendingAvatar ? (
+                    <img
+                      className="profileAvatar__img"
+                      src={pendingAvatar.previewUrl}
+                      alt="Xem trước ảnh mới"
+                      width={120}
+                      height={120}
+                    />
+                  ) : me.avatarUrl ? (
                     <img
                       className="profileAvatar__img"
                       src={mediaUrl(me.avatarUrl)}
@@ -183,17 +191,50 @@ export default function Profile() {
                   aria-label="Chọn ảnh đại diện"
                 />
                 <div className="profileAvatar__actions">
-                  <button
-                    type="button"
-                    className="profileBtn profileBtn--ghost"
-                    disabled={avatarUploading}
-                    onClick={() => avatarInputRef.current?.click()}
-                  >
-                    {avatarUploading ? 'Đang tải…' : 'Tải ảnh lên'}
-                  </button>
+                  {pendingAvatar ? (
+                    <>
+                      <button
+                        type="button"
+                        className="profileBtn profileBtn--primary"
+                        disabled={avatarUploading}
+                        onClick={uploadPendingAvatar}
+                      >
+                        {avatarUploading ? 'Đang tải…' : 'Lưu ảnh'}
+                      </button>
+                      <button
+                        type="button"
+                        className="profileBtn profileBtn--ghost"
+                        disabled={avatarUploading}
+                        onClick={() => {
+                          URL.revokeObjectURL(pendingAvatar.previewUrl)
+                          setPendingAvatar(null)
+                          setError(null)
+                        }}
+                      >
+                        Hủy
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="profileBtn profileBtn--ghost"
+                      disabled={avatarUploading}
+                      onClick={() => avatarInputRef.current?.click()}
+                    >
+                      Tải ảnh lên
+                    </button>
+                  )}
                 </div>
-                <p className="profileAvatar__hint">JPEG, PNG, WebP hoặc GIF — tối đa 5MB.</p>
+                {pendingAvatar && (
+                  <p className="profileAvatar__hint profileAvatar__hint--pending">
+                    Ảnh xem trước — nhấn <strong>Lưu ảnh</strong> để cập nhật.
+                  </p>
+                )}
+                {!pendingAvatar && (
+                  <p className="profileAvatar__hint">JPEG, PNG, WebP hoặc GIF — tối đa 5MB.</p>
+                )}
               </div>
+
               <div className="profileField">
                 <span>Họ tên</span>
                 {!editing ? (
@@ -249,6 +290,10 @@ export default function Profile() {
                         setFieldErr((prev) => ({ ...(prev || {}), email: undefined }))
                         setForm((p) => ({ ...p, email: e.target.value }))
                       }}
+                      onBlur={() => {
+                        const err = validateEmail(form.email)
+                        if (err) setFieldErr((prev) => ({ ...(prev || {}), email: err }))
+                      }}
                       required
                       placeholder="email@domain.com"
                       inputMode="email"
@@ -280,6 +325,10 @@ export default function Profile() {
                       onChange={(e) => {
                         setFieldErr((prev) => ({ ...(prev || {}), phone: undefined }))
                         setForm((p) => ({ ...p, phone: e.target.value }))
+                      }}
+                      onBlur={() => {
+                        const err = validatePhone(form.phone)
+                        if (err) setFieldErr((prev) => ({ ...(prev || {}), phone: err }))
                       }}
                       placeholder="09xxxxxxxx"
                       inputMode="tel"

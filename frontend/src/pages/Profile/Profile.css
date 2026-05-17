@@ -164,6 +164,18 @@
   line-height: 1.45;
 }
 
+.profileAvatar__hint--pending {
+  color: #8B6E41;
+  background: #F4ECE0;
+  border: 1px solid rgba(184,147,90,0.3);
+  border-radius: 7px;
+  padding: 6px 10px;
+}
+
+.profileAvatar__hint--pending strong {
+  color: var(--pr-gold-d);
+}
+
 /* ─── Field ─── */
 .profileField {
   display: flex;

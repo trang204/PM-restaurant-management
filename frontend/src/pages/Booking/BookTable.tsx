@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch, mediaUrl, publicApiFetch } from '../../lib/api'
-import { requiredMessage } from '../../lib/validation'
+import { requiredMessage, validatePhone, normalizePhone } from '../../lib/validation'
 import './BookTable.css'
 
 type Table = { id: string; name: string; capacity: number; status: string; zone?: string; image_url?: string }
@@ -192,7 +192,9 @@ export default function BookTable() {
     setError(null)
     const nextErrors: Record<string, string> = {}
     if (!fullName.trim()) nextErrors.fullName = requiredMessage('Họ và tên')
-    if (!phone.trim()) nextErrors.phone = requiredMessage('Số điện thoại')
+    // Validate SĐT bằng hàm dùng chung
+    const phoneErr = validatePhone(phone)
+    if (phoneErr) nextErrors.phone = phoneErr
     if (!date) nextErrors.date = requiredMessage('Ngày')
     if (!time) nextErrors.time = requiredMessage('Giờ')
     if (guestCount > MAX_BOOKING_GUESTS) nextErrors.guestCount = GUEST_ERR_MAX
@@ -215,12 +217,11 @@ export default function BookTable() {
     try {
       const body = {
         fullName,
-        phone,
+        phone: normalizePhone(phone),
         date,
         time,
         guestCount,
         preorderItems,
-        // Ưu tiên bàn: nếu user chọn cụ thể hoặc đang để Tự động có gợi ý theo số khách
         tableId: effectivePreferredTableId,
       }
       const created = await apiFetch<{ id: string }>('/reservations', {
