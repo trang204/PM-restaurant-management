@@ -199,6 +199,15 @@ export async function ensureDbSchema() {
   // Đảm bảo settings id=1 tồn tại (admin/settings và public/settings dựa vào 1 row).
   await query(`INSERT INTO settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING`)
 
+  // Bảng khu vực (zones) — quản lý khu vực cho bàn.
+  await query(`
+    CREATE TABLE IF NOT EXISTS zones (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) UNIQUE NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+
   const r = await query(
     `
     SELECT 1
@@ -225,6 +234,20 @@ export async function ensureDbSchema() {
   )
   if (!ti.rows.length) {
     await query(`ALTER TABLE tables ADD COLUMN image_url TEXT`)
+  }
+
+  const tz = await query(
+    `
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'tables'
+      AND column_name = 'zone'
+    LIMIT 1
+    `,
+  )
+  if (!tz.rows.length) {
+    await query(`ALTER TABLE tables ADD COLUMN zone TEXT`)
   }
 
   /** DB cũ: status quá ngắn hoặc ENUM thiếu nhãn CLOSED → đóng bàn không lưu được. */

@@ -115,7 +115,14 @@ export async function updateSettings(req, res, next) {
     col('footer_tagline', footer_tagline ?? null)
     col('footer_copyright', footer_copyright ?? null)
     col('footer_links', Array.isArray(footer_links) ? footer_links : [])
-    col('social_links', Array.isArray(social_links) ? social_links : [])
+    col('social_links', (() => {
+      if (social_links == null) return null
+      // FE mới gửi object {facebook, instagram, zalo}
+      if (!Array.isArray(social_links) && typeof social_links === 'object') return social_links
+      // FE cũ gửi array [{label, url}]
+      if (Array.isArray(social_links)) return social_links
+      return null
+    })())
     col('total_tables', totalTablesAuto)
     col('address', address ?? null)
     col('phone', phone ?? null)

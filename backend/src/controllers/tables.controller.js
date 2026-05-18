@@ -34,6 +34,7 @@ export async function listTables(req, res, next) {
         t.image_url,
         t.status,
         t.status_note,
+        t.zone,
         t.pos_x,
         t.pos_y,
         t.created_at,
@@ -100,7 +101,7 @@ export async function getTable(req, res, next) {
 
 export async function createTable(req, res, next) {
   try {
-    const { name, capacity, status, pos_x, pos_y } = req.body || {}
+    const { name, capacity, status, pos_x, pos_y, zone } = req.body || {}
     if (!name) throw badRequest('name là bắt buộc')
     if (capacity === undefined || capacity === null) throw badRequest('capacity là bắt buộc')
 
@@ -112,9 +113,9 @@ export async function createTable(req, res, next) {
 
     const r = await query(
       `
-      INSERT INTO tables (name, capacity, status, pos_x, pos_y)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, name, capacity, image_url, status, status_note, pos_x, pos_y, created_at
+      INSERT INTO tables (name, capacity, status, pos_x, pos_y, zone)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id, name, capacity, image_url, status, status_note, zone, pos_x, pos_y, created_at
     `,
       [
         String(name),
@@ -122,6 +123,7 @@ export async function createTable(req, res, next) {
         st,
         pos_x === undefined ? null : pos_x,
         pos_y === undefined ? null : pos_y,
+        zone ? String(zone).trim() : null,
       ],
     )
     return created(res, r.rows[0])
@@ -135,7 +137,7 @@ export async function updateTable(req, res, next) {
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
 
-    const { name, capacity, status, pos_x, pos_y } = req.body || {}
+    const { name, capacity, status, pos_x, pos_y, zone } = req.body || {}
     const cap =
       capacity === undefined || capacity === null ? null : Number(capacity)
     if (cap !== null && (!Number.isFinite(cap) || cap <= 0)) throw badRequest('capacity không hợp lệ')
@@ -151,9 +153,10 @@ export async function updateTable(req, res, next) {
         capacity = COALESCE($2, capacity),
         status = COALESCE($3, status),
         pos_x = COALESCE($4, pos_x),
-        pos_y = COALESCE($5, pos_y)
-      WHERE id = $6
-      RETURNING id, name, capacity, image_url, status, status_note, pos_x, pos_y, created_at
+        pos_y = COALESCE($5, pos_y),
+        zone = CASE WHEN $7::boolean THEN $6 ELSE zone END
+      WHERE id = $8
+      RETURNING id, name, capacity, image_url, status, status_note, zone, pos_x, pos_y, created_at
     `,
       [
         name ? String(name) : null,
@@ -161,6 +164,8 @@ export async function updateTable(req, res, next) {
         st,
         pos_x === undefined ? null : pos_x,
         pos_y === undefined ? null : pos_y,
+        zone !== undefined ? (zone ? String(zone).trim() : null) : null,
+        zone !== undefined,
         id,
       ],
     )
