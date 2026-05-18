@@ -183,7 +183,7 @@ export default function Dashboard() {
           <p className="dash__stat-value" style={{ fontSize: '1.4rem' }}>
             {vnd.format(totalRevenueToday)}
           </p>
-          <p className="dash__stat-sub">Tổng thanh toán (PAID) trong ngày</p>
+          <p className="dash__stat-sub">Tổng thanh toán trong ngày</p>
         </article>
         <article className="dash__stat">
           <p className="dash__stat-label">

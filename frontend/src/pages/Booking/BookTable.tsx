@@ -4,13 +4,12 @@ import { apiFetch, mediaUrl, publicApiFetch } from '../../lib/api'
 import { requiredMessage, validatePhone, normalizePhone } from '../../lib/validation'
 import './BookTable.css'
 
-type Table = { id: string; name: string; capacity: number; status: string; zone?: string; image_url?: string }
+type Table = { id: string; name: string; capacity: number; status: string; zone?: string | null; image_url?: string }
 
 /** Thông báo validation bàn (đồng bộ với backend reservations) */
 const TABLE_ERR_CAPACITY = 'Bàn không đủ chỗ'
 const TABLE_ERR_IN_USE = 'Bàn đang được sử dụng'
 const TABLE_ERR_TABLE_TOO_LARGE = 'Bàn quá lớn so với số khách'
-/** Bàn được chọn khi: guestN <= capacity <= guestN * MAX_TABLE_RATIO */
 const MAX_TABLE_RATIO = 2
 /** Đặt bàn online: tối đa số khách */
 const MAX_BOOKING_GUESTS = 99
@@ -21,7 +20,7 @@ const PREORDER_PREVIEW_COUNT = 5
 function isTableAvailable(t: Table) {
   const s = String(t.status || '').toUpperCase()
   return s === 'AVAILABLE' || s === ''
-}
+}  
 
 /**
  * null = hợp lệ; ngược lại là thông báo hiển thị cho khách.
@@ -91,6 +90,8 @@ export default function BookTable() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [menuLoading, setMenuLoading] = useState(true)
   const [menuError, setMenuError] = useState<string | null>(null)
+  const [selectedZone, setSelectedZone] = useState<string | null>(null) // null = Tất cả, '' = Mặc định
+  const [zonesData, setZonesData] = useState<{ id: number; name: string }[]>([])
 
   useEffect(() => {
     let c = false
@@ -132,6 +133,12 @@ export default function BookTable() {
     }
   }, [])
 
+  useEffect(() => {
+    publicApiFetch<{ id: number; name: string }[]>('/zones')
+      .then((d) => setZonesData(Array.isArray(d) ? d : []))
+      .catch(() => {})
+  }, [])
+
   const menuByCategory = useMemo(() => {
     const map = new Map<string, MenuRow[]>()
     for (const m of menu) {
@@ -167,6 +174,19 @@ export default function BookTable() {
 
   const effectivePreferredTableId =
     selectedTableId === null ? (autoSuggestedTable?.id != null ? String(autoSuggestedTable.id) : null) : selectedTableId
+
+  /** Danh sách zone duy nhất (theo zonesData từ server) */
+  const availableZones = useMemo(() => zonesData, [zonesData])
+
+  /** Kiểm tra có bàn thuộc "Mặc định" (zone null/empty) không */
+  const hasDefaultZone = useMemo(() => tables.some((t) => !t.zone), [tables])
+
+  /** Bàn sau khi lọc theo zone */
+  const tablesInZone = useMemo(() => {
+    if (selectedZone === null) return tables          // Tất cả
+    if (selectedZone === '') return tables.filter((t) => !t.zone)  // Mặc định
+    return tables.filter((t) => String(t.zone || '').trim() === selectedZone)
+  }, [tables, selectedZone])
 
   useEffect(() => {
     if (selectedTableId == null) {
@@ -410,6 +430,39 @@ export default function BookTable() {
                 </p>
               </div>
             </div>
+
+            {/* Zone chips */}
+            {(availableZones.length > 0 || hasDefaultZone) ? (
+              <div className="bookZones" role="group" aria-label="Lọc theo khu vực">
+                <button
+                  type="button"
+                  className={`bookZoneChip${selectedZone === null ? ' bookZoneChip--active' : ''}`}
+                  onClick={() => { setSelectedZone(null); setSelectedTableId(null) }}
+                >
+                  Tất cả
+                </button>
+                {availableZones.map((z) => (
+                  <button
+                    key={z.id}
+                    type="button"
+                    className={`bookZoneChip${selectedZone === z.name ? ' bookZoneChip--active' : ''}`}
+                    onClick={() => { setSelectedZone(z.name); setSelectedTableId(null) }}
+                  >
+                    {z.name}
+                  </button>
+                ))}
+                {hasDefaultZone && (
+                  <button
+                    type="button"
+                    className={`bookZoneChip${selectedZone === '' ? ' bookZoneChip--active' : ''}`}
+                    onClick={() => { setSelectedZone(''); setSelectedTableId(null) }}
+                  >
+                    Mặc định
+                  </button>
+                )}
+              </div>
+            ) : null}
+
             <div className="bookTables">
               <button
                 type="button"
@@ -428,7 +481,7 @@ export default function BookTable() {
                 </span>
                 <span className="bookTableBtn__badge">Gợi ý</span>
               </button>
-              {tables.map((t) => {
+              {tablesInZone.map((t) => {
                 const selMsg = tableBookingValidationError(t, guestCount)
                 const canPick = isTableSelectable(t, guestCount)
                 const img = t.image_url ? mediaUrl(t.image_url) : tablePlaceholder

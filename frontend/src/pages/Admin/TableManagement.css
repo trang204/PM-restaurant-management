@@ -1,3 +1,145 @@
+/* ─── Zone Manager ─── */
+.table-mgmt__zoneManager {
+  background: linear-gradient(135deg, #fffdf9 0%, #fdf8f0 100%);
+  border: 1px solid var(--tm-border);
+  border-left: 4px solid var(--tm-gold);
+  border-radius: var(--tm-radius);
+  padding: 18px 22px;
+  margin-bottom: 22px;
+  box-shadow: var(--tm-shadow);
+}
+
+.table-mgmt__zoneManagerInner {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.table-mgmt__zoneLeft {
+  min-width: 160px;
+  flex: 0 0 160px;
+  padding-top: 2px;
+}
+
+.table-mgmt__zoneRight {
+  flex: 1 1 280px;
+}
+
+.table-mgmt__zoneTitle {
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--tm-text);
+  margin: 0 0 4px;
+}
+
+.table-mgmt__zoneSub {
+  font-size: 0.8rem;
+  color: var(--tm-muted);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.table-mgmt__zoneList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  min-height: 32px;
+  align-items: center;
+}
+
+.table-mgmt__zoneEmpty {
+  font-size: 0.82rem;
+  color: var(--tm-muted);
+  font-style: italic;
+}
+
+.table-mgmt__zoneChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px 5px 14px;
+  border-radius: 999px;
+  background: var(--tm-gold-s);
+  color: var(--tm-gold-d);
+  border: 1px solid rgba(184,147,90,0.35);
+  font-size: 0.82rem;
+  font-weight: 700;
+  transition: box-shadow var(--tm-ease);
+}
+
+.table-mgmt__zoneChip:hover { box-shadow: 0 2px 8px rgba(184,147,90,0.2); }
+
+.table-mgmt__zoneChipDel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(184,147,90,0.22);
+  color: var(--tm-gold-d);
+  font-size: 0.85rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  transition: background var(--tm-ease), color var(--tm-ease);
+  flex-shrink: 0;
+}
+
+.table-mgmt__zoneChipDel:hover { background: #e74c3c; color: #fff; }
+
+.table-mgmt__zoneForm {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.table-mgmt__zoneInput {
+  flex: 1 1 200px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--tm-text);
+  background: #fff;
+  border: 1px solid var(--tm-border);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color var(--tm-ease), box-shadow var(--tm-ease);
+}
+
+.table-mgmt__zoneInput:focus {
+  border-color: var(--tm-gold);
+  box-shadow: 0 0 0 3px rgba(184,147,90,0.14);
+}
+
+.table-mgmt__zoneAddBtn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(184,147,90,0.4);
+  background: var(--tm-gold-s);
+  color: var(--tm-gold-d);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--tm-ease);
+}
+
+.table-mgmt__zoneAddBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #B8935A, #8B6E41);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(184,147,90,0.3);
+}
+
+.table-mgmt__zoneAddBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+
 /* ─── Table Management ─── */
 :root {
   --tm-gold:    #B8935A;
@@ -189,6 +331,20 @@
   display: flex;
   align-items: center;
   gap: 5px;
+}
+
+.table-card__zone {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--tm-gold-s);
+  color: var(--tm-gold-d);
+  border: 1px solid rgba(184,147,90,0.28);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .table-card__guestInfo {

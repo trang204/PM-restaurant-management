@@ -28,7 +28,7 @@ const placeholderImg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260" viewBox="0 0 400 260"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f5efe6"/><stop offset="100%" stop-color="#e5d5bf"/></linearGradient></defs><rect width="400" height="260" fill="url(#g)"/><text x="200" y="132" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" fill="#6b5640">Ảnh view bàn</text></svg>`,
   )
 
-const emptyForm = { name: '', capacity: '4', imageUrl: '', image: placeholderImg }
+const emptyForm = { name: '', capacity: '4', zone: '', imageUrl: '', image: placeholderImg }
 const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
 export default function TableManagement() {
@@ -47,6 +47,9 @@ export default function TableManagement() {
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [zones, setZones] = useState([])
+  const [newZoneName, setNewZoneName] = useState('')
+  const [zoneLoading, setZoneLoading] = useState(false)
 
   function load() {
     setLoading(true)
@@ -56,9 +59,49 @@ export default function TableManagement() {
       .finally(() => setLoading(false))
   }
 
+  function loadZones() {
+    apiFetch('/zones')
+      .then((d) => setZones(Array.isArray(d) ? d : []))
+      .catch(() => {})
+  }
+
   useEffect(() => {
     load()
+    loadZones()
   }, [])
+
+  async function addZone(e) {
+    e.preventDefault()
+    const name = newZoneName.trim()
+    if (!name) return
+    const ok = await confirm({
+      title: 'Tạo khu vực',
+      message: `Xác nhận tạo khu vực "${name}"?`,
+    })
+    if (!ok) return
+    setZoneLoading(true)
+    try {
+      await apiFetch('/zones', { method: 'POST', body: JSON.stringify({ name }) })
+      setNewZoneName('')
+      loadZones()
+    } catch (err) {
+      toast(err.message, { variant: 'error' })
+    } finally {
+      setZoneLoading(false)
+    }
+  }
+
+  async function deleteZone(id, name) {
+    const ok = await confirm({ title: 'Xóa khu vực', message: `Xóa khu vực "${name}"? Các bàn thuộc khu này sẽ chuyển về Mặc định.` })
+    if (!ok) return
+    try {
+      await apiFetch(`/zones/${id}`, { method: 'DELETE' })
+      loadZones()
+      load()
+    } catch (err) {
+      toast(err.message, { variant: 'error' })
+    }
+  }
 
   function openAdd() {
     setEditingId(null)
@@ -78,6 +121,7 @@ export default function TableManagement() {
     setForm({
       name: table.name ?? '',
       capacity: String(table.capacity ?? 4),
+      zone: table.zone ?? '',
       imageUrl: img,
       image: img ? mediaUrl(img) : placeholderImg,
     })
@@ -106,6 +150,7 @@ export default function TableManagement() {
           body: JSON.stringify({
             name: form.name.trim() || `Bàn ${editingId}`,
             capacity: capNum,
+            zone: form.zone.trim() || null,
           }),
         })
         if (imageFile) {
@@ -118,6 +163,7 @@ export default function TableManagement() {
             name: form.name.trim() || `Bàn ${tables.length + 1}`,
             capacity: capNum,
             status: 'AVAILABLE',
+            zone: form.zone.trim() || null,
           }),
         })
         if (imageFile && created?.id != null) {
@@ -291,6 +337,45 @@ export default function TableManagement() {
         </button>
       </header>
 
+      {/* ─── Zone Manager ─── */}
+      <section className="table-mgmt__zoneManager">
+        <div className="table-mgmt__zoneManagerInner">
+          <div className="table-mgmt__zoneLeft">
+            <h2 className="table-mgmt__zoneTitle">Khu vực</h2>
+            <p className="table-mgmt__zoneSub">Bàn không gán khu thuộc <strong>Mặc định</strong></p>
+          </div>
+          <div className="table-mgmt__zoneRight">
+            <div className="table-mgmt__zoneList">
+              {zones.length === 0 ? (
+                <span className="table-mgmt__zoneEmpty">Chưa có khu vực nào</span>
+              ) : zones.map((z) => (
+                <span key={z.id} className="table-mgmt__zoneChip">
+                  {z.name}
+                  <button
+                    type="button"
+                    className="table-mgmt__zoneChipDel"
+                    aria-label={`Xóa khu ${z.name}`}
+                    onClick={() => deleteZone(z.id, z.name)}
+                  >×</button>
+                </span>
+              ))}
+            </div>
+            <form className="table-mgmt__zoneForm" onSubmit={addZone}>
+              <input
+                className="table-mgmt__zoneInput"
+                value={newZoneName}
+                onChange={(e) => setNewZoneName(e.target.value)}
+                placeholder="Tên khu vực mới…"
+                disabled={zoneLoading}
+              />
+              <button type="submit" className="table-mgmt__zoneAddBtn" disabled={zoneLoading || !newZoneName.trim()}>
+                + Thêm
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+
       <div className="table-mgmt__toolbar">
         <input
           className="table-mgmt__search"
@@ -339,6 +424,9 @@ export default function TableManagement() {
                 <h2 className="table-card__name">{t.name}</h2>
                 <span className={st.className}>{st.label}</span>
               </div>
+              {t.zone ? (
+                <span className="table-card__zone">{t.zone}</span>
+              ) : null}
               <p className="table-card__capacity">
                 Sức chứa: <strong>{t.capacity}</strong> khách
               </p>
@@ -441,6 +529,18 @@ export default function TableManagement() {
                 value={form.name}
                 onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
               />
+            </label>
+            <label className="table-mgmt__field">
+              <span>Khu vực</span>
+              <select
+                value={form.zone}
+                onChange={(e) => setForm((prev) => ({ ...prev, zone: e.target.value }))}
+              >
+                <option value="">Mặc định (không có khu vực)</option>
+                {zones.map((z) => (
+                  <option key={z.id} value={z.name}>{z.name}</option>
+                ))}
+              </select>
             </label>
             <label className="table-mgmt__field">
               <span>Số khách / bàn</span>
