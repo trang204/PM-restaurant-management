@@ -4,6 +4,8 @@ import { apiFetch, mediaUrl, publicApiFetch } from '../../lib/api'
 import { requiredMessage, validatePhone, normalizePhone } from '../../lib/validation'
 import './BookTable.css'
 
+
+
 type Table = { id: string; name: string; capacity: number; status: string; zone?: string | null; image_url?: string }
 
 /** Thông báo validation bàn (đồng bộ với backend reservations) */
@@ -92,7 +94,22 @@ export default function BookTable() {
   const [menuError, setMenuError] = useState<string | null>(null)
   const [selectedZone, setSelectedZone] = useState<string | null>(null) // null = Tất cả, '' = Mặc định
   const [zonesData, setZonesData] = useState<{ id: number; name: string }[]>([])
-
+  useEffect(() => {
+    const token = localStorage.getItem('luxeat_token')
+    if (!token) {
+      return
+    }
+    apiFetch<any>('/users/me')
+      .then((d) => {
+        if (d?.fullName) setFullName(String(d.fullName))
+        if (d?.phone) setPhone(String(d.phone))
+      })
+      .catch((e) => {
+        // Ignore errors, allow guest booking if token is invalid
+        console.warn('Failed to fetch user profile:', e)
+      })
+  }, [])
+  
   useEffect(() => {
     let c = false
     publicApiFetch<Table[]>('/tables')
@@ -355,7 +372,7 @@ export default function BookTable() {
                   autoComplete="tel"
                   value={phone}
                   maxLength={10}
-                  onChange={(e) => {  
+                  onChange={(e) => {
                     setFieldErrors((prev) => ({ ...prev, phone: '' }))
                     setPhone(e.target.value)
                   }}
