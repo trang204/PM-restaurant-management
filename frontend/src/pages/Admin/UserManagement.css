@@ -127,7 +127,12 @@
   transition: all var(--um-ease);
 }
 
-.user-mgmt__btn:hover { background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%); border-color: rgba(184,147,90,0.38); }
+.user-mgmt__btn:hover { 
+  background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%); 
+  border-color: rgba(184,147,90,0.38); 
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(184,147,90,0.12);
+}
 
 .user-mgmt__btn--primary {
   background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
@@ -140,14 +145,24 @@
   background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 3px 12px rgba(184,147,90,0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(184,147,90,0.25);
   filter: brightness(1.06);
 }
 .user-mgmt__btn--secondary { color: var(--um-text); }
 .user-mgmt__btn--ghost { background: transparent; border-color: var(--um-border); color: var(--um-muted); }
-.user-mgmt__btn--ghost:hover { color: var(--um-text); background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%); }
+.user-mgmt__btn--ghost:hover { 
+  color: var(--um-text); 
+  background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%); 
+  transform: translateY(-2px);
+}
 .user-mgmt__btn--danger { color: #C0392B; border-color: #F5C4C0; }
-.user-mgmt__btn--danger:hover { background: #FEF3F2; border-color: #F5C4C0; }
+.user-mgmt__btn--danger:hover { 
+  background: #FEF3F2; 
+  border-color: #F5C4C0; 
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239,68,68,0.12);
+}
 .user-mgmt__btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* "Add" button */
@@ -168,7 +183,11 @@
   transition: filter var(--um-ease);
 }
 
-.user-mgmt__add:hover { filter: brightness(1.06); }
+.user-mgmt__add:hover { 
+  filter: brightness(1.06); 
+  transform: translateY(-2px);
+  box-shadow: 0 5px 18px rgba(184,147,90,0.4);
+}
 
 /* ─── Table ─── */
 .user-mgmt__table-wrap {

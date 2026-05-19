@@ -392,7 +392,12 @@
   transition: all var(--tm-ease);
 }
 
-.table-card__btn:hover { background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%); border-color: rgba(184,147,90,0.38); }
+.table-card__btn:hover { 
+  background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%); 
+  border-color: rgba(184,147,90,0.38); 
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(184,147,90,0.12);
+}
 
 .table-card__btn--primary {
   background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
@@ -405,7 +410,8 @@
   background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 2px 8px rgba(184,147,90,0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(184,147,90,0.25);
   filter: brightness(1.06);
 }
 
@@ -413,10 +419,16 @@
 
 .table-card__btn--secondary:hover {
   background: linear-gradient(135deg, rgba(184,147,90,0.12) 0%, rgba(244,236,224,0.88) 100%);
+  transform: translateY(-2px);
 }
 
 .table-card__btn--danger { color: #C0392B; border-color: #F5C4C0; }
-.table-card__btn--danger:hover { background: #FEF3F2; border-color: #F5C4C0; }
+.table-card__btn--danger:hover { 
+  background: #FEF3F2; 
+  border-color: #F5C4C0; 
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239,68,68,0.12);
+}
 
 .table-card__btn:disabled { opacity: 0.5; cursor: not-allowed; }
 

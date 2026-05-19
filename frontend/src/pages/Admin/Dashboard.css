@@ -192,7 +192,8 @@
 .dash__btn:hover {
   background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%);
   border-color: rgba(184,147,90,0.38);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(184,147,90,0.12);
   text-decoration: none;
   color: var(--dash-text);
 }
@@ -218,6 +219,7 @@
   background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
   color: #fff;
   border-color: transparent;
+  transform: translateY(-2px);
   box-shadow: 0 4px 14px rgba(184,147,90,0.25);
   filter: brightness(1.05);
 }
@@ -231,6 +233,8 @@
 .dash__btn--danger:hover {
   border-color: #F5C4C0;
   background: #FEECEC;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239,68,68,0.12);
 }
 
 .dash__btn--sm {

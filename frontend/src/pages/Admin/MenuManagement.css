@@ -71,7 +71,7 @@
   transition: filter var(--mn-ease), box-shadow var(--mn-ease);
 }
 
-.menu-mgmt__add:hover { filter: brightness(1.06); box-shadow: 0 5px 18px rgba(184,147,90,0.4); }
+.menu-mgmt__add:hover { filter: brightness(1.06); box-shadow: 0 5px 18px rgba(184,147,90,0.4); transform: translateY(-2px); }
 
 .menu-mgmt__toolbar {
   display: flex;
@@ -421,10 +421,20 @@
   transition: all var(--mn-ease);
 }
 
-.menu-card__btn:hover { background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%); border-color: rgba(184,147,90,0.38); }
+.menu-card__btn:hover { 
+  background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%); 
+  border-color: rgba(184,147,90,0.38); 
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(184,147,90,0.12);
+}
 .menu-card__btn--secondary { color: var(--mn-text); }
 .menu-card__btn--danger { color: #C0392B; border-color: #F5C4C0; }
-.menu-card__btn--danger:hover { background: #FEF3F2; border-color: #F5C4C0; }
+.menu-card__btn--danger:hover { 
+  background: #FEF3F2; 
+  border-color: #F5C4C0; 
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239,68,68,0.12);
+}
 
 /* ─── Modal ─── */
 /* Lưu ý: backdrop phải có z-index thấp hơn panel — nếu cả hai cùng z-index cao, lớp nền trống sẽ che form. */
@@ -560,7 +570,12 @@
   transition: all var(--mn-ease);
 }
 
-.menu-modal__cancel:hover { background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%); border-color: rgba(184,147,90,0.38); }
+.menu-modal__cancel:hover { 
+  background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%); 
+  border-color: rgba(184,147,90,0.38); 
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(184,147,90,0.12);
+}
 
 .menu-modal__submit {
   display: inline-flex;
@@ -579,7 +594,11 @@
   transition: filter var(--mn-ease), box-shadow var(--mn-ease);
 }
 
-.menu-modal__submit:hover { filter: brightness(1.06); }
+.menu-modal__submit:hover { 
+  filter: brightness(1.06); 
+  transform: translateY(-2px);
+  box-shadow: 0 5px 18px rgba(184,147,90,0.4);
+}
 .menu-modal__submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .menu-detail {
