@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
-import { requiredMessage, validateEmail } from '../../lib/validation'
+import { requiredMessage, validateEmail, validatePassword } from '../../lib/validation'
 import PasswordField from '../../components/PasswordField'
 import { fetchPublicSettings } from '../../lib/settings'
 import './AuthPages.css'
@@ -34,48 +34,55 @@ export default function Login() {
     e.preventDefault()
     setFieldErr(null)
     setLoading(true)
+  
     try {
       const nextEmail = email.trim().toLowerCase()
       const nextPassword = password
-      const emailErr = validateEmail(email)
-      if (emailErr) {
-        setFieldErr({ email: emailErr })
+  
+      const emailErr = validateEmail(nextEmail)
+      const passwordErr = validatePassword(nextPassword)
+  
+      // Hiển thị cả 2 lỗi cùng lúc
+      if (emailErr || passwordErr) {
+        setFieldErr({
+          email: emailErr || undefined,
+          password: passwordErr || undefined,
+        })
         setLoading(false)
         return
       }
-      if (!nextPassword) {
-        setFieldErr({ password: requiredMessage('Mật khẩu') })
-        setLoading(false)
-        return
-      }
-      if (String(nextPassword).length < 6) {
-        setFieldErr({ password: 'Mật khẩu tối thiểu 6 ký tự' })
-        setLoading(false)
-        return
-      }
-
-      const data = await apiFetch<{ token: string; user: { role?: string } }>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email: nextEmail, password: nextPassword }),
-      })
+  
+      const data = await apiFetch<{ token: string; user: { role?: string } }>(
+        '/auth/login',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            email: nextEmail,
+            password: nextPassword,
+          }),
+        }
+      )
+  
       setToken(data.token)
+  
       if (data.user?.role === 'ADMIN') {
         window.location.href = '/admin'
         return
       }
+  
       if (data.user?.role === 'STAFF') {
         window.location.href = '/staff'
         return
       }
+  
       window.location.href = '/'
     } catch (err) {
       const msg = (err as Error).message || 'Đăng nhập thất bại'
+  
       if (/email không tồn tại/i.test(msg)) {
         setFieldErr({ email: 'Email không tồn tại' })
       } else if (/sai email hoặc mật khẩu/i.test(msg)) {
         setFieldErr({ password: 'Sai email hoặc mật khẩu' })
-      } else if (/email và password là bắt buộc/i.test(msg)) {
-        setFieldErr({ email: requiredMessage('Email'), password: requiredMessage('Mật khẩu') })
       } else {
         setFieldErr({ password: msg })
       }

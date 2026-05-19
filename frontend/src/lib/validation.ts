@@ -32,9 +32,23 @@ export function validatePhone(raw: string): string | null {
  * - Domain name: ≥2 ký tự
  * Trả về null nếu hợp lệ, hoặc chuỗi lỗi.
  */
+
+export function validatePassword(raw: string): string | null {
+  const password = raw.trim()
+  if (!password) return 'Mật khẩu là trường bắt buộc.'
+  if (password.length < 6) return 'Mật khẩu tối thiểu 6 ký tự.'
+  if (password.length > 100) return 'Mật khẩu tối đa 100 ký tự.'
+  if (!/[a-z]/.test(password)) return 'Mật khẩu phải có ít nhất 1 ký tự thường.'
+  if (!/[A-Z]/.test(password)) return 'Mật khẩu phải có ít nhất 1 ký tự hoa.'
+  if (!/[0-9]/.test(password)) return 'Mật khẩu phải có ít nhất 1 chữ số.'
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) return 'Mật khẩu phải có ít nhất 1 ký tự đặc biệt.'
+  return null
+}
+
 export function validateEmail(raw: string): string | null {
   const email = raw.trim().toLowerCase()
   if (!email) return 'Email là trường bắt buộc.'
+
 
   const atIdx = email.lastIndexOf('@')
   if (atIdx < 1) return 'Email không hợp lệ (VD: tenban@gmail.com).'

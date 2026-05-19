@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
-import { requiredMessage, validateEmail, validatePhone, normalizePhone } from '../../lib/validation'
+import { requiredMessage, validateEmail, validatePhone, normalizePhone, validatePassword } from '../../lib/validation'
 import PasswordField from '../../components/PasswordField'
 import { fetchPublicSettings } from '../../lib/settings'
 import './AuthPages.css'
@@ -41,6 +41,11 @@ export default function Register() {
 
     const nextFullName = fullName.trim()
     const emailErr = validateEmail(email)
+    const passwordErr = validatePassword(password)
+    if (passwordErr) {
+      setFieldErr({ password: passwordErr })
+      return
+    }
     if (!nextFullName) {
       setFieldErr({ fullName: requiredMessage('Họ và tên') })
       return
@@ -158,8 +163,8 @@ export default function Register() {
                 setEmail(e.target.value)
               }}
               onBlur={() => {
-                const err = validateEmail(email)
-                if (err) setFieldErr((prev) => ({ ...(prev || {}), email: err }))
+                const emailErr = validateEmail(email)
+                if (emailErr) setFieldErr((prev) => ({ ...(prev || {}), email: emailErr }))
               }}
               placeholder="tenban@email.com"
               disabled={loading}
