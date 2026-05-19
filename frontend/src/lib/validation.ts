@@ -38,10 +38,10 @@ export function validatePassword(raw: string): string | null {
   if (!password) return 'Mật khẩu là trường bắt buộc.'
   if (password.length < 6) return 'Mật khẩu tối thiểu 6 ký tự.'
   if (password.length > 100) return 'Mật khẩu tối đa 100 ký tự.'
-  if (!/[a-z]/.test(password)) return 'Mật khẩu phải có ít nhất 1 ký tự thường.'
-  if (!/[A-Z]/.test(password)) return 'Mật khẩu phải có ít nhất 1 ký tự hoa.'
-  if (!/[0-9]/.test(password)) return 'Mật khẩu phải có ít nhất 1 chữ số.'
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) return 'Mật khẩu phải có ít nhất 1 ký tự đặc biệt.'
+  // if (!/[a-z]/.test(password)) return 'Mật khẩu phải có ít nhất 1 ký tự thường.'
+  // if (!/[A-Z]/.test(password)) return 'Mật khẩu phải có ít nhất 1 ký tự hoa.'
+  // if (!/[0-9]/.test(password)) return 'Mật khẩu phải có ít nhất 1 chữ số.'
+  // if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) return 'Mật khẩu phải có ít nhất 1 ký tự đặc biệt.'
   return null
 }
 

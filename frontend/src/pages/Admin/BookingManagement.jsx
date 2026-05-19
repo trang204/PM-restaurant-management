@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import AdminPagination from '../../components/AdminPagination'
@@ -169,7 +170,11 @@ export default function BookingManagement({ staffMode = false }) {
   const [paymentModal, setPaymentModal] = useState(null)
   const [paymentBusy, setPaymentBusy] = useState(false)
   const [qrBusy, setQrBusy] = useState(false)
-  const [search, setSearch] = useState('')
+  const [searchParams] = useSearchParams()
+  const initialDate = searchParams.get('date')
+  const initialSearch = searchParams.get('q')
+
+  const [search, setSearch] = useState(initialSearch || '')
   const [statusFilter, setStatusFilter] = useState('ALL') // ALL | PENDING | CONFIRMED | COMPLETED
 
   function load() {
@@ -245,10 +250,11 @@ export default function BookingManagement({ staffMode = false }) {
 
   useEffect(() => {
     if (!sortedDateKeys.length || dayPageInitRef.current) return
-    const idx = sortedDateKeys.indexOf(todayYmd)
+    const targetDate = (initialDate && sortedDateKeys.includes(initialDate)) ? initialDate : todayYmd
+    const idx = sortedDateKeys.indexOf(targetDate)
     setDayPage(idx >= 0 ? idx : 0)
     dayPageInitRef.current = true
-  }, [sortedDateKeys, todayYmd])
+  }, [sortedDateKeys, todayYmd, initialDate])
 
   const totalDayPages = sortedDateKeys.length
   const activeDateKey = totalDayPages ? sortedDateKeys[dayPage] : null
@@ -1114,11 +1120,11 @@ export default function BookingManagement({ staffMode = false }) {
           {!loading && !err && totalDayPages > 0 ? (
             <div className="booking-mgmt__paginationWrap">
               <div className="booking-mgmt__pagerPick">
-                <div>
+                {/* <div>
                   <p className="booking-mgmt__pagerSelectLabel">Theo ngày</p>
                   <p className="booking-mgmt__pagerSub">{activeDateKey ? formatDateHeader(activeDateKey) : '—'}</p>
-                </div>
-                <button
+                </div> */}
+                {/* <button
                   type="button"
                   className="booking-mgmt__btn booking-mgmt__btn--secondary booking-mgmt__btn--sm"
                   onClick={goToday}
@@ -1126,7 +1132,7 @@ export default function BookingManagement({ staffMode = false }) {
                   title={sortedDateKeys.indexOf(todayYmd) < 0 ? 'Không có đơn hôm nay' : 'Chuyển tới ngày hôm nay'}
                 >
                   Hôm nay
-                </button>
+                </button> */}
               </div>
               <AdminPagination
                 className="booking-mgmt__pagination"

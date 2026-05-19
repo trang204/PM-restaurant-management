@@ -423,11 +423,6 @@ export default function BookTable() {
               <span className="bookStep">3</span>
               <div className="bookCard__titles">
                 <h2>Chọn bàn ưu tiên</h2>
-                <p>
-                  Chọn bàn phù hợp: sức chứa từ <strong>{'{'}số khách{'}'}</strong> đến{' '}
-                  <strong>{'{'}số khách × {MAX_TABLE_RATIO}{'}'}</strong> chỗ.
-                  Ví dụ 2 người → bàn 2–4 chỗ; 3 người → bàn 3–6 chỗ.
-                </p>
               </div>
             </div>
 

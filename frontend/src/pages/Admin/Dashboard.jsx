@@ -295,12 +295,12 @@ export default function Dashboard() {
                         <button
                           type="button"
                           className="dash__btn dash__btn--sm"
-                          onClick={() => navigate('/admin/bookings')}
+                          onClick={() => navigate(`/admin/bookings?date=${r.date}&q=${r.id}`)}
                           title="Xem trong trang quản lý đặt bàn"
                         >
                           Xem
                         </button>
-                        {/* <button
+                        <button
                           type="button"
                           className="dash__btn dash__btn--sm dash__btn--primary"
                           disabled={busy || !['PENDING', 'HOLD'].includes(String(r.status || '').toUpperCase())}
@@ -315,7 +315,7 @@ export default function Dashboard() {
                           onClick={() => cancelBooking(r.id)}
                         >
                           Huỷ
-                        </button> */}
+                        </button>
                       </div>
                     </td>
                   </tr>
