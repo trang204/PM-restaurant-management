@@ -510,6 +510,50 @@ export async function getOrderTotal(req, res, next) {
   }
 }
 
+/** Lấy chi tiết order (các món) và thanh toán cho booking. */
+export async function getOrderItems(req, res, next) {
+  try {
+    const bookingId = Number(req.params.id)
+    if (!Number.isFinite(bookingId)) throw badRequest('id không hợp lệ')
+
+    const o = await query(
+      `SELECT id, status, created_at FROM orders WHERE booking_id = $1 ORDER BY id DESC LIMIT 1`,
+      [bookingId]
+    )
+
+    if (!o.rows.length) {
+      return ok(res, { order: null, items: [], payment: null })
+    }
+
+    const orderId = o.rows[0].id
+    const items = await query(
+      `
+      SELECT
+        oi.id, oi.quantity, oi.price, oi.kitchen_status, oi.kitchen_ack_at,
+        f.name AS food_name
+      FROM order_items oi
+      LEFT JOIN foods f ON f.id = oi.food_id
+      WHERE oi.order_id = $1
+      ORDER BY oi.id ASC
+      `,
+      [orderId]
+    )
+
+    const pay = await query(
+      `SELECT id, amount, method, status, paid_at FROM payments WHERE order_id = $1 ORDER BY id DESC LIMIT 1`,
+      [orderId]
+    )
+
+    return ok(res, {
+      order: o.rows[0],
+      items: items.rows,
+      payment: pay.rows[0] || null
+    })
+  } catch (e) {
+    return next(e)
+  }
+}
+
 export async function cashierPay(req, res, next) {
   try {
     const bookingId = Number(req.params.id)

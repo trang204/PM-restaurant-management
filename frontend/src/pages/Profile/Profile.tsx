@@ -78,7 +78,15 @@ export default function Profile() {
         setSaving(false)
         return
       }
-      const d = await apiFetch<any>('/users/me', {
+      let updatedMe = me
+
+      if (pendingAvatar) {
+        const fd = new FormData()
+        fd.append('avatar', pendingAvatar.file)
+        updatedMe = await apiFetch<any>('/users/me/avatar', { method: 'POST', body: fd })
+      }
+
+      updatedMe = await apiFetch<any>('/users/me', {
         method: 'PATCH',
         body: JSON.stringify({
           fullName: nextFullName,
@@ -86,13 +94,20 @@ export default function Profile() {
           phone: normalizePhone(phoneRaw) || null,
         }),
       })
-      setMe(d)
+
+      setMe(updatedMe)
       setForm({
-        fullName: String(d?.fullName ?? ''),
-        email: String(d?.email ?? ''),
-        phone: String(d?.phone ?? ''),
+        fullName: String(updatedMe?.fullName ?? ''),
+        email: String(updatedMe?.email ?? ''),
+        phone: String(updatedMe?.phone ?? ''),
       })
-      setOkMsg('Đã cập nhật thông tin.')
+
+      if (pendingAvatar) {
+        URL.revokeObjectURL(pendingAvatar.previewUrl)
+        setPendingAvatar(null)
+      }
+
+      setOkMsg('Đã lưu thay đổi thông tin.')
       setEditing(false)
       window.dispatchEvent(new Event('luxeat:me-updated'))
     } catch (e) {
@@ -110,31 +125,11 @@ export default function Profile() {
       setError('Vui lòng chọn file ảnh (JPEG, PNG, WebP hoặc GIF).')
       return
     }
-    // Chỉ preview, chưa upload
     const previewUrl = URL.createObjectURL(file)
     setPendingAvatar({ file, previewUrl })
+    setEditing(true)
     setError(null)
     setOkMsg(null)
-  }
-
-  async function uploadPendingAvatar() {
-    if (!pendingAvatar) return
-    setAvatarUploading(true)
-    setError(null)
-    setOkMsg(null)
-    try {
-      const fd = new FormData()
-      fd.append('avatar', pendingAvatar.file)
-      const d = await apiFetch<any>('/users/me/avatar', { method: 'POST', body: fd })
-      setMe(d)
-      window.dispatchEvent(new Event('luxeat:me-updated'))
-      setOkMsg('Đã cập nhật ảnh đại diện.')
-      setPendingAvatar(null)
-    } catch (err) {
-      setError((err as Error).message)
-    } finally {
-      setAvatarUploading(false)
-    }
   }
 
   return (
@@ -191,43 +186,18 @@ export default function Profile() {
                   aria-label="Chọn ảnh đại diện"
                 />
                 <div className="profileAvatar__actions">
-                  {pendingAvatar ? (
-                    <>
-                      <button
-                        type="button"
-                        className="profileBtn profileBtn--primary"
-                        disabled={avatarUploading}
-                        onClick={uploadPendingAvatar}
-                      >
-                        {avatarUploading ? 'Đang tải…' : 'Lưu ảnh'}
-                      </button>
-                      <button
-                        type="button"
-                        className="profileBtn profileBtn--ghost"
-                        disabled={avatarUploading}
-                        onClick={() => {
-                          URL.revokeObjectURL(pendingAvatar.previewUrl)
-                          setPendingAvatar(null)
-                          setError(null)
-                        }}
-                      >
-                        Hủy
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      className="profileBtn profileBtn--ghost"
-                      disabled={avatarUploading}
-                      onClick={() => avatarInputRef.current?.click()}
-                    >
-                      Tải ảnh lên
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className="profileBtn profileBtn--ghost"
+                    disabled={saving}
+                    onClick={() => avatarInputRef.current?.click()}
+                  >
+                    {pendingAvatar ? 'Đổi ảnh khác' : 'Tải ảnh lên'}
+                  </button>
                 </div>
                 {pendingAvatar && (
                   <p className="profileAvatar__hint profileAvatar__hint--pending">
-                    Ảnh xem trước — nhấn <strong>Lưu ảnh</strong> để cập nhật.
+                    Ảnh xem trước — nhấn <strong>Lưu thay đổi</strong> để cập nhật.
                   </p>
                 )}
                 {!pendingAvatar && (
@@ -365,6 +335,10 @@ export default function Profile() {
                         setFieldErr(null)
                         setError(null)
                         setOkMsg(null)
+                        if (pendingAvatar) {
+                          URL.revokeObjectURL(pendingAvatar.previewUrl)
+                          setPendingAvatar(null)
+                        }
                         setForm({
                           fullName: String(me.fullName ?? ''),
                           email: String(me.email ?? ''),

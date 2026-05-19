@@ -12,6 +12,7 @@ import {
   LogIn,
   RefreshCw,
   Clock,
+  X,
 } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import './Dashboard.css'
@@ -56,6 +57,17 @@ export default function Dashboard() {
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('ALL')
   const [busy, setBusy] = useState(false)
+  const [infoModal, setInfoModal] = useState(null)
+
+  async function openInfoModal(b) {
+    setInfoModal({ booking: b, items: [], payment: null, loading: true, err: null })
+    try {
+      const res = await apiFetch(`/admin/reservations/${b.id}/order-items`)
+      setInfoModal(prev => prev ? { ...prev, items: res.items || [], payment: res.payment, loading: false } : null)
+    } catch (e) {
+      setInfoModal(prev => prev ? { ...prev, err: e.message || String(e), loading: false } : null)
+    }
+  }
 
   function load({ soft = false } = {}) {
     let cancelled = false
@@ -295,8 +307,8 @@ export default function Dashboard() {
                         <button
                           type="button"
                           className="dash__btn dash__btn--sm"
-                          onClick={() => navigate(`/admin/bookings?date=${r.date}&q=${r.id}`)}
-                          title="Xem trong trang quản lý đặt bàn"
+                          onClick={() => openInfoModal(r)}
+                          title="Xem chi tiết đơn và order"
                         >
                           Xem
                         </button>
@@ -351,6 +363,103 @@ export default function Dashboard() {
           </Link>
         </div>
       </div>
+
+      {infoModal && (
+        <div className="dash__modal-backdrop" onClick={() => setInfoModal(null)}>
+          <div className="dash__modal" onClick={e => e.stopPropagation()}>
+            <div className="dash__modal-header">
+              <h3 className="dash__modal-title">Thông tin Bàn & Đơn hàng</h3>
+              <button className="dash__modal-close" onClick={() => setInfoModal(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="dash__modal-body">
+              <div className="dash__modal-item">
+                <span className="dash__modal-label">Khách hàng:</span>
+                <span className="dash__modal-value">{infoModal.booking.fullName || 'Khách vãng lai'}</span>
+              </div>
+              <div className="dash__modal-item">
+                <span className="dash__modal-label">Số điện thoại:</span>
+                <span className="dash__modal-value">{infoModal.booking.phone || '—'}</span>
+              </div>
+              <div className="dash__modal-item">
+                <span className="dash__modal-label">Bàn:</span>
+                <span className="dash__modal-value">
+                  {Array.isArray(infoModal.booking.tables) && infoModal.booking.tables.length
+                    ? infoModal.booking.tables.join(', ')
+                    : infoModal.booking.assignedTableId
+                      ? `Bàn #${infoModal.booking.assignedTableId}`
+                      : 'Chưa xếp bàn'}
+                </span>
+              </div>
+              <div className="dash__modal-item">
+                <span className="dash__modal-label">Trạng thái đặt bàn:</span>
+                <span className="dash__modal-value">
+                  {STATUS_LABELS[String(infoModal.booking.status || '').toUpperCase()] || infoModal.booking.status}
+                </span>
+              </div>
+
+              <h4 style={{ marginTop: 20, marginBottom: 10, color: 'var(--dash-text)' }}>Chi tiết gọi món:</h4>
+              {infoModal.loading ? (
+                <p style={{ fontSize: '0.88rem', color: 'var(--dash-muted)' }}>Đang tải...</p>
+              ) : infoModal.err ? (
+                <p style={{ fontSize: '0.88rem', color: '#B91C1C' }}>Lỗi: {infoModal.err}</p>
+              ) : infoModal.items.length === 0 ? (
+                <p style={{ fontSize: '0.88rem', color: 'var(--dash-muted)' }}>Bàn chưa gọi món nào.</p>
+              ) : (
+                <div className="dash__order-list">
+                  {infoModal.items.map(item => (
+                    <div key={item.id} className="dash__order-item">
+                      <span>{item.quantity}x {item.food_name || 'Món không xác định'}</span>
+                      <span style={{ fontWeight: 600 }}>{vnd.format(item.price * item.quantity)}</span>
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #E2D9CC', display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
+                    <span>Tổng tiền món:</span>
+                    <span style={{ color: '#B8935A' }}>
+                      {vnd.format(infoModal.items.reduce((s, i) => s + i.price * i.quantity, 0))}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <h4 style={{ marginTop: 20, marginBottom: 10, color: 'var(--dash-text)' }}>Thanh toán:</h4>
+              {!infoModal.loading && !infoModal.err && (
+                <div className="dash__modal-item">
+                  <span className="dash__modal-label">Trạng thái:</span>
+                  <span className="dash__modal-value">
+                    {infoModal.payment ? (
+                      <span style={{ color: infoModal.payment.status === 'PAID' ? '#166534' : '#92400E' }}>
+                        {infoModal.payment.status === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                      </span>
+                    ) : infoModal.items.length > 0 ? (
+                      <span style={{ color: '#92400E' }}>Chưa thanh toán</span>
+                    ) : (
+                      '—'
+                    )}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="dash__modal-footer">
+              <button className="dash__btn dash__btn--ghost" onClick={() => setInfoModal(null)}>
+                Đóng
+              </button>
+              <button 
+                className="dash__btn dash__btn--primary" 
+                style={{ marginLeft: 10 }}
+                onClick={() => {
+                  setInfoModal(null);
+                  navigate(`/admin/bookings?date=${infoModal.booking.date}&q=${infoModal.booking.id}`);
+                }}
+              >
+                Tới trang Đặt bàn
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
