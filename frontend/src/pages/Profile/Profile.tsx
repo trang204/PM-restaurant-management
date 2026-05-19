@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch, mediaUrl } from '../../lib/api'
 import { requiredMessage, validatePhone, validateEmail, normalizePhone } from '../../lib/validation'
+import { useNotifications } from '../../context/NotificationsContext'
 import './Profile.css'
 
 const ROLE_LABELS: Record<string, string> = {
@@ -12,6 +13,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 export default function Profile() {
   const navigate = useNavigate()
+  const { toast } = useNotifications()
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const [me, setMe] = useState<{
     id: string
@@ -26,10 +28,7 @@ export default function Profile() {
   const [form, setForm] = useState({ fullName: '', email: '', phone: '' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [avatarUploading, setAvatarUploading] = useState(false)
   const [pendingAvatar, setPendingAvatar] = useState<{ file: File; previewUrl: string } | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [okMsg, setOkMsg] = useState<string | null>(null)
   const [fieldErr, setFieldErr] = useState<{ fullName?: string; email?: string; phone?: string } | null>(null)
 
   useEffect(() => {
@@ -48,15 +47,13 @@ export default function Profile() {
           phone: String(d?.phone ?? ''),
         })
       })
-      .catch((e) => setError((e as Error).message))
+      .catch((e) => toast((e as Error).message, { variant: 'error' }))
       .finally(() => setLoading(false))
   }, [])
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    setError(null)
-    setOkMsg(null)
     setFieldErr(null)
     try {
       const nextFullName = form.fullName.trim()
@@ -107,11 +104,11 @@ export default function Profile() {
         setPendingAvatar(null)
       }
 
-      setOkMsg('Đã lưu thay đổi thông tin.')
+      toast('Đã lưu thay đổi thông tin.', { variant: 'success' })
       setEditing(false)
       window.dispatchEvent(new Event('luxeat:me-updated'))
     } catch (e) {
-      setError((e as Error).message)
+      toast((e as Error).message, { variant: 'error' })
     } finally {
       setSaving(false)
     }
@@ -122,14 +119,12 @@ export default function Profile() {
     e.target.value = ''
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      setError('Vui lòng chọn file ảnh (JPEG, PNG, WebP hoặc GIF).')
+      toast('Vui lòng chọn file ảnh (JPEG, PNG, WebP hoặc GIF).', { variant: 'error' })
       return
     }
     const previewUrl = URL.createObjectURL(file)
     setPendingAvatar({ file, previewUrl })
     setEditing(true)
-    setError(null)
-    setOkMsg(null)
   }
 
   return (
@@ -146,8 +141,6 @@ export default function Profile() {
 
       <section className="profileWrap">
         {loading ? <p>Đang tải...</p> : null}
-        {error ? <p className="profileMsg profileMsg--err">{error}</p> : null}
-        {okMsg ? <p className="profileMsg profileMsg--ok">{okMsg}</p> : null}
 
         {me ? (
           <div className="profileGrid">
@@ -213,8 +206,6 @@ export default function Profile() {
                     className="profileValue profileValue--button"
                     onClick={() => {
                       setEditing(true)
-                      setOkMsg(null)
-                      setError(null)
                       setFieldErr(null)
                     }}
                     aria-label="Chỉnh sửa họ tên"
@@ -244,8 +235,6 @@ export default function Profile() {
                     className="profileValue profileValue--button"
                     onClick={() => {
                       setEditing(true)
-                      setOkMsg(null)
-                      setError(null)
                       setFieldErr(null)
                     }}
                     aria-label="Chỉnh sửa email"
@@ -280,8 +269,6 @@ export default function Profile() {
                     className="profileValue profileValue--button"
                     onClick={() => {
                       setEditing(true)
-                      setOkMsg(null)
-                      setError(null)
                       setFieldErr(null)
                     }}
                     aria-label="Chỉnh sửa số điện thoại"
@@ -314,8 +301,6 @@ export default function Profile() {
                     className="profileBtn profileBtn--primary"
                     onClick={() => {
                       setEditing(true)
-                      setOkMsg(null)
-                      setError(null)
                       setFieldErr(null)
                     }}
                   >
@@ -333,8 +318,6 @@ export default function Profile() {
                       onClick={() => {
                         setEditing(false)
                         setFieldErr(null)
-                        setError(null)
-                        setOkMsg(null)
                         if (pendingAvatar) {
                           URL.revokeObjectURL(pendingAvatar.previewUrl)
                           setPendingAvatar(null)

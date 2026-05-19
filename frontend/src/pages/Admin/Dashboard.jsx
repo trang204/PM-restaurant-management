@@ -29,6 +29,7 @@ function todayYmdLocal() {
 
 function statusBadge(status) {
   const s = String(status || '').toUpperCase()
+  if (s === 'HOLD') return 'dash__badge dash__badge--hold'
   if (s === 'CONFIRMED') return 'dash__badge dash__badge--confirmed'
   if (s === 'PENDING') return 'dash__badge dash__badge--pending'
   if (s === 'COMPLETED' || s === 'PAID') return 'dash__badge dash__badge--confirmed'
@@ -38,6 +39,7 @@ function statusBadge(status) {
 }
 
 const STATUS_LABELS = {
+  HOLD: 'Chờ xác nhận',
   PENDING: 'Chờ xác nhận',
   CONFIRMED: 'Đã xác nhận',
   CHECKED_IN: 'Đã vào bàn',

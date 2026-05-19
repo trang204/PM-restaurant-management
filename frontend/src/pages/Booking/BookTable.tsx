@@ -354,7 +354,8 @@ export default function BookTable() {
                   type="tel"
                   autoComplete="tel"
                   value={phone}
-                  onChange={(e) => {
+                  maxLength={10}
+                  onChange={(e) => {  
                     setFieldErrors((prev) => ({ ...prev, phone: '' }))
                     setPhone(e.target.value)
                   }}

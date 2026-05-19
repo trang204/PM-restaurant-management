@@ -55,6 +55,7 @@ export async function getSessionContext(req, res, next) {
 
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
+    navigator("/");
 
     const orderRow = await getOrCreateOrderForSession(row)
     const orderId = orderRow.id
@@ -127,6 +128,7 @@ export async function addItem(req, res, next) {
 
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
+    navigator("/");
 
     // Luôn lấy/tạo PENDING order — nếu đang SERVING thì tạo đợt mới
     const orderRow = await getOrCreatePendingOrderForSession(row)
@@ -155,7 +157,7 @@ export async function addItem(req, res, next) {
          WHERE id = $2 RETURNING *`,
         [qty, existing.rows[0].id],
       )
-      notifyStaffAdmins(`[Gọi món] ${tableLabel}: ${foodName} x${qty} (thêm vào đơn)`).catch(() => {})
+      notifyStaffAdmins(`[Gọi món] ${tableLabel}: ${foodName} x${qty} (thêm vào đơn)`).catch(() => { })
       return ok(res, r2.rows[0])
     }
 
@@ -167,7 +169,7 @@ export async function addItem(req, res, next) {
     `,
       [orderId, foodId, qty, price],
     )
-    notifyStaffAdmins(`[Gọi món] ${tableLabel}: ${foodName} x${qty}`).catch(() => {})
+    notifyStaffAdmins(`[Gọi món] ${tableLabel}: ${foodName} x${qty}`).catch(() => { })
     return created(res, r3.rows[0])
   } catch (e) {
     return next(e)
@@ -187,6 +189,7 @@ export async function updateItem(req, res, next) {
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
 
+    navigator("/");
     const sessionId = row.session_id
     // Chỉ cho phép sửa items thuộc PENDING orders
     const r = await query(
@@ -217,6 +220,7 @@ export async function removeItem(req, res, next) {
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
 
+    navigator("/");
     const sessionId = row.session_id
     // Chỉ cho phép xóa items thuộc PENDING orders
     const r = await query(
@@ -263,6 +267,7 @@ export async function submitOrder(req, res, next) {
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
 
+    navigator("/");
     // Chỉ submit PENDING order (đợt mới nhất)
     const pendingRes = await query(
       `SELECT id FROM orders WHERE table_session_id = $1 AND status = 'PENDING' ORDER BY id DESC LIMIT 1`,
@@ -283,7 +288,7 @@ export async function submitOrder(req, res, next) {
     const tableLabel = String(row.table_name || 'Bàn').trim() || 'Bàn'
     notifyStaffAdmins(
       `[Gửi đơn] ${tableLabel}: khách đã gửi đơn — tổng ${Number(total).toLocaleString('vi-VN')} ₫`,
-    ).catch(() => {})
+    ).catch(() => { })
 
     return ok(res, { orderId, status: updated.rows[0].status, total })
   } catch (e) {
@@ -299,6 +304,7 @@ export async function getPayment(req, res, next) {
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
 
+    navigator("/");
     const orderRow = await getOrCreateOrderForSession(row)
     const orderId = orderRow.id
 
@@ -367,6 +373,7 @@ export async function createPayment(req, res, next) {
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
 
+    navigator("/");
     const orderRow = await getOrCreateOrderForSession(row)
     const orderId = orderRow.id
 
@@ -397,7 +404,7 @@ export async function createPayment(req, res, next) {
       isUpdate = true
       notifyStaffAdmins(
         `[Thanh toán] ${tableLabel}: khách cập nhật yêu cầu — ${methodVi} · ${money} · Đơn #${orderId}`,
-      ).catch(() => {})
+      ).catch(() => { })
     } else {
       const ins = await query(
         `INSERT INTO payments (order_id, amount, method, status) VALUES ($1, $2, $3, 'UNPAID') RETURNING *`,
@@ -406,7 +413,7 @@ export async function createPayment(req, res, next) {
       payRow = ins.rows[0]
       notifyStaffAdmins(
         `[Thanh toán] ${tableLabel}: khách yêu cầu thanh toán — ${methodVi} · ${money} · Đơn #${orderId}`,
-      ).catch(() => {})
+      ).catch(() => { })
     }
 
     const bankQr = m === 'bank_transfer' ? await buildBankQrUrl(orderId, total) : null

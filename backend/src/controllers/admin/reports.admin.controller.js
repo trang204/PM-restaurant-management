@@ -4,12 +4,12 @@ import { query } from '../../config/db.js'
 function toDateStart(raw) {
   const s = String(raw || '').slice(0, 10)
   if (!s) return null
-  const dt = new Date(`${s}T00:00:00`)
+  const dt = new Date(`${s}T00:00:00Z`)
   return Number.isNaN(dt.getTime()) ? null : dt
 }
 
 function ymd(dt) {
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`
 }
 
 function previousRange(fromDate, toDate) {
@@ -18,9 +18,9 @@ function previousRange(fromDate, toDate) {
   if (!fromDt || !toDt) return { previousFrom: null, previousTo: null }
   const days = Math.max(1, Math.round((toDt.getTime() - fromDt.getTime()) / 86400000) + 1)
   const prevTo = new Date(fromDt)
-  prevTo.setDate(prevTo.getDate() - 1)
+  prevTo.setUTCDate(prevTo.getUTCDate() - 1)
   const prevFrom = new Date(prevTo)
-  prevFrom.setDate(prevFrom.getDate() - (days - 1))
+  prevFrom.setUTCDate(prevFrom.getUTCDate() - (days - 1))
   return { previousFrom: ymd(prevFrom), previousTo: ymd(prevTo) }
 }
 

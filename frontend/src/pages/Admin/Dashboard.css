@@ -288,7 +288,7 @@
   font-weight: 600;
   letter-spacing: 0.03em;
 }
-
+.dash__badge--hold { background: #FEF9EC; color: #92600A; border: 1px solid #F5E0A0; }  
 .dash__badge--pending { background: #FEF9EC; color: #92600A; border: 1px solid #F5E0A0; }
 .dash__badge--confirmed { background: #EFF6EF; color: #2D6A2D; border: 1px solid #C3E6C3; }
 .dash__badge--cancelled { background: #FEF2F2; color: #B91C1C; border: 1px solid #FCA5A5; }
