@@ -564,7 +564,7 @@ export default function BookingManagement({ staffMode = false }) {
                 <option value="">— Chọn bàn —</option>
                 {tables.filter(tableAvailableForWalkIn).map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.name || `Bàn ${t.id}`}
+                    {(t.name || `Bàn ${t.id}`) + (t.zone ? ` (${t.zone})` : '')}
                   </option>
                 ))}
               </select>
@@ -720,7 +720,7 @@ export default function BookingManagement({ staffMode = false }) {
                       <option value="">— Chọn —</option>
                       {options.map((t) => (
                         <option key={t.id} value={t.id}>
-                          {t.name || `Bàn ${t.id}`}
+                          {(t.name || `Bàn ${t.id}`) + (t.zone ? ` (${t.zone})` : '')}
                         </option>
                       ))}
                     </select>
@@ -1015,7 +1015,7 @@ export default function BookingManagement({ staffMode = false }) {
                               const st = String(t.status || '').toUpperCase()
                               const isKeep = id === String(r.assignedTableId || '') || id === String(assignPick[r.id] || '')
                               const disabled = !isKeep && (st !== 'AVAILABLE' || takenByOthers.has(id))
-                              const name = t.name || `Bàn ${t.id}`
+                              const name = (t.name || `Bàn ${t.id}`) + (t.zone ? ` (${t.zone})` : '')
                               const cap = Number(t.capacity) || 0
                               return (
                                 <option key={t.id} value={t.id} disabled={disabled}>

@@ -183,3 +183,78 @@ export async function history(req, res, next) {
     return next(e)
   }
 }
+
+// ---- Ingredient Units ----
+
+export async function listUnits(req, res, next) {
+  try {
+    const r = await query('SELECT id, name, created_at FROM ingredient_units ORDER BY name ASC')
+    return ok(res, r.rows)
+  } catch (e) {
+    return next(e)
+  }
+}
+
+export async function createUnit(req, res, next) {
+  try {
+    const { name } = req.body || {}
+    if (!name || !name.trim()) throw badRequest('Tên đơn vị tính là bắt buộc')
+
+    const r = await query(
+      'INSERT INTO ingredient_units (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id, name, created_at',
+      [name.trim()]
+    )
+    if (!r.rows.length) {
+      // It conflicted
+      const exist = await query('SELECT id, name, created_at FROM ingredient_units WHERE name = $1', [name.trim()])
+      return ok(res, exist.rows[0])
+    }
+    return created(res, r.rows[0])
+  } catch (e) {
+    return next(e)
+  }
+}
+
+export async function removeUnit(req, res, next) {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isFinite(id)) throw badRequest('ID không hợp lệ')
+
+    const r = await query('DELETE FROM ingredient_units WHERE id = $1 RETURNING id', [id])
+    if (!r.rows.length) throw notFound('Không tìm thấy đơn vị tính')
+    return ok(res, { id: r.rows[0].id, deleted: true })
+  } catch (e) {
+    return next(e)
+  }
+}
+
+// ---- Recent Imports (Dashboard) ----
+
+export async function recentImports(req, res, next) {
+  try {
+    const limit = Math.min(Number.parseInt(req.query.limit || '10', 10), 50)
+    const r = await query(
+      `SELECT
+         i.id,
+         i.quantity,
+         i.note,
+         i.import_date,
+         ing.name AS ingredient_name,
+         ing.unit AS ingredient_unit
+       FROM ingredient_imports i
+       JOIN ingredients ing ON ing.id = i.ingredient_id
+       ORDER BY i.import_date DESC
+       LIMIT $1`,
+      [limit]
+    )
+
+    const items = r.rows.map(row => ({
+      ...row,
+      quantity: Number(row.quantity)
+    }))
+
+    return ok(res, items)
+  } catch (e) {
+    return next(e)
+  }
+}

@@ -75,6 +75,11 @@ const tablePlaceholder =
     `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260" viewBox="0 0 400 260"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f5efe6"/><stop offset="100%" stop-color="#eadcca"/></linearGradient></defs><rect width="400" height="260" fill="url(#g)"/><text x="200" y="132" text-anchor="middle" font-family="system-ui,sans-serif" font-size="15" fill="#7b6450">Chưa có ảnh góc nhìn</text></svg>`,
   )
 
+function getTableDisplayName(t: Table) {
+  const baseName = t.name || `Bàn ${t.id}`
+  return t.zone ? `${baseName} (${t.zone})` : baseName
+}
+
 export default function BookTable() {
   const navigate = useNavigate()
   const [tables, setTables] = useState<Table[]>([])
@@ -488,7 +493,7 @@ export default function BookTable() {
                 <span className="bookTableBtn__name">Tự động</span>
                 <span className="bookTableBtn__meta">
                   {autoSuggestedTable
-                    ? `Hệ thống gợi ý: ${autoSuggestedTable.name} (${autoSuggestedTable.capacity} chỗ)`
+                    ? `Hệ thống gợi ý: ${getTableDisplayName(autoSuggestedTable)} (${autoSuggestedTable.capacity} chỗ)`
                     : 'Hệ thống chọn bàn phù hợp số khách'}
                 </span>
                 <span className="bookTableBtn__badge">Gợi ý</span>
@@ -522,7 +527,7 @@ export default function BookTable() {
                     <span className="bookTableBtn__imageWrap" aria-hidden>
                       <img className="bookTableBtn__image" src={img} alt="" />
                     </span>
-                    <span className="bookTableBtn__name">{t.name || `Bàn ${tid}`}</span>
+                    <span className="bookTableBtn__name">{getTableDisplayName(t)}</span>
                     <span className="bookTableBtn__meta">{t.capacity} chỗ ngồi</span>
                     <span className="bookTableBtn__badge">{badgeLabel}</span>
                   </button>
@@ -675,7 +680,7 @@ export default function BookTable() {
                 {selectedTableId === null
                   ? 'Tự động'
                   : selectedTable
-                    ? `${selectedTable.name} (${selectedTable.capacity} chỗ)`
+                    ? `${getTableDisplayName(selectedTable)} (${selectedTable.capacity} chỗ)`
                     : '—'}
               </li>
             </ul>

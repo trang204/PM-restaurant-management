@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Clock,
   X,
+  Package,
 } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import './Dashboard.css'
@@ -56,6 +57,7 @@ export default function Dashboard() {
   const [bookings, setBookings] = useState([])
   const [tables, setTables] = useState([])
   const [users, setUsers] = useState([])
+  const [recentImports, setRecentImports] = useState([])
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('ALL')
   const [busy, setBusy] = useState(false)
@@ -82,13 +84,15 @@ export default function Dashboard() {
       apiFetch('/admin/reservations'),
       apiFetch('/tables'),
       apiFetch('/admin/users'),
+      apiFetch('/admin/ingredients/imports/recent?limit=5').catch(() => []),
     ])
-      .then(([revToday, res, tbl, usr]) => {
+      .then(([revToday, res, tbl, usr, imports]) => {
         if (cancelled) return
         setRevenueToday(revToday)
         setBookings(Array.isArray(res) ? res : [])
         setTables(Array.isArray(tbl) ? tbl : [])
         setUsers(Array.isArray(usr) ? usr : [])
+        setRecentImports(Array.isArray(imports) ? imports : [])
       })
       .catch((e) => {
         if (!cancelled) setErr(e?.message || String(e))
@@ -324,6 +328,52 @@ export default function Dashboard() {
                           Huỷ
                         </button>
                       </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Recent Imports */}
+        <div className="dash__section" style={{ gridColumn: '1 / -1', marginTop: 20 }}>
+          <div className="dash__sectionHead">
+            <h2 className="dash__section-title" style={{ marginBottom: 0, borderBottom: 'none', paddingBottom: 0 }}>
+              <Package size={16} />
+              Lịch sử nhập kho gần nhất
+            </h2>
+            <div className="dash__sectionActions">
+              <Link to="/admin/ingredients" className="dash__btn dash__btn--primary">
+                Quản lý nguyên liệu
+              </Link>
+            </div>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table className="dash__table">
+              <thead>
+                <tr>
+                  <th>Tên nguyên liệu</th>
+                  <th>Số lượng nhập</th>
+                  <th>Ghi chú</th>
+                  <th>Ngày nhập</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentImports.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="dash__empty">Không có lịch sử nhập kho.</td>
+                  </tr>
+                ) : recentImports.map((r) => (
+                  <tr key={r.id}>
+                    <td style={{ fontWeight: 600 }}>{r.ingredient_name || '—'}</td>
+                    <td style={{ fontWeight: 500, color: '#166534' }}>
+                      +{r.quantity} {r.ingredient_unit}
+                    </td>
+                    <td style={{ color: '#7A7069', fontSize: '0.875rem' }}>{r.note || '—'}</td>
+                    <td style={{ color: '#7A7069', fontSize: '0.875rem' }}>
+                      {r.import_date ? new Date(r.import_date).toLocaleString('vi-VN') : '—'}
                     </td>
                   </tr>
                 ))}

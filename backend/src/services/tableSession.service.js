@@ -122,7 +122,7 @@ export async function loadActiveSessionByToken(token) {
       ts.qr_token,
       ts.table_id,
       ts.booking_id,
-      t.name AS table_name,
+      (COALESCE(t.name, 'Bàn ' || t.id) || CASE WHEN t.zone IS NOT NULL AND t.zone != '' THEN ' (' || t.zone || ')' ELSE '' END) AS table_name,
       b.status AS booking_status
     FROM table_sessions ts
     JOIN tables t ON t.id = ts.table_id

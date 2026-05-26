@@ -51,6 +51,12 @@ router.post('/categories', ...adminOnly, adminCategories.create)
 router.patch('/categories/:id', ...adminOnly, adminCategories.update)
 router.delete('/categories/:id', ...adminOnly, adminCategories.remove)
 
+router.get('/ingredients/units', ...staff, adminIngredients.listUnits)
+router.post('/ingredients/units', ...adminOnly, adminIngredients.createUnit)
+router.delete('/ingredients/units/:id', ...adminOnly, adminIngredients.removeUnit)
+
+router.get('/ingredients/imports/recent', ...staff, adminIngredients.recentImports)
+
 router.get('/ingredients', ...staff, adminIngredients.list)
 router.post('/ingredients', ...adminOnly, adminIngredients.create)
 router.patch('/ingredients/:id', ...adminOnly, adminIngredients.update)

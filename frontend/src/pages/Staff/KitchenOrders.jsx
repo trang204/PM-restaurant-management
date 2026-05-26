@@ -281,7 +281,7 @@ export default function KitchenOrders() {
                       disabled={busy === -2}
                       onClick={() => confirmPayment(detail.order_id)}
                     >
-                      {busy === -2 ? 'Đang xử lý…' : 'Xác nhận đã thu tiền'}
+                      {base === '/admin' ? 'Xác nhận thanh toán' : busy === -2 ? 'Đang xử lý…' : 'Xác nhận đã thu tiền'}
                     </button>
                   </div>
                 )}

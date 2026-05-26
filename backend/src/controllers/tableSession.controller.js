@@ -19,7 +19,7 @@ export async function getMyActiveSession(req, res, next) {
       SELECT
         ts.qr_token,
         ts.table_id,
-        t.name AS table_name,
+        (COALESCE(t.name, 'Bàn ' || t.id) || CASE WHEN t.zone IS NOT NULL AND t.zone != '' THEN ' (' || t.zone || ')' ELSE '' END) AS table_name,
         b.id AS booking_id,
         b.status AS booking_status
       FROM table_sessions ts
@@ -55,7 +55,7 @@ export async function getSessionContext(req, res, next) {
 
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
-    navigator("/");
+
 
     const orderRow = await getOrCreateOrderForSession(row)
     const orderId = orderRow.id
@@ -128,7 +128,7 @@ export async function addItem(req, res, next) {
 
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
-    navigator("/");
+
 
     // Luôn lấy/tạo PENDING order — nếu đang SERVING thì tạo đợt mới
     const orderRow = await getOrCreatePendingOrderForSession(row)
@@ -189,7 +189,7 @@ export async function updateItem(req, res, next) {
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
 
-    navigator("/");
+
     const sessionId = row.session_id
     // Chỉ cho phép sửa items thuộc PENDING orders
     const r = await query(
@@ -220,7 +220,7 @@ export async function removeItem(req, res, next) {
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
 
-    navigator("/");
+
     const sessionId = row.session_id
     // Chỉ cho phép xóa items thuộc PENDING orders
     const r = await query(
@@ -267,7 +267,7 @@ export async function submitOrder(req, res, next) {
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
 
-    navigator("/");
+
     // Chỉ submit PENDING order (đợt mới nhất)
     const pendingRes = await query(
       `SELECT id FROM orders WHERE table_session_id = $1 AND status = 'PENDING' ORDER BY id DESC LIMIT 1`,
@@ -304,7 +304,7 @@ export async function getPayment(req, res, next) {
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
 
-    navigator("/");
+
     const orderRow = await getOrCreateOrderForSession(row)
     const orderId = orderRow.id
 
@@ -373,7 +373,7 @@ export async function createPayment(req, res, next) {
     const row = await loadActiveSessionByToken(token)
     if (!row) throw notFound('Link không hợp lệ hoặc phiên đã đóng')
 
-    navigator("/");
+
     const orderRow = await getOrCreateOrderForSession(row)
     const orderId = orderRow.id
 
