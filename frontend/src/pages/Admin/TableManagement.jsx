@@ -8,7 +8,7 @@ import './TableManagement.css'
 function statusMeta(status) {
   const s = String(status || '').toUpperCase()
   if (s === 'AVAILABLE') return { className: 'table-card__status table-card__status--green', label: 'Trống' }
-  if (s === 'RESERVED') return { className: 'table-card__status table-card__status--yellow', label: 'Đã giữ' }
+  if (s === 'RESERVED') return { className: 'table-card__status table-card__status--yellow', label: 'Đang giữ' }
   if (s === 'OCCUPIED') return { className: 'table-card__status table-card__status--blue', label: 'Đang dùng' }
   if (s === 'CLOSED') return { className: 'table-card__status table-card__status--muted', label: 'Đóng' }
   if (s === 'IN_USE' || s === 'IN USE') return { className: 'table-card__status table-card__status--blue', label: 'Đang dùng' }
@@ -50,6 +50,7 @@ export default function TableManagement() {
   const [zones, setZones] = useState([])
   const [newZoneName, setNewZoneName] = useState('')
   const [zoneLoading, setZoneLoading] = useState(false)
+  const [filterZone, setFilterZone] = useState('all')
 
   function load() {
     setLoading(true)
@@ -107,6 +108,7 @@ export default function TableManagement() {
     if (!ok) return
     try {
       await apiFetch(`/zones/${id}`, { method: 'DELETE' })
+      if (String(filterZone) === String(name)) setFilterZone('all')
       loadZones()
       load()
     } catch (err) {
@@ -320,6 +322,10 @@ export default function TableManagement() {
       const name = String(t.name || '').toLowerCase()
       const status = String(t.status || '').toUpperCase()
       const matchQ = !q || name.includes(q)
+      const matchZone =
+        filterZone === 'all'
+          ? true
+          : String(t.zone || '') === String(filterZone)
       const matchStatus =
         statusFilter === 'ALL'
           ? true
@@ -328,13 +334,13 @@ export default function TableManagement() {
             : statusFilter === 'OCCUPIED'
               ? status === 'OCCUPIED' || status === 'IN_USE' || status === 'IN USE'
               : true
-      return matchQ && matchStatus
+      return matchQ && matchStatus && matchZone
     })
-  }, [tables, search, statusFilter])
+  }, [tables, search, statusFilter, filterZone])
 
   useEffect(() => {
     setPage(1)
-  }, [search, statusFilter])
+  }, [search, statusFilter, filterZone])
 
   const pagedTables = useMemo(() => {
     const start = (page - 1) * pageSize
@@ -366,19 +372,52 @@ export default function TableManagement() {
           </div>
           <div className="table-mgmt__zoneRight">
             <div className="table-mgmt__zoneList">
+              <span
+                role="button"
+                tabIndex={0}
+                className={`table-mgmt__zoneChip${filterZone === 'all' ? ' table-mgmt__zoneChip--on' : ''}`}
+                onClick={() => setFilterZone('all')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setFilterZone('all')
+                  }
+                }}
+              >
+                Tất cả ({tables.length})
+              </span>
               {zones.length === 0 ? (
                 <span className="table-mgmt__zoneEmpty">Chưa có khu vực nào</span>
-              ) : zones.map((z) => (
-                <span key={z.id} className="table-mgmt__zoneChip">
-                  {z.name}
-                  <button
-                    type="button"
-                    className="table-mgmt__zoneChipDel"
-                    aria-label={`Xóa khu ${z.name}`}
-                    onClick={() => deleteZone(z.id, z.name)}
-                  >×</button>
-                </span>
-              ))}
+              ) : zones.map((z) => {
+                const count = tables.filter((t) => String(t.zone || '') === String(z.name)).length
+                return (
+                  <span
+                    key={z.id}
+                    role="button"
+                    tabIndex={0}
+                    className={`table-mgmt__zoneChip${filterZone === String(z.name) ? ' table-mgmt__zoneChip--on' : ''}`}
+                    onClick={() => setFilterZone(String(z.name))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setFilterZone(String(z.name))
+                      }
+                    }}
+                  >
+                    {z.name}
+                    {count > 0 ? ` (${count})` : ''}
+                    <button
+                      type="button"
+                      className="table-mgmt__zoneChipDel"
+                      aria-label={`Xóa khu ${z.name}`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deleteZone(z.id, z.name)
+                      }}
+                    >×</button>
+                  </span>
+                )
+              })}
             </div>
             <form className="table-mgmt__zoneForm" onSubmit={addZone}>
               <input

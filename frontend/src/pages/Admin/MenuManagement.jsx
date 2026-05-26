@@ -46,6 +46,8 @@ export default function MenuManagement() {
   const [pageSize, setPageSize] = useState(10)
   /** id món đang gọi API bật/tắt trạng thái */
   const [stockTogglingId, setStockTogglingId] = useState(null)
+  const [categoryName, setCategoryName] = useState('')
+  const [categorySaving, setCategorySaving] = useState(false)
 
   function load() {
     setLoading(true)
@@ -124,6 +126,53 @@ export default function MenuManagement() {
 
   function closeDetail() {
     setDetailItem(null)
+  }
+
+  async function saveCategory(e) {
+    e.preventDefault()
+    const name = String(categoryName || '').trim()
+    if (!name) {
+      toast('Vui lòng nhập tên danh mục.', { variant: 'error' })
+      return
+    }
+    setCategorySaving(true)
+    try {
+      const created = await apiFetch('/admin/categories', {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      })
+      toast('Thêm danh mục thành công', { variant: 'success' })
+      setCategoryName('')
+      await load()
+      if (created?.id != null) {
+        setFilterCat(String(created.id))
+      }
+    } catch (err2) {
+      toast(err2.message, { variant: 'error' })
+    } finally {
+      setCategorySaving(false)
+    }
+  }
+
+  async function deleteCategory(id, name) {
+    const ok = await confirm({
+      title: 'Xóa danh mục',
+      message: `Xóa danh mục "${name}"? Các món thuộc danh mục này sẽ chuyển sang Chưa phân loại.`,
+      danger: true,
+      fields: [{ label: 'Tên danh mục', value: name }],
+      warningText: 'Hành động này không thể hoàn tác.',
+      confirmLabel: 'Xóa',
+      cancelLabel: 'Hủy',
+    })
+    if (!ok) return
+    try {
+      await apiFetch(`/admin/categories/${id}`, { method: 'DELETE' })
+      toast('Xóa danh mục thành công', { variant: 'success' })
+      if (String(filterCat) === String(id)) setFilterCat('all')
+      await load()
+    } catch (err2) {
+      toast(err2.message, { variant: 'error' })
+    }
   }
 
   async function saveItem(e) {
@@ -370,11 +419,99 @@ export default function MenuManagement() {
       {loading ? <p>Đang tải...</p> : null}
       {err ? <p style={{ color: 'crimson' }}>{err}</p> : null}
 
+      {!loading && !err && (items.length > 0 || categories.length > 0) ? (
+        <section className="menu-mgmt__categoryManager" aria-label="Quản lý danh mục">
+          <div className="menu-mgmt__categoryManagerInner">
+            <div className="menu-mgmt__categoryLeft">
+              <h2 className="menu-mgmt__categoryTitle">Danh mục</h2>
+              <p className="menu-mgmt__categorySub">
+                Món không gán danh mục thuộc <strong>Chưa phân loại</strong>. Bấm vào danh mục để lọc món.
+              </p>
+            </div>
+
+            <div className="menu-mgmt__categoryRight">
+              <div className="menu-mgmt__categoryList">
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className={`menu-mgmt__categoryChip${filterCat === 'all' ? ' menu-mgmt__categoryChip--on' : ''}`}
+                  onClick={() => setFilterCat('all')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setFilterCat('all')
+                    }
+                  }}
+                >
+                  Tất cả ({items.length})
+                </span>
+                {categories.length > 0 ? (
+                  categories.map((c) => {
+                    const count = items.filter((i) => Number(i.category_id) === Number(c.id)).length
+                    return (
+                      <span
+                        key={c.id}
+                        role="button"
+                        tabIndex={0}
+                        className={`menu-mgmt__categoryChip${filterCat === String(c.id) ? ' menu-mgmt__categoryChip--on' : ''}`}
+                        onClick={() => setFilterCat(String(c.id))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            setFilterCat(String(c.id))
+                          }
+                        }}
+                      >
+                        {c.name}
+                        {count > 0 ? ` (${count})` : ''}
+                        <button
+                          type="button"
+                          className="menu-mgmt__categoryChipDel"
+                          aria-label={`Xóa danh mục ${c.name}`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            deleteCategory(c.id, c.name)
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    )
+                  })
+                ) : (
+                  <span className="menu-mgmt__categoryEmpty">Chưa có danh mục nào</span>
+                )}
+              </div>
+
+              <form className="menu-mgmt__categoryForm" onSubmit={saveCategory}>
+                <input
+                  className="menu-mgmt__categoryInput"
+                  value={categoryName}
+                  onChange={(e) => setCategoryName(e.target.value)}
+                  placeholder="Tên danh mục mới..."
+                  autoComplete="off"
+                  disabled={categorySaving}
+                />
+                <button
+                  type="submit"
+                  className="menu-mgmt__add"
+                  disabled={categorySaving || !String(categoryName || '').trim()}
+                >
+                  {categorySaving ? 'Đang lưu…' : '+ Thêm danh mục'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {!loading && !err ? (
-        <div className="menu-mgmt__toolbar">
-          <label className="menu-mgmt__search">
-            <span className="sr-only">Tìm theo tên món</span>
+        <>
+          <div className="menu-mgmt__toolbar">
+            <label htmlFor="menu-search" className="sr-only">Tìm theo tên món</label>
             <input
+              id="menu-search"
+              className="menu-mgmt__search"
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -382,73 +519,35 @@ export default function MenuManagement() {
               autoComplete="off"
               aria-label="Tìm theo tên món"
             />
-          </label>
-          <p className="menu-mgmt__resultCount">Hiển thị {visibleCount} món</p>
-        </div>
-      ) : null}
-
-      {!loading && !err ? (
-        <div className="menu-mgmt__statusRow" role="group" aria-labelledby="admin-menu-status-label">
-          <p id="admin-menu-status-label" className="menu-mgmt__statusLabel">
-            Trạng thái
-          </p>
-          <div className="menu-mgmt__statusChips">
-            <button
-              type="button"
-              className={`menu-mgmt__statusChip${filterStatus === 'all' ? ' menu-mgmt__statusChip--on' : ''}`}
-              onClick={() => setFilterStatus('all')}
-              aria-pressed={filterStatus === 'all'}
-            >
-              Tất cả
-            </button>
-            <button
-              type="button"
-              className={`menu-mgmt__statusChip${filterStatus === 'in_stock' ? ' menu-mgmt__statusChip--on' : ''}`}
-              onClick={() => setFilterStatus('in_stock')}
-              aria-pressed={filterStatus === 'in_stock'}
-            >
-              Còn món
-            </button>
-            <button
-              type="button"
-              className={`menu-mgmt__statusChip${filterStatus === 'out_of_stock' ? ' menu-mgmt__statusChip--on' : ''}`}
-              onClick={() => setFilterStatus('out_of_stock')}
-              aria-pressed={filterStatus === 'out_of_stock'}
-            >
-              Hết món
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {!loading && !err && (items.length > 0 || categories.length > 0) ? (
-        <div className="menu-mgmt__filters" role="tablist" aria-label="Lọc theo danh mục">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={filterCat === 'all'}
-            className={`menu-mgmt__filter${filterCat === 'all' ? ' menu-mgmt__filter--on' : ''}`}
-            onClick={() => setFilterCat('all')}
-          >
-            Tất cả ({items.length})
-          </button>
-          {categories.map((c) => {
-            const count = items.filter((i) => Number(i.category_id) === Number(c.id)).length
-            return (
+            <div className="menu-mgmt__filters" aria-label="Lọc theo trạng thái">
               <button
-                key={c.id}
                 type="button"
-                role="tab"
-                aria-selected={filterCat === String(c.id)}
-                className={`menu-mgmt__filter${filterCat === String(c.id) ? ' menu-mgmt__filter--on' : ''}`}
-                onClick={() => setFilterCat(String(c.id))}
+                className={`menu-mgmt__filterBtn${filterStatus === 'all' ? ' menu-mgmt__filterBtn--active' : ''}`}
+                onClick={() => setFilterStatus('all')}
+                aria-pressed={filterStatus === 'all'}
               >
-                {c.name}
-                {count > 0 ? ` (${count})` : ''}
+                Tất cả
               </button>
-            )
-          })}
-        </div>
+              <button
+                type="button"
+                className={`menu-mgmt__filterBtn${filterStatus === 'in_stock' ? ' menu-mgmt__filterBtn--active' : ''}`}
+                onClick={() => setFilterStatus('in_stock')}
+                aria-pressed={filterStatus === 'in_stock'}
+              >
+                Còn món
+              </button>
+              <button
+                type="button"
+                className={`menu-mgmt__filterBtn${filterStatus === 'out_of_stock' ? ' menu-mgmt__filterBtn--active' : ''}`}
+                onClick={() => setFilterStatus('out_of_stock')}
+                aria-pressed={filterStatus === 'out_of_stock'}
+              >
+                Hết món
+              </button>
+            </div>
+          </div>
+          <p className="menu-mgmt__resultCount">Hiển thị {visibleCount} món</p>
+        </>
       ) : null}
 
       {!loading && !err && sections.length === 0 ? (

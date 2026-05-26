@@ -62,15 +62,27 @@
   gap: 7px;
   padding: 5px 10px 5px 14px;
   border-radius: 999px;
-  background: var(--tm-gold-s);
+  background: #fff;
   color: var(--tm-gold-d);
-  border: 1px solid rgba(184,147,90,0.35);
+  border: 1px solid var(--tm-border);
   font-size: 0.82rem;
   font-weight: 700;
   transition: box-shadow var(--tm-ease);
+  cursor: pointer;
 }
 
 .table-mgmt__zoneChip:hover { box-shadow: 0 2px 8px rgba(184,147,90,0.2); }
+
+.table-mgmt__zoneChip--on {
+  background: var(--tm-gold-s);
+  color: var(--tm-gold-d);
+  border-color: rgba(184,147,90,0.35);
+}
+
+.table-mgmt__zoneChip:focus-visible {
+  outline: 3px solid rgba(184,147,90,0.22);
+  outline-offset: 2px;
+}
 
 .table-mgmt__zoneChipDel {
   display: inline-flex;
