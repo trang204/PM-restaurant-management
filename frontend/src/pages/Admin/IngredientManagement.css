@@ -1,0 +1,242 @@
+.ing-mgmt {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.ing-mgmt__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.ing-mgmt__title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111;
+  margin: 0;
+}
+
+.ing-mgmt__add {
+  background-color: #111;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.ing-mgmt__add:hover {
+  opacity: 0.9;
+}
+
+.ing-mgmt__toolbar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.ing-mgmt__search {
+  flex: 1;
+  max-width: 300px;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.ing-mgmt__table-wrap {
+  background: #fff;
+  border: 1px solid #eaeaea;
+  border-radius: 8px;
+  overflow: auto;
+}
+
+.ing-mgmt__table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.ing-mgmt__table th,
+.ing-mgmt__table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.ing-mgmt__table th {
+  background-color: #fafafa;
+  font-weight: 500;
+  color: #666;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ing-mgmt__table tr:last-child td {
+  border-bottom: none;
+}
+
+.ing-mgmt__status {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.ing-mgmt__status[data-status="Còn hàng"] {
+  background-color: #e6f4ea;
+  color: #1e8e3e;
+}
+
+.ing-mgmt__status[data-status="Sắp hết"] {
+  background-color: #fef7e0;
+  color: #b06000;
+}
+
+.ing-mgmt__status[data-status="Hết hàng"] {
+  background-color: #fce8e6;
+  color: #d93025;
+}
+
+.ing-mgmt__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ing-mgmt__btn {
+  background: none;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ing-mgmt__btn--secondary {
+  background-color: #f1f3f4;
+  color: #3c4043;
+}
+.ing-mgmt__btn--secondary:hover {
+  background-color: #e8eaed;
+}
+
+.ing-mgmt__btn--primary {
+  background-color: #111;
+  color: #fff;
+}
+.ing-mgmt__btn--primary:hover {
+  background-color: #333;
+}
+
+.ing-mgmt__btn--danger {
+  background-color: #fce8e6;
+  color: #d93025;
+}
+.ing-mgmt__btn--danger:hover {
+  background-color: #fad2cf;
+}
+
+.ing-mgmt__btn--ghost {
+  background-color: transparent;
+  color: #666;
+}
+.ing-mgmt__btn--ghost:hover {
+  background-color: #f1f3f4;
+}
+
+/* Modal styling */
+.ing-mgmt__backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.ing-mgmt__dialog {
+  background: #fff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 480px;
+  padding: 24px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.ing-mgmt__dialogTitle {
+  margin: 0 0 20px 0;
+  font-size: 1.25rem;
+}
+
+.ing-mgmt__dialogField {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.ing-mgmt__dialogField span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #444;
+}
+
+.ing-mgmt__dialogField input,
+.ing-mgmt__dialogField select,
+.ing-mgmt__dialogField textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.ing-mgmt__dialogField textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.ing-mgmt__dialogError {
+  display: block;
+  color: #d93025;
+  margin-top: 4px;
+  font-size: 0.8rem;
+}
+
+.ing-mgmt__dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #eaeaea;
+}
+
+/* History table in modal */
+.ing-mgmt__history-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  font-size: 0.9rem;
+}
+
+.ing-mgmt__history-table th,
+.ing-mgmt__history-table td {
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}

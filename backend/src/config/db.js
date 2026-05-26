@@ -186,6 +186,36 @@ export async function ensureDbSchema() {
       used_at TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS ingredient_units (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(50) UNIQUE NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS ingredients (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(150) NOT NULL,
+      unit VARCHAR(50) NOT NULL,
+      stock_quantity DECIMAL(14,2) NOT NULL DEFAULT 0,
+      min_stock_alert DECIMAL(14,2) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS ingredient_imports (
+      id SERIAL PRIMARY KEY,
+      ingredient_id INT REFERENCES ingredients(id) ON DELETE CASCADE,
+      quantity DECIMAL(14,2) NOT NULL,
+      note TEXT,
+      import_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS food_ingredients (
+      id SERIAL PRIMARY KEY,
+      food_id INT REFERENCES foods(id) ON DELETE CASCADE,
+      ingredient_id INT REFERENCES ingredients(id) ON DELETE RESTRICT,
+      quantity_needed DECIMAL(14,2) NOT NULL DEFAULT 1
+    );
   `)
 
   // Seed roles tối thiểu để auth/register không lỗi.
@@ -194,6 +224,14 @@ export async function ensureDbSchema() {
      SELECT x.name
      FROM (VALUES ('ADMIN'), ('STAFF'), ('CUSTOMER')) AS x(name)
      WHERE NOT EXISTS (SELECT 1 FROM roles)`,
+  )
+
+  // Seed default ingredient units
+  await query(
+    `INSERT INTO ingredient_units (name)
+     SELECT x.name
+     FROM (VALUES ('kg'), ('g'), ('lít'), ('ml'), ('hộp'), ('cái'), ('lon'), ('chai')) AS x(name)
+     ON CONFLICT (name) DO NOTHING`,
   )
 
   // Đảm bảo settings id=1 tồn tại (admin/settings và public/settings dựa vào 1 row).

@@ -88,7 +88,7 @@ export async function login(req, res, next) {
     const { rows } = await query(
       `
       SELECT
-        u.id, u.name, u.email, u.phone, u.password,
+        u.id, u.name, u.email, u.phone, u.password, u.status,
         r.name AS role
       FROM users u
       LEFT JOIN roles r ON r.id = u.role_id
@@ -99,6 +99,7 @@ export async function login(req, res, next) {
 
     const row = rows[0]
     if (!row) throw unauthorized('Email không tồn tại')
+    if (String(row.status || 'ACTIVE').toUpperCase() === 'LOCKED') throw badRequest('Tài khoản bị khóa')
 
     const okPass = await bcrypt.compare(String(password), String(row.password))
     if (!okPass) throw unauthorized('Sai email hoặc mật khẩu')
@@ -109,6 +110,7 @@ export async function login(req, res, next) {
       email: row.email,
       phone: row.phone,
       role: row.role || 'CUSTOMER',
+      status: row.status || 'ACTIVE',
     }
 
     const token = signToken(user)

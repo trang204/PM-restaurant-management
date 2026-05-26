@@ -45,6 +45,7 @@ export async function getMe(req, res, next) {
         u.email,
         u.phone,
         u.avatar_url,
+        u.status,
         r.name AS role,
         u.created_at
       FROM users u
@@ -55,6 +56,9 @@ export async function getMe(req, res, next) {
       [id],
     )
     if (!r.rows.length) throw notFound('Không tìm thấy người dùng')
+    if (String(r.rows[0].status || 'ACTIVE').toUpperCase() === 'LOCKED') {
+      throw badRequest('Tài khoản bị khóa')
+    }
     return ok(res, mapMeRow(r.rows[0], req))
   } catch (e) {
     return next(e)

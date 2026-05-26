@@ -15,6 +15,7 @@ import * as adminTables from '../../controllers/admin/tables.admin.controller.js
 import * as adminTableLayout from '../../controllers/admin/tableLayout.admin.controller.js'
 import * as adminKitchen from '../../controllers/admin/kitchen.admin.controller.js'
 import * as adminNotifications from '../../controllers/admin/notifications.admin.controller.js'
+import * as adminIngredients from '../../controllers/admin/ingredients.admin.controller.js'
 
 const router = Router()
 
@@ -49,6 +50,13 @@ router.get('/categories', ...staff, adminCategories.list)
 router.post('/categories', ...adminOnly, adminCategories.create)
 router.patch('/categories/:id', ...adminOnly, adminCategories.update)
 router.delete('/categories/:id', ...adminOnly, adminCategories.remove)
+
+router.get('/ingredients', ...staff, adminIngredients.list)
+router.post('/ingredients', ...adminOnly, adminIngredients.create)
+router.patch('/ingredients/:id', ...adminOnly, adminIngredients.update)
+router.delete('/ingredients/:id', ...adminOnly, adminIngredients.remove)
+router.post('/ingredients/:id/import', ...adminOnly, adminIngredients.importStock)
+router.get('/ingredients/:id/imports', ...staff, adminIngredients.history)
 
 router.get('/users', ...adminOnly, adminUsers.list)
 router.post('/users', ...adminOnly, adminUsers.create)

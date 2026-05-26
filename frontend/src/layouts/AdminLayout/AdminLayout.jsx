@@ -13,6 +13,7 @@ import {
   Home,
   Menu as MenuIcon,
   X,
+  Package,
 } from 'lucide-react'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
@@ -45,6 +46,7 @@ const adminTree = [
     label: 'Thực đơn',
     children: [
       { to: '/admin/menu', label: 'Món ăn', icon: <UtensilsCrossed size={15} /> },
+      { to: '/admin/ingredients', label: 'Nguyên liệu', icon: <Package size={15} /> },
     ],
   },
   {
@@ -67,7 +69,7 @@ function pathOpensGroup(pathname) {
     pathname.startsWith('/admin/kitchen')
   )
     s.add('van-hanh')
-  if (pathname.startsWith('/admin/menu')) s.add('thuc-don')
+  if (pathname.startsWith('/admin/menu') || pathname.startsWith('/admin/ingredients')) s.add('thuc-don')
   if (pathname.startsWith('/admin/users') || pathname.startsWith('/admin/settings')) s.add('he-thong')
   return s
 }
