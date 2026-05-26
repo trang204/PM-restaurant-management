@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Mail, MapPin, Phone } from 'lucide-react'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
+import { useNotifications } from '../../context/NotificationsContext'
 import { fetchPublicSettings } from '../../lib/settings'
 import './AppLayout.css'
 
@@ -10,6 +11,7 @@ type Me = { id?: string; email?: string; role?: string; fullName?: string; avata
 export default function AppLayout() {
   const [me, setMe] = useState<Me | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const { confirm } = useNotifications()
   const navRef = useRef<HTMLElement>(null)
   const location = useLocation()
 
@@ -61,7 +63,16 @@ export default function AppLayout() {
       })
   }, [])
 
-  function logout() {
+  async function logout() {
+    const ok = await confirm({
+      title: 'Đăng xuất',
+      message: 'Bạn có muốn đăng xuất không?',
+      danger: true,
+      confirmLabel: 'Đăng xuất',
+      cancelLabel: 'Hủy',
+      warningText: 'Bạn sẽ cần đăng nhập lại để tiếp tục sử dụng hệ thống.',
+    })
+    if (!ok) return
     setToken(null)
     setMe(null)
     window.location.href = '/'

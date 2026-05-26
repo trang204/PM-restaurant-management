@@ -123,15 +123,23 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             aria-describedby="notify-confirm-desc"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className={`notify-confirm__icon ${confirmOptions.danger ? 'notify-confirm__icon--danger' : 'notify-confirm__icon--warning'}`}>
-              {confirmOptions.danger ? <AlertCircle size={24} /> : <AlertTriangle size={24} />}
-            </div>
+            <div className="notify-confirm__header">
+              <div className={`notify-confirm__icon ${confirmOptions.danger ? 'notify-confirm__icon--danger' : 'notify-confirm__icon--warning'}`}>
+                {confirmOptions.danger ? <AlertCircle size={26} /> : <AlertTriangle size={26} />}
+              </div>
 
-            {confirmOptions.title ? (
-              <h2 id="notify-confirm-title" className="notify-confirm__title">
-                {confirmOptions.title}
-              </h2>
-            ) : null}
+              <div className="notify-confirm__textBlock">
+                <p id="notify-confirm-desc" className="notify-confirm__msg notify-confirm__msg--lead">
+                  {confirmOptions.message}
+                </p>
+
+                {confirmOptions.title ? (
+                  <h2 id="notify-confirm-title" className="notify-confirm__title">
+                    {confirmOptions.title}
+                  </h2>
+                ) : null}
+              </div>
+            </div>
 
             {/* Detail box: optional key/value pairs (e.g., name / id) */}
             {confirmOptions.fields && confirmOptions.fields.length ? (
@@ -144,10 +152,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
                 ))}
               </div>
             ) : null}
-
-            <p id="notify-confirm-desc" className="notify-confirm__msg">
-              {confirmOptions.message}
-            </p>
 
             {confirmOptions.warningText ? (
               <p className="notify-confirm__warning">

@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
+import { useNotifications } from '../../context/NotificationsContext'
 import { fetchPublicSettings } from '../../lib/settings'
 import NotificationBell from '../../components/NotificationBell.jsx'
 import './AdminLayout.css'
@@ -74,6 +75,7 @@ function pathOpensGroup(pathname) {
 export default function AdminLayout() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const { confirm } = useNotifications()
   const [openGroups, setOpenGroups] = useState(() => new Set(['van-hanh', 'thuc-don', 'he-thong']))
   const [me, setMe] = useState(null)
   const [brand, setBrand] = useState({ name: 'Luxeat', logoUrl: null })
@@ -123,7 +125,16 @@ export default function AdminLayout() {
     })
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    const ok = await confirm({
+      title: 'Đăng xuất',
+      message: 'Bạn có muốn đăng xuất không?',
+      danger: true,
+      confirmLabel: 'Đăng xuất',
+      cancelLabel: 'Hủy',
+      warningText: 'Bạn sẽ cần đăng nhập lại để tiếp tục sử dụng hệ thống.',
+    })
+    if (!ok) return
     setToken(null)
     setMe(null)
     navigate('/login')
