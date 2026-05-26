@@ -116,7 +116,38 @@ export default function MenuManagement() {
 
   async function saveItem(e) {
     e.preventDefault()
-    const priceNum = Number.parseInt(String(form.price).replace(/\D/g, ''), 10)
+    function parsePriceInput(raw) {
+      const s0 = String(raw ?? '').trim()
+      if (s0 === '') return NaN
+      // remove spaces
+      let s = s0.replace(/\s/g, '')
+      const hasDot = s.indexOf('.') >= 0
+      const hasComma = s.indexOf(',') >= 0
+      if (hasDot && hasComma) {
+        // e.g. 1.234,56 -> 1234.56
+        s = s.replace(/\./g, '').replace(',', '.')
+      } else if (hasComma) {
+        // e.g. 1234,56 -> 1234.56
+        s = s.replace(/\./g, '').replace(',', '.')
+      } else if (hasDot) {
+        const dots = (s.match(/\./g) || []).length
+        if (dots === 1) {
+          const after = s.split('.').pop() || ''
+          if (after.length !== 2) {
+            // treat dot as thousand separator (e.g. "10.000")
+            s = s.replace(/\./g, '')
+          }
+          // else keep decimal dot (e.g. "10000.00")
+        } else {
+          // multiple dots: remove as thousand separators
+          s = s.replace(/\./g, '')
+        }
+      }
+      const n = Number(s)
+      return Number.isFinite(n) ? n : NaN
+    }
+
+    const priceNum = parsePriceInput(form.price)
     const price = Number.isFinite(priceNum) ? priceNum : 0
     const catId = Number(form.categoryId)
     const cleanName = String(form.name || '').trim()
