@@ -84,6 +84,7 @@ export default function TableManagement() {
       await apiFetch('/zones', { method: 'POST', body: JSON.stringify({ name }) })
       setNewZoneName('')
       loadZones()
+      toast('Tạo khu vực thành công', { variant: 'success' })
     } catch (err) {
       toast(err.message, { variant: 'error' })
     } finally {
@@ -171,6 +172,7 @@ export default function TableManagement() {
         }
       }
       closeFormModal()
+      toast(editingId ? 'Cập nhật bàn thành công' : 'Tạo bàn thành công', { variant: 'success' })
       load()
     } catch (e) {
       toast(e.message, { variant: 'error' })
@@ -186,6 +188,7 @@ export default function TableManagement() {
     if (!okDel) return
     try {
       await apiFetch(`/tables/${id}`, { method: 'DELETE' })
+      toast('Xóa bàn thành công', { variant: 'success' })
       load()
     } catch (e) {
       toast(e.message, { variant: 'error' })
@@ -367,8 +370,8 @@ export default function TableManagement() {
                 placeholder="Tên khu vực mới…"
                 disabled={zoneLoading}
               />
-              <button type="submit" className="table-mgmt__zoneAddBtn" disabled={zoneLoading || !newZoneName.trim()}>
-                + Thêm
+              <button type="submit" className="table-mgmt__add" disabled={zoneLoading || !newZoneName.trim()}>
+                + Thêm khu vực
               </button>
             </form>
           </div>

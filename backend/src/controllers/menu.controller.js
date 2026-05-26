@@ -18,6 +18,11 @@ export async function listMenuItems(req, res, next) {
       params.push(categoryId)
       where.push(`f.category_id = $${params.length}`)
     }
+    // By default, only show AVAILABLE items on public menu unless explicitly requested
+    const showAll = String(req.query.show_all || '').trim() === '1' || String(req.query.show_unavailable || '').trim() === '1'
+    if (!showAll) {
+      where.push(`COALESCE(UPPER(TRIM(f.status)), 'AVAILABLE') = 'AVAILABLE'`)
+    }
 
     const sql = `
       SELECT

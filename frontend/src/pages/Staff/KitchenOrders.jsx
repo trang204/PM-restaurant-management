@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import './KitchenOrders.css'
+import { RefreshCw } from 'lucide-react'
 
 function formatPrice(n) {
   const x = Number(n)
@@ -133,8 +134,8 @@ export default function KitchenOrders() {
         <div>
           <h1 className="kitchen__title">Bếp &amp; gọi món</h1>
         </div>
-        <button type="button" className="kitchen__refresh" onClick={load}>
-          Làm mới
+        <button type="button" style={{ border: '1px solid #ccc', backgroundColor: '#f8f9fa' }} className="kitchen__refresh dash__btn dash__btn--ghost" onClick={load}>
+          <RefreshCw size={16} />  Làm mới
         </button>
       </header>
 

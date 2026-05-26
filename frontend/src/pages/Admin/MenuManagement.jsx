@@ -49,7 +49,8 @@ export default function MenuManagement() {
 
   function load() {
     setLoading(true)
-    Promise.all([apiFetch('/admin/menu-items'), apiFetch('/admin/categories')])
+    // force fresh data (avoid cached 304 responses)
+    Promise.all([apiFetch('/admin/menu-items', { cache: 'no-store' }), apiFetch('/admin/categories', { cache: 'no-store' })])
       .then(([mi, cat]) => {
         setItems(Array.isArray(mi) ? mi : [])
         setCategories(Array.isArray(cat) ? cat : [])
@@ -172,19 +173,30 @@ export default function MenuManagement() {
       }
       load()
       closeModal()
+      toast(editingId ? 'Cập nhật món thành công' : 'Thêm món thành công', { variant: 'success' })
     } catch (ex) {
       toast(ex.message, { variant: 'error' })
     }
   }
 
-  async function deleteItem(id) {
-    const okDel = await confirm({ title: 'Xóa món', message: 'Xóa món này?' })
+  async function deleteItem(id, name) {
+    const okDel = await confirm({ title: 'Xóa món', message: `Xóa món "${String(name || id)}"?` })
     if (!okDel) return
     try {
-      await apiFetch(`/admin/menu-items/${id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/admin/menu-items/${id}`, { method: 'DELETE' })
+      // On successful delete, remove item from local state and show success,
+      // then refresh list from server to keep UI consistent.
+      setItems((prev) => prev.filter((x) => String(x.id) !== String(id)))
+      toast('Xóa món thành công', { variant: 'success' })
+      // refresh authoritative data
       load()
     } catch (e) {
-      toast(e.message, { variant: 'error' })
+      const msg = String(e?.message || '')
+      if (msg.toLowerCase().includes('ràng buộc') || msg.toLowerCase().includes('foreign key')) {
+        toast('Không thể xóa món do có ràng buộc (ví dụ: đơn/phiên gọi món). Hãy xóa các mục tham chiếu trước.', { variant: 'error' })
+      } else {
+        toast(msg, { variant: 'error' })
+      }
     }
   }
 
@@ -471,7 +483,7 @@ export default function MenuManagement() {
                       className="menu-card__btn menu-card__btn--danger"
                       onClick={(e) => {
                         e.stopPropagation()
-                        deleteItem(it.id)
+                        deleteItem(it.id, it.name)
                       }}
                     >
                       Xóa

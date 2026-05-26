@@ -78,6 +78,21 @@ export default function Menu() {
     }
   }, [])
 
+  // Explicit load so we can refresh on button click
+  const load = async () => {
+    setLoading(true)
+    try {
+      const [data, cats] = await Promise.all([apiFetch<ApiMenuItem[]>('/menu'), apiFetch<CategoryRow[]>('/menu/categories')])
+      setItems(Array.isArray(data) ? data : [])
+      setCategories(Array.isArray(cats) ? cats : [])
+      setError(null)
+    } catch (e) {
+      setError((e as Error)?.message || String(e))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     const token = localStorage.getItem('luxeat_token')
     if (!token) {
@@ -145,9 +160,14 @@ export default function Menu() {
           <h2 id="menu-heading" className="menuSection__title">
             Thực đơn
           </h2>
-          <p className="menuSection__hint">
-            {loading ? 'Đang tải...' : error ? `Lỗi: ${error}` : `${visible.length} món`}
-          </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <p className="menuSection__hint" style={{ margin: 0 }}>
+                {loading ? 'Đang tải...' : error ? `Lỗi: ${error}` : `${visible.length} món`}
+              </p>
+              <button type="button" className="menuRefreshBtn" onClick={load} style={{ padding: '6px 10px' }}>
+                Làm mới
+              </button>
+            </div>
         </div>
 
         <div className="menuLayout">

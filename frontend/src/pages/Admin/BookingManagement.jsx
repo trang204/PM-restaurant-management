@@ -164,7 +164,7 @@ export default function BookingManagement({ staffMode = false }) {
   const [walkInTableId, setWalkInTableId] = useState('')
   const [walkInName, setWalkInName] = useState('')
   const [walkInPhone, setWalkInPhone] = useState('')
-  const [walkInGuests, setWalkInGuests] = useState('2')
+  const [walkInGuests, setWalkInGuests] = useState('')
   const [walkInBusy, setWalkInBusy] = useState(false)
   const [paymentSettings, setPaymentSettings] = useState(null)
   const [paymentModal, setPaymentModal] = useState(null)
@@ -553,11 +553,13 @@ export default function BookingManagement({ staffMode = false }) {
           </h2>
           <div className="booking-mgmt__walkInGrid">
             <label className="booking-mgmt__field">
-              <span>Bàn trống</span>
+              <span>Bàn trống <span style={{ color: 'red' }}>*</span></span>
               <select
                 value={walkInTableId}
                 onChange={(e) => setWalkInTableId(e.target.value)}
                 aria-label="Chọn bàn cho khách vãng lai"
+                required
+                aria-required="true"
               >
                 <option value="">— Chọn bàn —</option>
                 {tables.filter(tableAvailableForWalkIn).map((t) => (
@@ -568,34 +570,37 @@ export default function BookingManagement({ staffMode = false }) {
               </select>
             </label>
             <label className="booking-mgmt__field">
-              <span>Tên khách (tuỳ chọn)</span>
+              <span>Tên khách</span>
               <input
                 type="text"
                 value={walkInName}
                 onChange={(e) => setWalkInName(e.target.value)}
-                placeholder="Khách vãng lai"
+                placeholder="Nhập tên khách"
                 maxLength={100}
               />
             </label>
             <label className="booking-mgmt__field">
-              <span>Số điện thoại (tuỳ chọn)</span>
+              <span>Số điện thoại</span>
               <input
                 type="tel"
                 value={walkInPhone}
                 onChange={(e) => setWalkInPhone(e.target.value)}
-                placeholder="09…"
+                placeholder="Nhập số điện thoại"
                 maxLength={20}
               />
             </label>
             <label className="booking-mgmt__field">
               <span>Số khách</span>
-              <input
-                type="number"
-                min={1}
-                max={99}
-                value={walkInGuests}
-                onChange={(e) => setWalkInGuests(e.target.value)}
-              />
+                <input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={walkInGuests}
+                  onChange={(e) => setWalkInGuests(e.target.value)}
+                  required
+                  aria-required="true"
+                  placeholder="Nhập số khách"
+                />
             </label>
           </div>
           <div className="booking-mgmt__walkInActions">
@@ -609,6 +614,11 @@ export default function BookingManagement({ staffMode = false }) {
                   toast('Chọn bàn trống.', { variant: 'info' })
                   return
                 }
+                const guests = Number(walkInGuests)
+                if (!Number.isFinite(guests) || guests <= 0) {
+                  toast('Nhập số khách.', { variant: 'info' })
+                  return
+                }
                 setWalkInBusy(true)
                 try {
                   const res = await apiFetch('/admin/reservations/walk-in', {
@@ -617,7 +627,7 @@ export default function BookingManagement({ staffMode = false }) {
                       tableId: tid,
                       guestName: walkInName.trim() || undefined,
                       guestPhone: walkInPhone.trim() || undefined,
-                      guests: Number(walkInGuests) || 2,
+                      guests: guests,
                       bookingDate: todayYmdLocal(),
                       bookingTime: nowHmLocal(),
                     }),
@@ -625,7 +635,7 @@ export default function BookingManagement({ staffMode = false }) {
                   setWalkInTableId('')
                   setWalkInName('')
                   setWalkInPhone('')
-                  setWalkInGuests('2')
+                  setWalkInGuests('')
                   load()
                   refreshTables()
                   if (res?.tableSession?.qrSvg && res?.tableSession?.orderUrl) {

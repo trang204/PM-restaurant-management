@@ -181,7 +181,7 @@ const tabs = [
   { id: 'social', label: 'Mạng xã hội' },
   { id: 'payment', label: 'Thanh toán' },
   { id: 'content', label: 'Nội dung website' },
-  { id: 'banner', label: 'Giao diện / Banner' },
+  { id: 'banner', label: 'Giao diện hiển thị' },
 ]
 
 function parseFeaturesJson(raw) {

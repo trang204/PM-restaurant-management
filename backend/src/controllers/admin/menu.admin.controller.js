@@ -212,9 +212,28 @@ export async function remove(req, res, next) {
   try {
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
-    const r = await query('DELETE FROM foods WHERE id = $1 RETURNING id', [id])
-    if (!r.rows.length) throw notFound('Không tìm thấy món')
-    return ok(res, { id: r.rows[0].id, deleted: true })
+    try {
+      const r = await query('DELETE FROM foods WHERE id = $1 RETURNING id', [id])
+      if (!r.rows.length) throw notFound('Không tìm thấy món')
+      return ok(res, { id: r.rows[0].id, deleted: true })
+    } catch (e) {
+      // Postgres foreign key violation code = '23503'
+      const msg = String(e?.message || '')
+      const detail = String(e?.detail || '')
+      if (
+        (e && typeof e.code === 'string' && e.code === '23503') ||
+        msg.toLowerCase().includes('foreign key') ||
+        detail.toLowerCase().includes('still referenced') ||
+        detail.toLowerCase().includes('fk')
+      ) {
+        // eslint-disable-next-line no-console
+        console.warn('Delete menu item blocked by foreign key constraint:', e)
+        return next(
+          badRequest('Không thể xóa món do có ràng buộc (ví dụ: đơn/phiên gọi món). Hãy xóa các mục tham chiếu trước.'),
+        )
+      }
+      throw e
+    }
   } catch (e) {
     return next(e)
   }

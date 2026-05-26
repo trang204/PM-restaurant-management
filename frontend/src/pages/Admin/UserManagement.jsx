@@ -134,6 +134,7 @@ export default function UserManagement() {
       setEditModal(null)
       setAvatarFile(null)
       setAvatarPreview('')
+      toast('Cập nhật người dùng thành công', { variant: 'success' })
       load()
     } catch (e) {
       toast(e.message, { variant: 'error' })
@@ -145,6 +146,7 @@ export default function UserManagement() {
     if (!okDel) return
     try {
       await apiFetch(`/admin/users/${id}`, { method: 'DELETE' })
+      toast('Xóa người dùng thành công', { variant: 'success' })
       load()
     } catch (e) {
       toast(e.message, { variant: 'error' })
@@ -193,6 +195,7 @@ export default function UserManagement() {
       setAddForm({ email: '', password: '', fullName: '', phone: '', status: 'ACTIVE', role: meta.role })
       setAvatarFile(null)
       setAvatarPreview('')
+      toast('Tạo người dùng thành công', { variant: 'success' })
       load()
     } catch (e) {
       toast(e.message, { variant: 'error' })

@@ -184,7 +184,6 @@ export default function Dashboard() {
             Đặt bàn hôm nay
           </p>
           <p className="dash__stat-value">{todayBookingsCount}</p>
-          <p className="dash__stat-sub">Số đơn theo ngày hiện tại</p>
         </article>
         <article className="dash__stat">
           <p className="dash__stat-label">
@@ -194,7 +193,6 @@ export default function Dashboard() {
           <p className="dash__stat-value" style={{ fontSize: '1.4rem' }}>
             {vnd.format(totalRevenueToday)}
           </p>
-          <p className="dash__stat-sub">Tổng thanh toán trong ngày</p>
         </article>
         <article className="dash__stat">
           <p className="dash__stat-label">
@@ -202,7 +200,6 @@ export default function Dashboard() {
             Bàn đang sử dụng
           </p>
           <p className="dash__stat-value">{occupiedTables} / {tables.length}</p>
-          <p className="dash__stat-sub">Bàn đang phục vụ khách</p>
         </article>
         <article className="dash__stat">
           <p className="dash__stat-label">
@@ -210,7 +207,6 @@ export default function Dashboard() {
             Tổng người dùng
           </p>
           <p className="dash__stat-value">{users.length}</p>
-          <p className="dash__stat-sub">Người dùng đã đăng ký</p>
         </article>
       </div>
 
@@ -241,17 +237,17 @@ export default function Dashboard() {
 
           <div className="dash__filters" aria-label="Tìm kiếm và lọc">
             <div className="dash__filter">
-              <label className="dash__filterLabel" htmlFor="dash-q">Tìm theo tên</label>
+              <label className="dash__filterLabel" htmlFor="dash-q">Tìm kiếm</label>
               <input
                 id="dash-q"
                 className="dash__input"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Nhập tên / SĐT / email / mã..."
+                placeholder="Nhập tên / SĐT / email..."
               />
             </div>
             <div className="dash__filter">
-              <label className="dash__filterLabel" htmlFor="dash-status">Lọc theo trạng thái</label>
+              <label className="dash__filterLabel" htmlFor="dash-status">Trạng thái</label>
               <select
                 id="dash-status"
                 className="dash__select"

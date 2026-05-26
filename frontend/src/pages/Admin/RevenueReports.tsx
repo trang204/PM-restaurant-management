@@ -583,7 +583,7 @@ export default function RevenueReports() {
                         <td><strong className="rev-report__moneyBold">{formatCurrency(Number(row.revenue || 0))}</strong></td>
                         <td style={{ textAlign: 'right' }}>
                           <button type="button" className="rev-report__detailBtn" onClick={() => openPeriodDetail(row)}>
-                            Xem hóa đơn
+                            Xem
                           </button>
                         </td>
                       </tr>
