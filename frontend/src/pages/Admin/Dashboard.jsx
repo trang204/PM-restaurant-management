@@ -170,9 +170,6 @@ export default function Dashboard() {
     <div className="dash">
       <div style={{ marginBottom: 28 }}>
         <h1 className="dash__title">Tổng quan</h1>
-        <p className="dash__subtitle">
-          Xem nhanh tình trạng hoạt động của nhà hàng hôm nay.
-        </p>
       </div>
 
       {err ? (

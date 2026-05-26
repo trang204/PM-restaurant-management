@@ -475,9 +475,6 @@ export default function Settings() {
     <div className="settings-page">
       <header className="settings-page__header">
         <h1 className="settings-page__title">Cài đặt nhà hàng</h1>
-        <p className="settings-page__subtitle">
-          Cập nhật thông tin hiển thị trên website và khu quản trị. Chỉ tài khoản Quản trị viên mới sửa được.
-        </p>
       </header>
 
       {loading ? <p>Đang tải...</p> : null}
@@ -557,9 +554,6 @@ export default function Settings() {
         <div className="settings-card__grid">
           <div className="settings-field--full settings-social-section">
             <span className="settings-social-section__label">Liên kết mạng xã hội</span>
-            <p className="settings-social-section__hint">
-              Đường dẫn sẽ hiển thị ở footer trang web. Để trống nếu không dùng.
-            </p>
             <div className="settings-card__grid" style={{ marginTop: 12 }}>
               <label className="settings-field settings-field--full">
                 <span className="settings-social-label settings-social-label--fb">
@@ -606,10 +600,6 @@ export default function Settings() {
         <div className="settings-card__grid">
           <div className="settings-field--full settings-payment">
             <span className="settings-payment__label">Thanh toán chuyển khoản (QR SePay)</span>
-            <p className="settings-payment__hint">
-              Khi nhân viên chọn &quot;QR Thanh toán CK&quot; cho đơn, hệ thống tạo ảnh QR từ SePay với thông tin dưới đây.
-              Nội dung chuyển khoản hỗ trợ <code>{'{id}'}</code> (mã đơn) và <code>{'{amount}'}</code> (số tiền).
-            </p>
             <div className="settings-card__grid" style={{ marginTop: 8 }}>
               <label className="settings-field">
                 <span>Số tài khoản ngân hàng</span>
@@ -655,9 +645,6 @@ export default function Settings() {
         <div className="settings-card__grid">
           <div className="settings-field--full settings-home-section">
             <span className="settings-home-section__label">Nội dung trang chủ</span>
-            <p className="settings-home-section__hint">
-              Chỉnh sửa các đoạn văn bản hiển thị trên trang chủ. Để trống sẽ dùng giá trị mặc định.
-            </p>
             <div className="settings-card__grid" style={{ marginTop: 8 }}>
               <label className="settings-field settings-field--full">
                 <span>Tiêu đề phụ</span>

@@ -329,8 +329,7 @@ export default function TableManagement() {
     <div className="table-mgmt">
       <header className="table-mgmt__header">
         <div>
-          <h1 className="table-mgmt__title">Bàn</h1>
-          <p className="table-mgmt__subtitle">Quản lý sơ đồ bàn, sức chứa và trạng thái.</p>
+          <h1 className="table-mgmt__title">Quản lý bàn</h1>
         </div>
         <button type="button" className="table-mgmt__add" onClick={openAdd}>
           Thêm bàn

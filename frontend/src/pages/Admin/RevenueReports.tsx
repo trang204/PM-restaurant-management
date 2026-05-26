@@ -410,9 +410,6 @@ export default function RevenueReports() {
       <header className="rev-report__header">
         <div>
           <h1 className="rev-report__title">Báo Cáo Doanh Thu</h1>
-          <p className="rev-report__subtitle">
-            Phân tích số liệu bán hàng, theo dõi tăng trưởng và chi tiết hóa đơn.
-          </p>
         </div>
         <button type="button" className="rev-report__exportBtn" onClick={exportExcel}>
           Xuất báo cáo Excel

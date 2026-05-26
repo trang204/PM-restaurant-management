@@ -241,7 +241,6 @@ export default function UserManagement() {
       <header className="user-mgmt__header">
         <div>
           <h1 className="user-mgmt__title">Người dùng · {meta.label}</h1>
-          <p className="user-mgmt__subtitle">Tìm theo họ tên, email hoặc số điện thoại.</p>
         </div>
         <div className="user-mgmt__headRight">
           <button type="button" className="user-mgmt__add" onClick={openAddModal}>

@@ -540,11 +540,6 @@ export default function BookingManagement({ staffMode = false }) {
           <h1 className="booking-mgmt__title">
             {staffMode ? 'Tiếp đón & quản lý bàn' : 'Đặt bàn'}
           </h1>
-          <p className="booking-mgmt__subtitle">
-            {staffMode
-              ? 'Khách vãng lai: mở bàn nhanh (form bên dưới). Đặt trước: gán bàn → Xác nhận → Vào bàn → QR gọi món. Danh sách theo ngày.'
-              : 'Khách vãng lai: mở bàn nhanh. Đặt trước: gán bàn → Xác nhận → Vào bàn → QR gọi món. Danh sách theo ngày.'}
-          </p>
         </div>
       </header>
 
@@ -556,9 +551,6 @@ export default function BookingManagement({ staffMode = false }) {
           <h2 id="walkin-heading" className="booking-mgmt__walkInTitle">
             Mở bàn — khách vãng lai
           </h2>
-          <p className="booking-mgmt__walkInHint">
-            Tạo đơn không cần tài khoản, vào bàn ngay, bàn chuyển sang đang có khách và hiển thị QR/link gọi món.
-          </p>
           <div className="booking-mgmt__walkInGrid">
             <label className="booking-mgmt__field">
               <span>Bàn trống</span>

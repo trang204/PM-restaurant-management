@@ -132,10 +132,6 @@ export default function KitchenOrders() {
       <header className="kitchen__head">
         <div>
           <h1 className="kitchen__title">Bếp &amp; gọi món</h1>
-          <p className="kitchen__sub">
-            Theo dõi đơn theo bàn, xác nhận món lên bếp và xác nhận đã thu tiền khi khách tạo yêu cầu thanh toán. Thông báo ở
-            icon chuông trên thanh menu.
-          </p>
         </div>
         <button type="button" className="kitchen__refresh" onClick={load}>
           Làm mới
