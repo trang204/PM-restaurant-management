@@ -79,6 +79,8 @@ export default function Dashboard() {
     setBusy(true)
     setErr(null)
     const today = todayYmdLocal()
+    setQ("")
+    setStatus("")
     Promise.all([
       apiFetch(`/admin/reports/revenue?from=${encodeURIComponent(today)}&to=${encodeURIComponent(today)}`),
       apiFetch('/admin/reservations'),

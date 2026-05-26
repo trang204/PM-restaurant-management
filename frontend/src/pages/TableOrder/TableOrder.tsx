@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { mediaUrl, publicApiFetch } from '../../lib/api'
 import './TableOrder.css'
+import { useNotifications } from '../../context/NotificationsContext'
 
 type MenuItem = {
   id: string | number
@@ -99,6 +100,45 @@ export default function TableOrder() {
       document.body.style.overflow = ''
     }
   }, [cartOpen])
+
+  const { confirm } = useNotifications()
+
+  const handleClearAllCart = async () => {
+    if (!ctx || !token) return
+    const pendingItems = ctx.items.filter(i => String(i.order_status || 'PENDING').toUpperCase() === 'PENDING')
+    
+    if (pendingItems.length === 0) {
+      showToast('Chỉ có thể xóa các món chưa xác nhận.')
+      return
+    }
+
+    const ok = await confirm({
+      title: 'Xóa tất cả món chưa xác nhận',
+      message: 'Bạn có chắc chắn muốn xóa tất cả các món trong đợt gọi này không?',
+      confirmLabel: 'Xóa tất cả',
+    })
+    if (!ok) return
+
+    setErr(null)
+    setLoading(true)
+    try {
+      await Promise.all(
+        pendingItems.map(i =>
+          publicApiFetch(`/table-session/${encodeURIComponent(token)}/items/${i.id}`, {
+            method: 'DELETE',
+          })
+        )
+      )
+      await load()
+      await loadPayment()
+      showToast('Đã xóa tất cả món chưa xác nhận.')
+      setCartOpen(false)
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   function showToast(msg: string) {
     setToast(msg)
@@ -646,6 +686,7 @@ export default function TableOrder() {
             <aside className="tableOrder__cart" aria-label="Đơn của bạn">
               <div className="tableOrder__cartHead">
                 <h2 className="tableOrder__h2">Đơn của bạn</h2>
+                <button type='button' className="tableOrder__clearCart" onClick={handleClearAllCart}>Xóa tất cả món</button>
               </div>
               {ctx.items.length === 0 ? (
                 <div className="tableOrder__cartEmpty">
@@ -680,7 +721,6 @@ export default function TableOrder() {
                                 <div className="tableOrder__lineMain">
                                   <span className="tableOrder__lineName">{i.food_name || `Món #${i.food_id}`}</span>
                                   <span className="tableOrder__lineSub">{formatPrice(Number(i.price))} / phần</span>
-                                  {/* Chỉ hiện trạng thái bếp với đơn PENDING — SERVING đã được xử lý rồi */}
                                   {isPending ? (
                                     <span
                                       className={

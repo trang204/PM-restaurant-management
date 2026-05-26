@@ -38,6 +38,26 @@
   gap: 16px;
   flex-wrap: wrap;
 }
+.tableOrder__clearCart{
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: red;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  background-color: #fff;
+  border-radius: 10%;
+  border: none;
+}
+.tableOrder__clearCart:hover{
+  background-color: rgb(235, 165, 165);
+  transition: all 0.3s ease;
+}
+.tableOrder__clearCart:hover{
+  background-color: rgb(243, 223, 223);
+}
+
 
 .tableOrder__brand {
   display: flex;
