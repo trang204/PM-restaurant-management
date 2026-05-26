@@ -142,7 +142,15 @@ export default function UserManagement() {
   }
 
   async function deleteUser(id) {
-    const okDel = await confirm({ title: 'Xóa người dùng', message: 'Xóa người dùng này?' })
+    const okDel = await confirm({
+      title: 'Xóa người dùng',
+      message: 'Bạn có chắc chắn muốn xóa người dùng này?',
+      danger: true,
+      fields: [{ label: 'ID', value: String(id) }],
+      warningText: 'Hành động này không thể hoàn tác. Người dùng sẽ bị xóa khỏi hệ thống và các dữ liệu liên quan có thể bị ảnh hưởng.',
+      confirmLabel: 'Xóa',
+      cancelLabel: 'Hủy',
+    })
     if (!okDel) return
     try {
       await apiFetch(`/admin/users/${id}`, { method: 'DELETE' })

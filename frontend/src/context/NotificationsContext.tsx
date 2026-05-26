@@ -25,6 +25,8 @@ export type ConfirmOptions = {
   confirmLabel?: string
   cancelLabel?: string
   danger?: boolean
+  fields?: Array<{ label: string; value: string }>
+  warningText?: string
 }
 
 type ToastItem = { id: string; message: string; variant: ToastVariant }
@@ -45,7 +47,7 @@ const TOAST_DURATION = 4500
 function ToastIcon({ variant }: { variant: ToastVariant }) {
   const size = 18
   if (variant === 'success') return <CheckCircle size={size} />
-  if (variant === 'error')   return <XCircle size={size} />
+  if (variant === 'error') return <XCircle size={size} />
   if (variant === 'warning') return <AlertTriangle size={size} />
   return <Info size={size} />
 }
@@ -122,9 +124,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className={`notify-confirm__icon ${confirmOptions.danger ? 'notify-confirm__icon--danger' : 'notify-confirm__icon--warning'}`}>
-              {confirmOptions.danger
-                ? <AlertCircle size={24} />
-                : <AlertTriangle size={24} />}
+              {confirmOptions.danger ? <AlertCircle size={24} /> : <AlertTriangle size={24} />}
             </div>
 
             {confirmOptions.title ? (
@@ -133,9 +133,28 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
               </h2>
             ) : null}
 
+            {/* Detail box: optional key/value pairs (e.g., name / id) */}
+            {confirmOptions.fields && confirmOptions.fields.length ? (
+              <div className="notify-confirm__detailBox">
+                {confirmOptions.fields.map((f, idx) => (
+                  <div className="notify-confirm__detailRow" key={idx}>
+                    <div className="notify-confirm__detailLabel">{f.label}</div>
+                    <div className="notify-confirm__detailValue">{f.value}</div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
             <p id="notify-confirm-desc" className="notify-confirm__msg">
               {confirmOptions.message}
             </p>
+
+            {confirmOptions.warningText ? (
+              <p className="notify-confirm__warning">
+                <span className="notify-confirm__warningIcon"><Info size={16} /></span>
+                {confirmOptions.warningText}
+              </p>
+            ) : null}
 
             <div className="notify-confirm__actions">
               <button
@@ -159,6 +178,18 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     </NotificationsContext.Provider>
   )
 }
+
+// export function useNotifications(): NotificationsValue {
+//   const ctx = useContext(NotificationsContext)
+//   if (!ctx) {
+//     throw new Error('useNotifications phải dùng bên trong NotificationsProvider')
+//   }
+//   return ctx
+// }
+//       ) : null}
+//     </NotificationsContext.Provider>
+//   )
+// }
 
 export function useNotifications(): NotificationsValue {
   const ctx = useContext(NotificationsContext)

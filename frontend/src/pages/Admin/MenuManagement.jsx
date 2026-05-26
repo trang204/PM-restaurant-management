@@ -66,10 +66,10 @@ export default function MenuManagement() {
   function openAdd() {
     setEditingId(null)
     setImageFile(null)
-    const first = categories[0]
+    // When adding new item, leave category empty so the placeholder is shown
     setForm({
       ...emptyForm,
-      categoryId: first?.id != null ? String(first.id) : '',
+      categoryId: '',
     })
     setFormErrors({})
     setDetailItem(null)
@@ -102,6 +102,18 @@ export default function MenuManagement() {
   function openDetail(item) {
     setDetailItem(item)
     setModalOpen(false)
+  }
+
+  function normalizeInputUrl(raw) {
+    if (!raw) return ''
+    const s = String(raw).trim()
+    if (!s) return ''
+    if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('/')) return s
+    if (s.startsWith('//')) return `https:${s}`
+    if (s.startsWith('www.')) return `https://${s}`
+    // fallback: if looks like domain path (contains a dot and no spaces), assume https
+    if (/[.]./.test(s) && !s.includes(' ')) return `https://${s}`
+    return s
   }
 
   function closeModal() {
@@ -169,7 +181,8 @@ export default function MenuManagement() {
       return
     }
     try {
-      const imageUrl = form.imageUrl?.trim() ? form.imageUrl.trim() : null
+      const rawImageUrl = form.imageUrl?.trim() ? form.imageUrl.trim() : null
+      const imageUrl = rawImageUrl ? normalizeInputUrl(rawImageUrl) : null
 
       if (editingId) {
         await apiFetch(`/admin/menu-items/${editingId}`, {
@@ -193,7 +206,7 @@ export default function MenuManagement() {
             name: cleanName,
             price,
             category_id: catId,
-            image_url: null,
+            image_url: imageUrl,
             description: cleanDescription || null,
             status: form.status,
           }),
@@ -211,7 +224,18 @@ export default function MenuManagement() {
   }
 
   async function deleteItem(id, name) {
-    const okDel = await confirm({ title: 'Xóa món', message: `Xóa món "${String(name || id)}"?` })
+    const okDel = await confirm({
+      title: 'Xóa món',
+      message: `Bạn có chắc muốn xóa món này?`,
+      danger: true,
+      fields: [
+        { label: 'Tên', value: String(name || '') },
+        { label: 'ID', value: String(id) },
+      ],
+      warningText: 'Hành động này không thể hoàn tác. Món sẽ bị xóa khỏi danh sách và mọi liên kết tham chiếu sẽ mất.',
+      confirmLabel: 'Xóa',
+      cancelLabel: 'Hủy',
+    })
     if (!okDel) return
     try {
       const res = await apiFetch(`/admin/menu-items/${id}`, { method: 'DELETE' })
@@ -269,7 +293,11 @@ export default function MenuManagement() {
   }
 
   const previewSrc =
-    form.image && String(form.image).startsWith('data:') ? form.image : form.imageUrl ? mediaUrl(form.imageUrl) : form.image || placeholderImg
+    form.image && String(form.image).startsWith('data:')
+      ? form.image
+      : form.imageUrl
+      ? mediaUrl(normalizeInputUrl(form.imageUrl))
+      : form.image || placeholderImg
 
   const sections = useMemo(() => {
     const byKey = new Map()
@@ -554,6 +582,7 @@ export default function MenuManagement() {
                     setFormErrors((prev) => ({ ...prev, name: '' }))
                     setForm((f) => ({ ...f, name: e.target.value }))
                   }}
+                  placeholder="Nhập tên"
                   required
                   autoComplete="off"
                 />
@@ -567,6 +596,7 @@ export default function MenuManagement() {
                     setFormErrors((prev) => ({ ...prev, price: '' }))
                     setForm((f) => ({ ...f, price: e.target.value }))
                   }}
+                  placeholder="Nhập giá"
                   inputMode="numeric"
                   required
                 />

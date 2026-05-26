@@ -183,6 +183,45 @@
   margin: 0 0 24px;
 }
 
+/* Detail box (profile-like) */
+.notify-confirm__detailBox {
+  border: 1px solid #F0E6DE;
+  background: #FFF9F5;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+.notify-confirm__detailRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dashed rgba(28,23,19,0.04);
+}
+.notify-confirm__detailRow:last-child { border-bottom: none; }
+.notify-confirm__detailLabel {
+  color: #6B5A50;
+  font-size: 0.78rem;
+}
+.notify-confirm__detailValue {
+  color: #1C1713;
+  font-weight: 700;
+}
+
+/* Warning paragraph */
+.notify-confirm__warning {
+  color: #B22222;
+  background: rgba(242,212,211,0.35);
+  border: 1px solid rgba(194,58,48,0.08);
+  padding: 12px 14px;
+  border-radius: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0 0 18px;
+}
+.notify-confirm__warningIcon { color: #B22222; margin-top: 2px; display: inline-flex }
+
 .notify-confirm__actions {
   display: flex;
   gap: 10px;

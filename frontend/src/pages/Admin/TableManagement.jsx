@@ -93,7 +93,17 @@ export default function TableManagement() {
   }
 
   async function deleteZone(id, name) {
-    const ok = await confirm({ title: 'Xóa khu vực', message: `Xóa khu vực "${name}"? Các bàn thuộc khu này sẽ chuyển về Mặc định.` })
+    const ok = await confirm({
+      title: 'Xóa khu vực',
+      message: `Xóa khu vực "${name}"? Các bàn thuộc khu này sẽ chuyển về Mặc định.`,
+      danger: true,
+      fields: [
+        { label: 'Tên khu', value: name },
+      ],
+      warningText: 'Hành động này không thể hoàn tác. Các bàn sẽ được chuyển về khu Mặc định.',
+      confirmLabel: 'Xóa',
+      cancelLabel: 'Hủy',
+    })
     if (!ok) return
     try {
       await apiFetch(`/zones/${id}`, { method: 'DELETE' })
@@ -183,7 +193,15 @@ export default function TableManagement() {
     const table = tables.find((x) => x.id === id)
     const okDel = await confirm({
       title: 'Xóa bàn',
-      message: `Bạn có chắc chắn muốn xóa ${table?.name || `bàn #${id}`} không?`,
+      message: `Bạn có chắc chắn muốn xóa bàn này?`,
+      danger: true,
+      fields: [
+        { label: 'Tên bàn', value: table?.name || `#${id}` },
+        { label: 'ID', value: String(id) },
+      ],
+      warningText: 'Hành động này không thể hoàn tác. Bàn sẽ bị xóa khỏi hệ thống.',
+      confirmLabel: 'Xóa',
+      cancelLabel: 'Hủy',
     })
     if (!okDel) return
     try {

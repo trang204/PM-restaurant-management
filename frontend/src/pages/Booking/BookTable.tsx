@@ -310,10 +310,9 @@ export default function BookTable() {
       <header className="bookHero">
         <div className="bookHero__copy">
           <p className="bookHero__eyebrow">Đặt chỗ</p>
-          <h1 className="bookHero__title">Trải nghiệm đặt bàn tinh chỉnh</h1>
+          <h1 className="bookHero__title">Trải nghiệm đặt bàn hiện đại</h1>
           <p className="bookHero__lead">
-            Chọn thời gian, ưu tiên bàn yêu thích và gợi ý món trước — nhà hàng sẽ xác nhận và chuẩn bị cho buổi
-            gặp của bạn.
+            Lựa chọn thời gian, vị trí bàn và món ăn trước để nhà hàng chuẩn bị tốt nhất cho buổi gặp của bạn.
           </p>
           <div className="bookHero__chips">
             <span className="bookHero__chip">Xác nhận nhanh</span>
