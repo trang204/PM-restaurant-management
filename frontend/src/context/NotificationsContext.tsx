@@ -61,12 +61,15 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setToasts((t) => t.filter((x) => x.id !== id))
   }, [])
 
-  const toast = useCallback((message: string, opts?: { variant?: ToastVariant }) => {
-    const id = nextId()
-    const variant = opts?.variant ?? 'info'
-    setToasts((t) => [...t, { id, message, variant }])
-    window.setTimeout(() => removeToast(id), TOAST_DURATION)
-  }, [removeToast])
+  const toast = useCallback(
+    (message: string, opts?: { variant?: ToastVariant }) => {
+      const id = nextId()
+      const variant = opts?.variant ?? 'info'
+      setToasts((t) => [...t, { id, message, variant }])
+      window.setTimeout(() => removeToast(id), TOAST_DURATION)
+    },
+    [removeToast],
+  )
 
   const confirm = useCallback((options: ConfirmOptions) => {
     return new Promise<boolean>((resolve) => {
@@ -87,7 +90,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     <NotificationsContext.Provider value={value}>
       {children}
 
-      {/* ── Toast region ── */}
       <div className="notify-toastRegion" aria-live="polite" aria-relevant="additions">
         {toasts.map((t) => (
           <div key={t.id} className={`notify-toast notify-toast--${t.variant}`} role="status">
@@ -107,13 +109,16 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         ))}
       </div>
 
-      {/* ── Confirm dialog ── */}
       {confirmOptions ? (
         <div
           className="notify-backdrop"
           role="presentation"
           onClick={() => closeConfirm(false)}
-          onKeyDown={(e) => { if (e.key === 'Escape') closeConfirm(false) }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              closeConfirm(false)
+            }
+          }}
         >
           <div
             className="notify-confirm"
@@ -124,7 +129,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="notify-confirm__header">
-              <div className={`notify-confirm__icon ${confirmOptions.danger ? 'notify-confirm__icon--danger' : 'notify-confirm__icon--warning'}`}>
+              <div
+                className={`notify-confirm__icon ${
+                  confirmOptions.danger ? 'notify-confirm__icon--danger' : 'notify-confirm__icon--warning'
+                }`}
+              >
                 {confirmOptions.danger ? <AlertCircle size={26} /> : <AlertTriangle size={26} />}
               </div>
 
@@ -141,7 +150,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
               </div>
             </div>
 
-            {/* Detail box: optional key/value pairs (e.g., name / id) */}
             {confirmOptions.fields && confirmOptions.fields.length ? (
               <div className="notify-confirm__detailBox">
                 {confirmOptions.fields.map((f, idx) => (
@@ -155,7 +163,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
             {confirmOptions.warningText ? (
               <p className="notify-confirm__warning">
-                <span className="notify-confirm__warningIcon"><Info size={16} /></span>
+                <span className="notify-confirm__warningIcon">
+                  <Info size={16} />
+                </span>
                 {confirmOptions.warningText}
               </p>
             ) : null}
@@ -170,7 +180,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
               </button>
               <button
                 type="button"
-                className={`notify-confirm__btn ${confirmOptions.danger ? 'notify-confirm__btn--danger' : 'notify-confirm__btn--confirm'}`}
+                className={`notify-confirm__btn ${
+                  confirmOptions.danger ? 'notify-confirm__btn--danger' : 'notify-confirm__btn--confirm'
+                }`}
                 onClick={() => closeConfirm(true)}
               >
                 {confirmOptions.confirmLabel ?? 'Xác nhận'}
@@ -182,18 +194,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     </NotificationsContext.Provider>
   )
 }
-
-// export function useNotifications(): NotificationsValue {
-//   const ctx = useContext(NotificationsContext)
-//   if (!ctx) {
-//     throw new Error('useNotifications phải dùng bên trong NotificationsProvider')
-//   }
-//   return ctx
-// }
-//       ) : null}
-//     </NotificationsContext.Provider>
-//   )
-// }
 
 export function useNotifications(): NotificationsValue {
   const ctx = useContext(NotificationsContext)
