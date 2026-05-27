@@ -7,6 +7,7 @@ const router = Router()
 
 router.get('/me', requireAuth, users.getMe)
 router.patch('/me', requireAuth, users.updateMe)
+router.post('/me/password', requireAuth, users.changePassword)
 router.post('/me/avatar', requireAuth, upload.single('avatar'), users.uploadAvatar)
 router.delete('/me/avatar', requireAuth, users.deleteAvatar)
 

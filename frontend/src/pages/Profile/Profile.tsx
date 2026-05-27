@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { apiFetch, mediaUrl } from '../../lib/api'
 import { requiredMessage, validatePhone, validateEmail, normalizePhone } from '../../lib/validation'
 import { useNotifications } from '../../context/NotificationsContext'
+import PasswordField from '../../components/PasswordField'
 import './Profile.css'
 
 const ROLE_LABELS: Record<string, string> = {
@@ -30,6 +31,10 @@ export default function Profile() {
   const [saving, setSaving] = useState(false)
   const [pendingAvatar, setPendingAvatar] = useState<{ file: File; previewUrl: string } | null>(null)
   const [fieldErr, setFieldErr] = useState<{ fullName?: string; email?: string; phone?: string } | null>(null)
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
+  const [pwErr, setPwErr] = useState<{ current?: string; next?: string; confirm?: string } | null>(null)
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwModalOpen, setPwModalOpen] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('luxeat_token')
@@ -51,10 +56,15 @@ export default function Profile() {
       .finally(() => setLoading(false))
   }, [])
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault()
+  async function save(e?: React.FormEvent) {
+    e?.preventDefault()
     setSaving(true)
     setFieldErr(null)
+    if (!editing) {
+      setEditing(true)
+      setSaving(false)
+      return
+    }
     try {
       const nextFullName = form.fullName.trim()
       const phoneRaw = form.phone.trim()
@@ -127,6 +137,47 @@ export default function Profile() {
     setEditing(true)
   }
 
+  async function changePassword(e: React.FormEvent) {
+    e.preventDefault()
+    setPwSaving(true)
+    setPwErr(null)
+    const current = pwForm.current.trim()
+    const nextPw = pwForm.next
+    const confirmPw = pwForm.confirm
+    const nextErrors: { current?: string; next?: string; confirm?: string } = {}
+
+    if (!current) nextErrors.current = requiredMessage('Mật khẩu hiện tại')
+    if (!nextPw) nextErrors.next = requiredMessage('Mật khẩu mới')
+    else if (nextPw.length < 6) nextErrors.next = 'Mật khẩu tối thiểu 6 ký tự'
+    if (!confirmPw) nextErrors.confirm = requiredMessage('Xác nhận mật khẩu')
+    else if (nextPw && confirmPw !== nextPw) nextErrors.confirm = 'Mật khẩu xác nhận không khớp.'
+
+    if (Object.keys(nextErrors).length) {
+      setPwErr(nextErrors)
+      toast('Vui lòng kiểm tra lại mật khẩu.', { variant: 'error' })
+      setPwSaving(false)
+      return
+    }
+
+    try {
+      await apiFetch('/users/me/password', {
+        method: 'POST',
+        body: JSON.stringify({
+          currentPassword: current,
+          newPassword: nextPw,
+        }),
+      })
+      toast('Đổi mật khẩu thành công.', { variant: 'success' })
+      setPwForm({ current: '', next: '', confirm: '' })
+      setPwErr(null)
+      setPwModalOpen(false)
+    } catch (e) {
+      toast((e as Error).message, { variant: 'error' })
+    } finally {
+      setPwSaving(false)
+    }
+  }
+
   return (
     <main className="profilePage">
       <header className="profileHero">
@@ -144,197 +195,200 @@ export default function Profile() {
 
         {me ? (
           <div className="profileGrid">
-            <form className="profileCard" onSubmit={save} noValidate>
-              <h2 className="profileCard__title">Thông tin</h2>
-              <div className="profileAvatar">
-                <div className="profileAvatar__preview">
-                  {pendingAvatar ? (
-                    <img
-                      className="profileAvatar__img"
-                      src={pendingAvatar.previewUrl}
-                      alt="Xem trước ảnh mới"
-                      width={120}
-                      height={120}
-                    />
-                  ) : me.avatarUrl ? (
-                    <img
-                      className="profileAvatar__img"
-                      src={mediaUrl(me.avatarUrl)}
-                      alt=""
-                      width={120}
-                      height={120}
-                    />
-                  ) : (
-                    <div className="profileAvatar__placeholder" aria-hidden>
-                      {(me.fullName || me.email || '?').slice(0, 1).toUpperCase()}
-                    </div>
-                  )}
-                </div>
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="profileAvatar__file"
-                  onChange={onAvatarFile}
-                  aria-label="Chọn ảnh đại diện"
-                />
-                <div className="profileAvatar__actions">
-                  <button
-                    type="button"
-                    className="profileBtn profileBtn--ghost"
-                    disabled={saving}
-                    onClick={() => avatarInputRef.current?.click()}
-                  >
-                    {pendingAvatar ? 'Đổi ảnh khác' : 'Tải ảnh lên'}
-                  </button>
-                </div>
-                {pendingAvatar && (
-                  <p className="profileAvatar__hint profileAvatar__hint--pending">
-                    Ảnh xem trước — nhấn <strong>Lưu thay đổi</strong> để cập nhật.
-                  </p>
-                )}
-                {!pendingAvatar && (
-                  <p className="profileAvatar__hint">JPEG, PNG, WebP hoặc GIF — tối đa 5MB.</p>
-                )}
-              </div>
-
-              <div className="profileField">
-                <span>Họ tên</span>
-                {!editing ? (
-                  <button
-                    type="button"
-                    className="profileValue profileValue--button"
-                    onClick={() => {
-                      setEditing(true)
-                      setFieldErr(null)
-                    }}
-                    aria-label="Chỉnh sửa họ tên"
-                  >
-                    {me.fullName || '—'}
-                  </button>
-                ) : (
-                  <>
-                    <input
-                      value={form.fullName}
-                      onChange={(e) => {
-                        setFieldErr((prev) => ({ ...(prev || {}), fullName: undefined }))
-                        setForm((p) => ({ ...p, fullName: e.target.value }))
-                      }}
-                      required
-                      placeholder="Nguyễn Văn A"
-                    />
-                    {fieldErr?.fullName ? <span className="profileField__error">{fieldErr.fullName}</span> : null}
-                  </>
-                )}
-              </div>
-              <div className="profileField">
-                <span>Email</span>
-                {!editing ? (
-                  <button
-                    type="button"
-                    className="profileValue profileValue--button"
-                    onClick={() => {
-                      setEditing(true)
-                      setFieldErr(null)
-                    }}
-                    aria-label="Chỉnh sửa email"
-                  >
-                    {me.email || '—'}
-                  </button>
-                ) : (
-                  <>
-                    <input
-                      value={form.email}
-                      onChange={(e) => {
-                        setFieldErr((prev) => ({ ...(prev || {}), email: undefined }))
-                        setForm((p) => ({ ...p, email: e.target.value }))
-                      }}
-                      onBlur={() => {
-                        const err = validateEmail(form.email)
-                        if (err) setFieldErr((prev) => ({ ...(prev || {}), email: err }))
-                      }}
-                      required
-                      placeholder="email@domain.com"
-                      inputMode="email"
-                    />
-                    {fieldErr?.email ? <span className="profileField__error">{fieldErr.email}</span> : null}
-                  </>
-                )}
-              </div>
-              <div className="profileField">
-                <span>Số điện thoại</span>
-                {!editing ? (
-                  <button
-                    type="button"
-                    className="profileValue profileValue--button"
-                    onClick={() => {
-                      setEditing(true)
-                      setFieldErr(null)
-                    }}
-                    aria-label="Chỉnh sửa số điện thoại"
-                  >
-                    {me.phone || '—'}
-                  </button>
-                ) : (
-                  <>
-                    <input
-                      value={form.phone}
-                      onChange={(e) => {
-                        setFieldErr((prev) => ({ ...(prev || {}), phone: undefined }))
-                        setForm((p) => ({ ...p, phone: e.target.value }))
-                      }}
-                      onBlur={() => {
-                        const err = validatePhone(form.phone)
-                        if (err) setFieldErr((prev) => ({ ...(prev || {}), phone: err }))
-                      }}
-                      placeholder="09xxxxxxxx"
-                      inputMode="tel"
-                    />
-                    {fieldErr?.phone ? <span className="profileField__error">{fieldErr.phone}</span> : null}
-                  </>
-                )}
-              </div>
-              <div className="profileActions">
-                {!editing ? (
-                  <button
-                    type="button"
-                    className="profileBtn profileBtn--primary"
-                    onClick={() => {
-                      setEditing(true)
-                      setFieldErr(null)
-                    }}
-                  >
-                    Chỉnh sửa
-                  </button>
-                ) : (
-                  <>
-                    <button type="submit" className="profileBtn profileBtn--primary" disabled={saving}>
-                      {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
-                    </button>
+            <div className="profileColumn">
+              <form
+                className="profileCard"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                }}
+                noValidate
+              >
+                <h2 className="profileCard__title">Thông tin</h2>
+                <div className="profileAvatar">
+                  <div className="profileAvatar__preview">
+                    {pendingAvatar ? (
+                      <img
+                        className="profileAvatar__img"
+                        src={pendingAvatar.previewUrl}
+                        alt="Xem trước ảnh mới"
+                        width={120}
+                        height={120}
+                      />
+                    ) : me.avatarUrl ? (
+                      <img
+                        className="profileAvatar__img"
+                        src={mediaUrl(me.avatarUrl)}
+                        alt=""
+                        width={120}
+                        height={120}
+                      />
+                    ) : (
+                      <div className="profileAvatar__placeholder" aria-hidden>
+                        {(me.fullName || me.email || '?').slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="profileAvatar__file"
+                    onChange={onAvatarFile}
+                    disabled={!editing || saving}
+                    aria-label="Chọn ảnh đại diện"
+                  />
+                  <div className="profileAvatar__actions">
                     <button
                       type="button"
                       className="profileBtn profileBtn--ghost"
-                      disabled={saving}
+                      disabled={!editing || saving}
                       onClick={() => {
-                        setEditing(false)
-                        setFieldErr(null)
-                        if (pendingAvatar) {
-                          URL.revokeObjectURL(pendingAvatar.previewUrl)
-                          setPendingAvatar(null)
+                        if (editing) {
+                          avatarInputRef.current?.click()
                         }
-                        setForm({
-                          fullName: String(me.fullName ?? ''),
-                          email: String(me.email ?? ''),
-                          phone: String(me.phone ?? ''),
-                        })
                       }}
                     >
-                      Hủy
+                      {pendingAvatar ? 'Đổi ảnh khác' : 'Tải ảnh lên'}
                     </button>
-                  </>
-                )}
-              </div>
-            </form>
+                  </div>
+                  {pendingAvatar && (
+                    <p className="profileAvatar__hint profileAvatar__hint--pending">
+                      Ảnh xem trước — nhấn <strong>Lưu thay đổi</strong> để cập nhật.
+                    </p>
+                  )}
+                  {!pendingAvatar && (
+                    <p className="profileAvatar__hint">JPEG, PNG, WebP hoặc GIF — tối đa 5MB.</p>
+                  )}
+                </div>
+
+                <div className="profileField">
+                  <span>Họ tên</span>
+                  {!editing ? (
+                    <div className="profileValue">{me.fullName || '—'}</div>
+                  ) : (
+                    <>
+                      <input
+                        value={form.fullName}
+                        onChange={(e) => {
+                          setFieldErr((prev) => ({ ...(prev || {}), fullName: undefined }))
+                          setForm((p) => ({ ...p, fullName: e.target.value }))
+                        }}
+                        required
+                        placeholder="Nguyễn Văn A"
+                      />
+                      {fieldErr?.fullName ? <span className="profileField__error">{fieldErr.fullName}</span> : null}
+                    </>
+                  )}
+                </div>
+                <div className="profileField">
+                  <span>Email</span>
+                  {!editing ? (
+                    <div className="profileValue">{me.email || '—'}</div>
+                  ) : (
+                    <>
+                      <input
+                        value={form.email}
+                        onChange={(e) => {
+                          setFieldErr((prev) => ({ ...(prev || {}), email: undefined }))
+                          setForm((p) => ({ ...p, email: e.target.value }))
+                        }}
+                        onBlur={() => {
+                          const err = validateEmail(form.email)
+                          if (err) setFieldErr((prev) => ({ ...(prev || {}), email: err }))
+                        }}
+                        required
+                        placeholder="email@domain.com"
+                        inputMode="email"
+                      />
+                      {fieldErr?.email ? <span className="profileField__error">{fieldErr.email}</span> : null}
+                    </>
+                  )}
+                </div>
+                <div className="profileField">
+                  <span>Số điện thoại</span>
+                  {!editing ? (
+                    <div className="profileValue">{me.phone || '—'}</div>
+                  ) : (
+                    <>
+                      <input
+                        value={form.phone}
+                        onChange={(e) => {
+                          setFieldErr((prev) => ({ ...(prev || {}), phone: undefined }))
+                          setForm((p) => ({ ...p, phone: e.target.value }))
+                        }}
+                        onBlur={() => {
+                          const err = validatePhone(form.phone)
+                          if (err) setFieldErr((prev) => ({ ...(prev || {}), phone: err }))
+                        }}
+                        placeholder="09xxxxxxxx"
+                        inputMode="tel"
+                      />
+                      {fieldErr?.phone ? <span className="profileField__error">{fieldErr.phone}</span> : null}
+                    </>
+                  )}
+                </div>
+                <div className="profileActions">
+                  {!editing ? (
+                    <>
+                      <button
+                        type="button"
+                        className="profileBtn profileBtn--primary"
+                        onClick={() => {
+                          setEditing(true)
+                          setFieldErr(null)
+                        }}
+                      >
+                        Chỉnh sửa
+                      </button>
+                      <button
+                        type="button"
+                        className="profileBtn profileBtn--primary"
+                        onClick={() => {
+                          setPwErr(null)
+                          setPwModalOpen(true)
+                        }}
+                      >
+                        Đổi mật khẩu
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="profileBtn profileBtn--primary"
+                        disabled={saving}
+                        onClick={() => {
+                          void save()
+                        }}
+                      >
+                        {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
+                      </button>
+                      <button
+                        type="button"
+                        className="profileBtn profileBtn--ghost"
+                        disabled={saving}
+                        onClick={() => {
+                          setEditing(false)
+                          setFieldErr(null)
+                          if (pendingAvatar) {
+                            URL.revokeObjectURL(pendingAvatar.previewUrl)
+                            setPendingAvatar(null)
+                          }
+                          setForm({
+                            fullName: String(me.fullName ?? ''),
+                            email: String(me.email ?? ''),
+                            phone: String(me.phone ?? ''),
+                          })
+                        }}
+                      >
+                        Hủy
+                      </button>
+                    </>
+                  )}
+                </div>
+              </form>
+
+            </div>
 
             <aside className="profileCard profileCard--aside">
               <h2 className="profileCard__title">Tài khoản</h2>
@@ -352,6 +406,77 @@ export default function Profile() {
           </div>
         ) : null}
       </section>
+
+      {pwModalOpen ? (
+        <div className="profileModal" role="dialog" aria-modal="true" aria-labelledby="profile-password-title">
+          <div className="profileModal__backdrop" onClick={() => setPwModalOpen(false)} aria-hidden />
+          <div
+            className="profileModal__panel"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setPwModalOpen(false)
+            }}
+          >
+            <h2 id="profile-password-title" className="profileModal__title">Đổi mật khẩu</h2>
+            <form className="profilePasswordForm" onSubmit={changePassword} noValidate>
+              <PasswordField
+                label="Mật khẩu hiện tại"
+                value={pwForm.current}
+                onChange={(value) => {
+                  setPwErr((prev) => ({ ...(prev || {}), current: undefined }))
+                  setPwForm((p) => ({ ...p, current: value }))
+                }}
+                autoComplete="current-password"
+                required
+                disabled={pwSaving}
+                error={pwErr?.current || null}
+              />
+              <PasswordField
+                label="Mật khẩu mới"
+                value={pwForm.next}
+                onChange={(value) => {
+                  setPwErr((prev) => ({ ...(prev || {}), next: undefined }))
+                  setPwForm((p) => ({ ...p, next: value }))
+                }}
+                autoComplete="new-password"
+                required
+                disabled={pwSaving}
+                error={pwErr?.next || null}
+              />
+              <PasswordField
+                label="Xác nhận mật khẩu mới"
+                value={pwForm.confirm}
+                onChange={(value) => {
+                  setPwErr((prev) => ({ ...(prev || {}), confirm: undefined }))
+                  setPwForm((p) => ({ ...p, confirm: value }))
+                }}
+                autoComplete="new-password"
+                required
+                disabled={pwSaving}
+                error={pwErr?.confirm || null}
+              />
+              <p className="profilePasswordHint">Mật khẩu tối thiểu 6 ký tự.</p>
+              <div className="profileModal__actions">
+                <button type="submit" className="profileBtn profileBtn--primary" disabled={pwSaving}>
+                  {pwSaving ? 'Đang đổi…' : 'Đổi mật khẩu'}
+                </button>
+                <button
+                  type="button"
+                  className="profileBtn profileBtn--ghost"
+                  disabled={pwSaving}
+                  onClick={() => {
+                    setPwForm({ current: '', next: '', confirm: '' })
+                    setPwErr(null)
+                    setPwModalOpen(false)
+                  }}
+                >
+                  Hủy
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }

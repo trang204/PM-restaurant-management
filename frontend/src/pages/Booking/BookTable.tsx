@@ -638,13 +638,13 @@ export default function BookTable() {
                     {!preorderExpanded && hiddenCount > 0 && (
                       <p className="bookPreorder__hint">
                         … và {hiddenCount} món khác.
-                        <button
+                        {/* <button
                           type="button"
                           className="bookPreorder__hintBtn"
                           onClick={() => setPreorderExpanded(true)}
                         >
                           Xem menu đầy đủ
-                        </button>
+                        </button> */}
                       </p>
                     )}
                   </>
