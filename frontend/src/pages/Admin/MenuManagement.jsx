@@ -550,7 +550,7 @@ export default function MenuManagement() {
               </button>
             </div>
           </div>
-          <p className="menu-mgmt__resultCount">Hiển thị {visibleCount} món</p>
+          {/* <p className="menu-mgmt__resultCount">Hiển thị {visibleCount} món</p> */}
         </>
       ) : null}
 

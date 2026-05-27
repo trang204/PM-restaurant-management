@@ -24,6 +24,15 @@ function isTableAvailable(t: Table) {
   return s === 'AVAILABLE' || s === ''
 }  
 
+function tableStatusLabel(status: string) {
+  const s = String(status || '').toUpperCase()
+  if (s === 'AVAILABLE' || s === '') return 'Còn trống'
+  if (s === 'OCCUPIED' || s === 'IN_USE' || s === 'IN USE') return 'Đang dùng'
+  if (s === 'RESERVED') return 'Đang giữ'
+  if (s === 'CLOSED') return 'Bảo trì'
+  return 'Đang dùng'
+}
+
 /**
  * null = hợp lệ; ngược lại là thông báo hiển thị cho khách.
  * Điều kiện hợp lệ: guestN <= capacity <= guestN * MAX_TABLE_RATIO
@@ -503,13 +512,14 @@ export default function BookTable() {
                 const canPick = isTableSelectable(t, guestCount)
                 const img = t.image_url ? mediaUrl(t.image_url) : tablePlaceholder
                 const tid = String(t.id)
+                const statusLabel = tableStatusLabel(t.status)
                 const badgeLabel = selMsg
                   ? selMsg === TABLE_ERR_IN_USE
-                    ? 'Đang dùng'
+                    ? statusLabel
                     : selMsg === TABLE_ERR_TABLE_TOO_LARGE
                       ? 'Bàn quá lớn'
                       : 'Không đủ chỗ'
-                  : 'Bàn phù hợp'
+                  : statusLabel
                 return (
                   <button
                     key={tid}
