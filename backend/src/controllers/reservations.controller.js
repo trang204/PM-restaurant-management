@@ -41,6 +41,24 @@ export async function createReservation(req, res, next) {
     const guestName = fullName != null && String(fullName).trim() ? String(fullName).trim() : null
     const guestPhone = phone != null && String(phone).trim() ? String(phone).trim() : null
 
+    // Ngăn chặn đặt nhiều bàn cùng lúc
+    let conflictCheckParams = []
+    let conflictCheckQuery = ''
+    if (userId) {
+      conflictCheckQuery = `SELECT id FROM bookings WHERE user_id = $1 AND status IN ('PENDING', 'CONFIRMED', 'HOLD')`
+      conflictCheckParams = [userId]
+    } else if (guestPhone) {
+      conflictCheckQuery = `SELECT id FROM bookings WHERE guest_phone = $1 AND status IN ('PENDING', 'CONFIRMED', 'HOLD')`
+      conflictCheckParams = [guestPhone]
+    }
+
+    if (conflictCheckQuery) {
+      const existing = await query(conflictCheckQuery, conflictCheckParams)
+      if (existing.rows.length > 0) {
+        throw badRequest('Bạn đã có một đơn đặt bàn đang xử lý. Vui lòng hoàn thành hoặc hủy đơn cũ trước khi đặt bàn mới.')
+      }
+    }
+
     const booking = await withTransaction(async (client) => {
       if (requestedTableIds.length) {
         const tableRows = await client.query(

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch, mediaUrl, publicApiFetch } from '../../lib/api'
 import { requiredMessage, validatePhone, normalizePhone } from '../../lib/validation'
+import { useNotifications } from '../../context/NotificationsContext'
 import './BookTable.css'
 
 
@@ -108,6 +109,7 @@ export default function BookTable() {
   const [menuError, setMenuError] = useState<string | null>(null)
   const [selectedZone, setSelectedZone] = useState<string | null>(null) // null = Tất cả, '' = Mặc định
   const [zonesData, setZonesData] = useState<{ id: number; name: string }[]>([])
+  const { toast, confirm } = useNotifications()
   useEffect(() => {
     const token = localStorage.getItem('luxeat_token')
     if (!token) {
@@ -277,7 +279,7 @@ export default function BookTable() {
       }
       const created = await apiFetch<{ id: string }>('/reservations', {
         method: 'POST',
-        body: JSON.stringify(body),
+        body: JSON.stringify(body), 
       })
       const id = created?.id
       if (!id) throw new Error('Thiếu mã đơn')
@@ -288,12 +290,22 @@ export default function BookTable() {
             body: JSON.stringify({ tableId: effectivePreferredTableId }),
           })
         } catch (holdErr) {
-          setError((holdErr as Error).message || TABLE_ERR_IN_USE)
+          const err = (holdErr as Error).message
+          if (err) {
+            setError(err)
+            toast(err)
+            return
+          }
         }
       }
       navigate(`/reservations/${id}`)
-    } catch (err) {
-      setError((err as Error).message)
+    } catch (errorObj) {
+      const err = (errorObj as Error).message
+      if (err) {
+        setError(err)
+        toast(err)
+        return
+      }
     } finally {
       setLoading(false)
     }
