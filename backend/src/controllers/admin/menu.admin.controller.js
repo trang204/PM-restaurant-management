@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 import { ok, created } from '../../utils/response.js'
 import { badRequest, notFound } from '../../utils/httpError.js'
-import { query } from '../../config/db.js'
+import { query, withTransaction } from '../../config/db.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const UPLOAD_DIR = path.resolve(__dirname, '../../../uploads')
@@ -71,7 +71,12 @@ export async function list(req, res, next) {
         f.category_id,
         c.name AS category_name,
         f.status,
-        f.created_at
+        f.created_at,
+        (
+          SELECT COALESCE(json_agg(json_build_object('ingredient_id', fi.ingredient_id, 'quantity_needed', fi.quantity_needed)), '[]'::json)
+          FROM food_ingredients fi
+          WHERE fi.food_id = f.id
+        ) AS ingredients
       FROM foods f
       LEFT JOIN categories c ON c.id = f.category_id
       ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
@@ -87,7 +92,7 @@ export async function list(req, res, next) {
 
 export async function create(req, res, next) {
   try {
-    const { name, price, description, image_url, category_id, status } = req.body || {}
+    const { name, price, description, image_url, category_id, status, ingredients } = req.body || {}
     if (!name) throw badRequest('name là bắt buộc')
     if (price === undefined || price === null) throw badRequest('price là bắt buộc')
     if (category_id === undefined || category_id === null || category_id === '') {
@@ -104,22 +109,38 @@ export async function create(req, res, next) {
     let stIns = status ? String(status).trim().toUpperCase() : null
     if (stIns && stIns !== 'AVAILABLE' && stIns !== 'UNAVAILABLE') stIns = 'AVAILABLE'
 
-    const r = await query(
-      `
-      INSERT INTO foods (name, price, description, image_url, category_id, status)
-      VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'AVAILABLE'))
-      RETURNING *
-    `,
-      [
-        String(name),
-        priceNum,
-        description ? String(description) : null,
-        image_url != null && String(image_url).trim() ? String(image_url).trim() : null,
-        catNum,
-        stIns,
-      ],
-    )
-    return created(res, r.rows[0])
+    const r = await withTransaction(async (client) => {
+      const insRes = await client.query(
+        `
+        INSERT INTO foods (name, price, description, image_url, category_id, status)
+        VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'AVAILABLE'))
+        RETURNING *
+      `,
+        [
+          String(name),
+          priceNum,
+          description ? String(description) : null,
+          image_url != null && String(image_url).trim() ? String(image_url).trim() : null,
+          catNum,
+          stIns,
+        ],
+      )
+      
+      const food = insRes.rows[0]
+      if (Array.isArray(ingredients) && ingredients.length > 0) {
+        for (const ing of ingredients) {
+          const qty = Number(ing.quantity_needed)
+          if (Number.isFinite(qty) && qty > 0) {
+            await client.query(
+              'INSERT INTO food_ingredients (food_id, ingredient_id, quantity_needed) VALUES ($1, $2, $3)',
+              [food.id, Number(ing.ingredient_id), qty]
+            )
+          }
+        }
+      }
+      return food
+    })
+    return created(res, r)
   } catch (e) {
     return next(e)
   }
@@ -130,7 +151,7 @@ export async function update(req, res, next) {
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
 
-    const { name, price, description, image_url, category_id, status } = req.body || {}
+    const { name, price, description, image_url, category_id, status, ingredients } = req.body || {}
 
     if (category_id === undefined || category_id === null || category_id === '') {
       throw badRequest('category_id là bắt buộc')
@@ -157,23 +178,43 @@ export async function update(req, res, next) {
     let statusVal = status != null && String(status).trim() ? String(status).trim().toUpperCase() : 'AVAILABLE'
     if (statusVal !== 'AVAILABLE' && statusVal !== 'UNAVAILABLE') statusVal = 'AVAILABLE'
 
-    const r = await query(
-      `
-      UPDATE foods
-      SET
-        name = $1,
-        price = $2,
-        description = $3,
-        image_url = $4,
-        category_id = $5,
-        status = $6
-      WHERE id = $7
-      RETURNING *
-    `,
-      [nameVal, priceVal, descVal, imageVal, catVal, statusVal, id],
-    )
-    if (!r.rows.length) throw notFound('Không tìm thấy món')
-    return ok(res, r.rows[0])
+    const r = await withTransaction(async (client) => {
+      const updRes = await client.query(
+        `
+        UPDATE foods
+        SET
+          name = $1,
+          price = $2,
+          description = $3,
+          image_url = $4,
+          category_id = $5,
+          status = $6
+        WHERE id = $7
+        RETURNING *
+      `,
+        [nameVal, priceVal, descVal, imageVal, catVal, statusVal, id],
+      )
+      if (!updRes.rows.length) throw notFound('Không tìm thấy món')
+      
+      const food = updRes.rows[0]
+      
+      if (ingredients !== undefined) {
+        await client.query('DELETE FROM food_ingredients WHERE food_id = $1', [food.id])
+        if (Array.isArray(ingredients) && ingredients.length > 0) {
+          for (const ing of ingredients) {
+            const qty = Number(ing.quantity_needed)
+            if (Number.isFinite(qty) && qty > 0) {
+              await client.query(
+                'INSERT INTO food_ingredients (food_id, ingredient_id, quantity_needed) VALUES ($1, $2, $3)',
+                [food.id, Number(ing.ingredient_id), qty]
+              )
+            }
+          }
+        }
+      }
+      return food
+    })
+    return ok(res, r)
   } catch (e) {
     return next(e)
   }

@@ -26,6 +26,7 @@ import { apiFetch } from '../../lib/api'
 import AdminPagination from '../../components/AdminPagination'
 import { formatCurrency, formatPercent } from '../../lib/format'
 import './RevenueReports.css'
+import { useNotifications } from '../../context/NotificationsContext'
 
 /* ─── Types ─── */
 type GroupBy = 'day' | 'month' | 'year'
@@ -171,6 +172,7 @@ function InvoiceCard({ inv }: { inv: InvoiceRow }) {
 
 /* ─── Main component ─── */
 export default function RevenueReports() {
+  const { toast } = useNotifications()
   const [activeTab, setActiveTab] = useState<ReportTab>('period')
   const [groupBy, setGroupBy] = useState<GroupBy>('day')
   const [from, setFrom] = useState(startOfYear)
@@ -212,6 +214,7 @@ export default function RevenueReports() {
   }, [from, to])
 
   /* Effects */
+
   useEffect(() => {
     if (activeTab !== 'period') return
     let c = false
@@ -277,6 +280,14 @@ export default function RevenueReports() {
     }))
   }, [series, groupBy])
 
+  function validateDate(fVal = from, tVal = to){
+    if (!fVal || !tVal) return true
+    if (new Date(fVal) > new Date(tVal)) {
+      toast('Ngày bắt đầu phải nhỏ hơn ngày kết thúc', { variant: 'error' })
+      return false
+    }
+    return true
+  }
   /* Quick Filters */
   function setQuickFilter(days: number) {
     const t = new Date()
@@ -463,12 +474,12 @@ export default function RevenueReports() {
         <div className="rev-report__dates">
           <label className="rev-report__date">
             <span>Từ ngày</span>
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} onBlur={(e) => validateDate(e.target.value, to)} />
           </label>
           <div className="rev-report__dateSep">-</div>
           <label className="rev-report__date">
             <span>Đến ngày</span>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} onBlur={(e) => validateDate(from, e.target.value)} />
           </label>
         </div>
       </section>

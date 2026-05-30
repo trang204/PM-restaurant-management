@@ -164,7 +164,7 @@ export default function Menu() {
               <p className="menuSection__hint" style={{ margin: 0 }}>
                 {loading ? 'Đang tải...' : error ? `Lỗi: ${error}` : `${visible.length} món`}
               </p>
-              <button type="button" className="menuRefreshBtn" onClick={load} style={{ padding: '6px 10px' }}>
+              <button type="button" className="dash__btn dash__btn--ghost" onClick={load} style={{ padding: '6px 10px' }}>
                 Làm mới
               </button>
             </div>

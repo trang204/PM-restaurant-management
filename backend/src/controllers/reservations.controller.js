@@ -26,7 +26,6 @@ export async function createReservation(req, res, next) {
 
     if (!booking_date || !booking_time || !guests) throw badRequest('Thiếu thông tin đặt bàn')
     if (guests <= 0) throw badRequest('guestCount không hợp lệ')
-    if (guests > 2) throw badRequest('Không quá 2 người')
 
     const userId = req.user?.sub ? Number(req.user.sub) : null
 
@@ -53,6 +52,7 @@ export async function createReservation(req, res, next) {
           const cap = Number(row.capacity)
           if (!Number.isFinite(cap)) throw badRequest('Không tìm thấy bàn')
           if (guests > cap) throw badRequest('Bàn không đủ chỗ')
+          if (cap > guests * 2) throw badRequest('Bàn quá lớn so với số khách')
           const st = String(row.status || '').toUpperCase()
           if (st !== 'AVAILABLE') throw badRequest('Bàn đang được sử dụng')
         }
@@ -287,7 +287,6 @@ export async function holdTable(req, res, next) {
     if (cur.rows[0].status !== 'PENDING') throw badRequest('Chỉ giữ bàn khi đơn đang chờ xác nhận')
 
     const guestN = Number(cur.rows[0].guests) || 1
-    if (guestN > 2) throw badRequest('Không quá 2 người')
     const tableRow = await query(
       `SELECT id, capacity, COALESCE(NULLIF(TRIM(status), ''), 'AVAILABLE') AS status FROM tables WHERE id = $1`,
       [tId],
@@ -295,6 +294,7 @@ export async function holdTable(req, res, next) {
     if (!tableRow.rows.length) throw badRequest('Không tìm thấy bàn')
     const cap = Number(tableRow.rows[0].capacity)
     if (!Number.isFinite(cap) || guestN > cap) throw badRequest('Bàn không đủ chỗ')
+    if (cap > guestN * 2) throw badRequest('Bàn quá lớn so với số khách')
     const tblStatus = String(tableRow.rows[0].status || '').toUpperCase()
     if (tblStatus !== 'AVAILABLE') throw badRequest('Bàn đang được sử dụng')
 

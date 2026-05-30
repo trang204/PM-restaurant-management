@@ -824,3 +824,67 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ─── Ingredients Form ─── */
+.menu-modal__field--ingredients {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--mn-border);
+}
+
+.menu-modal__ingredients {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.menu-modal__ingredient-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.menu-modal__ingredient-row select {
+  flex: 1;
+}
+
+.menu-modal__ingredient-row input {
+  width: 100px;
+}
+
+.menu-modal__ingredient-del {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: none;
+  background: #FEF3F2;
+  color: #C0392B;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all var(--mn-ease);
+}
+
+.menu-modal__ingredient-del:hover {
+  background: #FAD4D4;
+}
+
+.menu-modal__ingredient-add {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px dashed var(--mn-gold-d);
+  color: var(--mn-gold-d);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--mn-ease);
+}
+
+.menu-modal__ingredient-add:hover {
+  background: var(--mn-gold-s);
+}

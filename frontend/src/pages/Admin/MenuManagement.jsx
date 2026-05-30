@@ -19,6 +19,7 @@ const emptyForm = {
   image: placeholderImg,
   description: '',
   status: 'AVAILABLE',
+  ingredients: [],
 }
 
 function formatPrice(n) {
@@ -29,6 +30,7 @@ export default function MenuManagement() {
   const { toast, confirm } = useNotifications()
   const [items, setItems] = useState([])
   const [categories, setCategories] = useState([])
+  const [availableIngredients, setAvailableIngredients] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -52,10 +54,15 @@ export default function MenuManagement() {
   function load() {
     setLoading(true)
     // force fresh data (avoid cached 304 responses)
-    Promise.all([apiFetch('/admin/menu-items', { cache: 'no-store' }), apiFetch('/admin/categories', { cache: 'no-store' })])
-      .then(([mi, cat]) => {
+    Promise.all([
+      apiFetch('/admin/menu-items', { cache: 'no-store' }),
+      apiFetch('/admin/categories', { cache: 'no-store' }),
+      apiFetch('/admin/ingredients', { cache: 'no-store' })
+    ])
+      .then(([mi, cat, ing]) => {
         setItems(Array.isArray(mi) ? mi : [])
         setCategories(Array.isArray(cat) ? cat : [])
+        setAvailableIngredients(Array.isArray(ing) ? ing : [])
       })
       .catch((e) => setErr(e.message))
       .finally(() => setLoading(false))
@@ -95,6 +102,7 @@ export default function MenuManagement() {
       image: img ? mediaUrl(img) : placeholderImg,
       description: item.description || '',
       status: String(item.status || 'AVAILABLE').toUpperCase() === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'AVAILABLE',
+      ingredients: Array.isArray(item.ingredients) ? [...item.ingredients] : [],
     })
     setFormErrors({})
     setDetailItem(null)
@@ -243,6 +251,7 @@ export default function MenuManagement() {
             image_url: imageUrl,
             description: cleanDescription || null,
             status: form.status,
+            ingredients: form.ingredients,
           }),
         })
         if (imageFile) {
@@ -258,6 +267,7 @@ export default function MenuManagement() {
             image_url: imageUrl,
             description: cleanDescription || null,
             status: form.status,
+            ingredients: form.ingredients,
           }),
         })
         if (imageFile && created?.id != null) {
@@ -398,9 +408,8 @@ export default function MenuManagement() {
   }, [flatItems.length, pageSize])
 
   function ingredientText(item) {
-    const count = Number(item?.ingredient_count)
-    if (Number.isFinite(count) && count >= 0) {
-      return `Nguyên liệu: ${count} loại`
+    if (Array.isArray(item.ingredients) && item.ingredients.length > 0) {
+      return `Nguyên liệu: ${item.ingredients.length} loại`
     }
     return 'Nguyên liệu: Chưa liên kết'
   }
@@ -738,6 +747,60 @@ export default function MenuManagement() {
                   <option value="UNAVAILABLE">Hết món</option>
                 </select>
               </label>
+              <div className="menu-modal__field menu-modal__field--ingredients">
+                <span>Nguyên liệu liên kết</span>
+                <div className="menu-modal__ingredients">
+                  {form.ingredients.map((ing, idx) => (
+                    <div key={idx} className="menu-modal__ingredient-row">
+                      <select
+                        value={ing.ingredient_id}
+                        onChange={(e) => {
+                          const newIngs = [...form.ingredients];
+                          newIngs[idx].ingredient_id = e.target.value;
+                          setForm(f => ({ ...f, ingredients: newIngs }));
+                        }}
+                      >
+                        <option value="">— Chọn nguyên liệu —</option>
+                        {availableIngredients.map(ai => (
+                          <option key={ai.id} value={String(ai.id)}>{ai.name} ({ai.unit})</option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Số lượng"
+                        value={ing.quantity_needed}
+                        onChange={(e) => {
+                          const newIngs = [...form.ingredients];
+                          newIngs[idx].quantity_needed = e.target.value;
+                          setForm(f => ({ ...f, ingredients: newIngs }));
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="menu-modal__ingredient-del"
+                        onClick={() => {
+                          const newIngs = [...form.ingredients];
+                          newIngs.splice(idx, 1);
+                          setForm(f => ({ ...f, ingredients: newIngs }));
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="menu-modal__ingredient-add"
+                    onClick={() => {
+                      setForm(f => ({ ...f, ingredients: [...f.ingredients, { ingredient_id: '', quantity_needed: 1 }] }));
+                    }}
+                  >
+                    + Thêm nguyên liệu
+                  </button>
+                </div>
+              </div>
               <label className="menu-modal__field">
                 <span>URL ảnh (tuỳ chọn)</span>
                 <input

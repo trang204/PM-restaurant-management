@@ -1,6 +1,6 @@
 import { ok, created } from '../utils/response.js'
 import { badRequest, notFound } from '../utils/httpError.js'
-import { query } from '../config/db.js'
+import { query, withTransaction } from '../config/db.js'
 import {
   getOrCreateOrderForSession,
   getOrCreatePendingOrderForSession,
@@ -8,6 +8,7 @@ import {
   publicOrderUrl,
 } from '../services/tableSession.service.js'
 import { notifyStaffAdmins } from '../utils/notifyStaff.js'
+import { deductIngredientsForFood } from '../services/inventory.service.js'
 
 export async function getMyActiveSession(req, res, next) {
   try {
@@ -279,18 +280,30 @@ export async function submitOrder(req, res, next) {
     const total = await computeOrderTotal(orderId)
     if (!Number.isFinite(total) || total <= 0) throw badRequest('Chưa có món trong đơn mới')
 
-    const updated = await query(
-      `UPDATE orders SET status = 'SERVING' WHERE id = $1 AND status = 'PENDING' RETURNING id, status`,
-      [orderId],
-    )
-    if (!updated.rows.length) throw badRequest('Đơn không thể xác nhận ở trạng thái này')
+    const updated = await withTransaction(async (client) => {
+      const upd = await client.query(
+        `UPDATE orders SET status = 'SERVING' WHERE id = $1 AND status = 'PENDING' RETURNING id, status`,
+        [orderId],
+      )
+      if (!upd.rows.length) return null
+
+      // Fetch items to deduct inventory
+      const itemsRes = await client.query('SELECT food_id, quantity FROM order_items WHERE order_id = $1', [orderId])
+      for (const item of itemsRes.rows) {
+        await deductIngredientsForFood(client, item.food_id, item.quantity)
+      }
+
+      return upd.rows[0]
+    })
+
+    if (!updated) throw badRequest('Đơn không thể xác nhận ở trạng thái này')
 
     const tableLabel = String(row.table_name || 'Bàn').trim() || 'Bàn'
     notifyStaffAdmins(
       `[Gửi đơn] ${tableLabel}: khách đã gửi đơn — tổng ${Number(total).toLocaleString('vi-VN')} ₫`,
     ).catch(() => { })
 
-    return ok(res, { orderId, status: updated.rows[0].status, total })
+    return ok(res, { orderId, status: updated.status, total })
   } catch (e) {
     return next(e)
   }
