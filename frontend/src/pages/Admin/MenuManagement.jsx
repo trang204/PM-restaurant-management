@@ -190,6 +190,9 @@ export default function MenuManagement() {
       if (s0 === '') return NaN
       // remove spaces
       let s = s0.replace(/\s/g, '')
+      // keep only digits and separators (allows input like "50.000 đ")
+      s = s.replace(/[^\d.,]/g, '')
+      if (!s) return NaN
       const hasDot = s.indexOf('.') >= 0
       const hasComma = s.indexOf(',') >= 0
       if (hasDot && hasComma) {
@@ -235,6 +238,7 @@ export default function MenuManagement() {
     }
     setFormErrors(nextErrors)
     if (Object.keys(nextErrors).length) {
+      toast('Vui lòng kiểm tra lại các trường bắt buộc.', { variant: 'error' })
       return
     }
     try {
@@ -555,7 +559,7 @@ export default function MenuManagement() {
               </button>
             </div>
           </div>
-          <p className="menu-mgmt__resultCount">Hiển thị {visibleCount} món</p>
+          {/* <p className="menu-mgmt__resultCount">Hiển thị {visibleCount} món</p> */}
         </>
       ) : null}
 
