@@ -39,6 +39,7 @@ export async function getPublicSettings(req, res, next) {
       email: s.email ?? null,
       openTime: s.open_time != null ? String(s.open_time).slice(0, 5) : null,
       closeTime: s.close_time != null ? String(s.close_time).slice(0, 5) : null,
+      reservationHoldDuration: s.reservation_hold_duration ?? 15,
       // socialLinks: object dạng {facebook, instagram, zalo} để FE dùng trực tiếp
       socialLinks: (() => {
         const sl = s.social_links

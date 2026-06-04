@@ -76,6 +76,7 @@ export async function updateSettings(req, res, next) {
       home_cta_title,
       home_cta_text,
       home_features_json,
+      reservation_hold_duration,
     } = req.body || {}
 
     const phoneValue = phone != null ? String(phone).trim() : ''
@@ -133,6 +134,7 @@ export async function updateSettings(req, res, next) {
     col('payment_bank_code', payment_bank_code != null ? String(payment_bank_code).trim() || null : null)
     col('payment_transfer_content', payment_transfer_content != null ? String(payment_transfer_content).trim() || null : null)
     col('payment_qr_template', payment_qr_template != null ? String(payment_qr_template).trim() || null : null)
+    col('reservation_hold_duration', reservation_hold_duration != null ? Math.max(1, Number(reservation_hold_duration)) : 15)
 
     // Các cột homepage — chỉ thêm vào SET nếu cột thực sự tồn tại trong DB.
     const homeCols = {

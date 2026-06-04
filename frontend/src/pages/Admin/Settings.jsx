@@ -223,6 +223,7 @@ export default function Settings() {
     paymentBankCode: '',
     paymentTransferContent: 'Thanh toan dat ban {id}',
     paymentQrTemplate: 'compact',
+    reservationHoldDuration: '15',
   })
   const [homeForm, setHomeForm] = useState({
     heroEyebrow: 'Ẩm thực tinh tế · Đặt bàn trực tuyến',
@@ -265,6 +266,7 @@ export default function Settings() {
           paymentBankCode: String(d.payment_bank_code ?? ''),
           paymentTransferContent: String(d.payment_transfer_content ?? 'Thanh toan dat ban {id}'),
           paymentQrTemplate: String(d.payment_qr_template ?? 'compact'),
+          reservationHoldDuration: String(d.reservation_hold_duration ?? '15'),
         })
         setHomeForm((prev) => ({
           heroEyebrow: d.hero_eyebrow ?? prev.heroEyebrow,
@@ -339,6 +341,9 @@ export default function Settings() {
     if (form.paymentBankAccount.trim() && !/^\d{6,20}$/.test(form.paymentBankAccount.trim())) {
       nextErrors.paymentBankAccount = 'Số tài khoản nên gồm 6-20 chữ số.'
     }
+    if (form.reservationHoldDuration && (!/^\d+$/.test(form.reservationHoldDuration) || Number(form.reservationHoldDuration) <= 0)) {
+      nextErrors.reservationHoldDuration = 'Thời gian hết hạn phải là số phút nguyên dương.'
+    }
     features.forEach((item, index) => {
       if (!item.title.trim()) nextErrors[`feature-title-${index}`] = requiredMessage(`Tiêu đề tính năng #${index + 1}`)
       if (!item.text.trim()) nextErrors[`feature-text-${index}`] = requiredMessage(`Mô tả tính năng #${index + 1}`)
@@ -374,6 +379,7 @@ export default function Settings() {
           payment_bank_code: form.paymentBankCode.trim() || null,
           payment_transfer_content: form.paymentTransferContent.trim() || null,
           payment_qr_template: form.paymentQrTemplate.trim() || null,
+          reservation_hold_duration: Number(form.reservationHoldDuration) || 15,
           hero_eyebrow: homeForm.heroEyebrow.trim() || null,
           hero_lead: homeForm.heroLead.trim() || null,
           hero_meta: homeForm.heroMeta.trim() || null,
@@ -535,6 +541,19 @@ export default function Settings() {
             <span>Đóng cửa</span>
             <input name="closeTime" type="time" value={form.closeTime} onChange={onChange} required />
             {fieldErrors.closeTime ? <small className="settings-field__error">{fieldErrors.closeTime}</small> : null}
+          </label>
+          <label className="settings-field">
+            <span>Thời gian giữ bàn hết hạn (phút)</span>
+            <input
+              name="reservationHoldDuration"
+              type="number"
+              min="1"
+              value={form.reservationHoldDuration}
+              onChange={onChange}
+              required
+            />
+            {fieldErrors.reservationHoldDuration ? <small className="settings-field__error">{fieldErrors.reservationHoldDuration}</small> : null}
+            <small className="settings-field__hint">Thời gian giữ chỗ khi đang gán bàn trước khi tự động hủy đơn.</small>
           </label>
           <label className="settings-field settings-field--readonly">
             <span>Tổng số bàn</span>

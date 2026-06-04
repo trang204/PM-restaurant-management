@@ -335,6 +335,9 @@ export async function holdTable(req, res, next) {
     )
     if (conflicts.rows.length) throw badRequest('Bàn đang được sử dụng')
 
+    const settingsRes = await query('SELECT reservation_hold_duration FROM settings ORDER BY id LIMIT 1')
+    const holdDurationMinutes = Number(settingsRes.rows[0]?.reservation_hold_duration ?? 15)
+
     await withTransaction(async (client) => {
       const prev = await client.query('SELECT table_id FROM booking_tables WHERE booking_id = $1', [id])
       if (prev.rows[0]?.table_id) {
@@ -348,8 +351,9 @@ export async function holdTable(req, res, next) {
         tId,
       ])
       if (!reserved.rowCount) throw badRequest('Bàn đang được sử dụng')
-      await client.query(`UPDATE bookings SET status = 'HOLD', hold_expires_at = NOW() + INTERVAL '15 minutes' WHERE id = $1`, [
+      await client.query(`UPDATE bookings SET status = 'HOLD', hold_expires_at = NOW() + (INTERVAL '1 minute' * $2) WHERE id = $1`, [
         id,
+        holdDurationMinutes,
       ])
     })
 

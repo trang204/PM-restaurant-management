@@ -399,6 +399,7 @@ export async function ensureDbSchema() {
     ['payment_qr_template', 'TEXT'],
     ['system_email', 'TEXT'],
     ['system_email_password', 'TEXT'],
+    ['reservation_hold_duration', 'INT DEFAULT 15'],
   ]
   for (const [col, type] of paymentCols) {
     const pc = await query(
