@@ -369,6 +369,20 @@ export async function ensureDbSchema() {
     await query(`ALTER TABLE order_items ADD COLUMN kitchen_ack_at TIMESTAMP`)
   }
 
+  const oiNote = await query(
+    `
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'order_items'
+      AND column_name = 'note'
+    LIMIT 1
+    `,
+  )
+  if (!oiNote.rows.length) {
+    await query(`ALTER TABLE order_items ADD COLUMN note TEXT`)
+  }
+
   const pr = await query(
     `
     SELECT 1

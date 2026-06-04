@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Calendar, MapPin, Pin, Users, X } from 'lucide-react'
+import { MapPin, X, ShoppingBag, Hash } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import { normalizeReservation, type ReservationRow } from '../../lib/reservation'
 import { getStatusLabel } from '../../lib/statusMapper'
 import './ReservationDetailView.css'
+
+function tableStatusVi(st: string) {
+  const s = String(st || '').toUpperCase()
+  if (s === 'AVAILABLE') return 'Còn trống'
+  if (s === 'OCCUPIED') return 'Đang dùng'
+  if (s === 'RESERVED') return 'Đang giữ'
+  if (s === 'CLOSED') return 'Đang đóng'
+  return st.toLowerCase()
+}
 
 function statusBadgeStyle(statusRaw: string): React.CSSProperties {
   const s = String(statusRaw || '').toUpperCase()
@@ -106,41 +115,160 @@ export default function ReservationDetailView({ bookingId, variant, onClose, onC
       ) : null}
       {data ? (
         <div className="resDetail__card">
-          <p>
-            <strong>{data.fullName}</strong> · {data.phone}
-          </p>
-          <p>
-            <Calendar size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
-            {data.date} - {data.time}
-            <br />
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <Users size={16} aria-hidden="true" />
-              <span>{data.guestCount} khách</span>
-            </span>
-          </p>
-          <p>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <Pin size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
-              Trạng thái: <StatusBadge status={String(data.status || '')} />
-            </span>
-          </p>
-          {data.tables?.length ? (
-            <p>
-              <MapPin size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
-              Bàn: {data.tables.join(', ')}
-            </p>
-          ) : data.assignedTableId ? (
-            <p>Bàn (mã): {data.assignedTableId}</p>
-          ) : null}
-          {data.note ? <p>Ghi chú: {data.note}</p> : null}
+          {/* A. Thông tin đặt bàn */}
+          <div className="resDetail__section">
+            <h3 className="resDetail__secTitle">
+              <Hash size={18} style={{ marginRight: 6, verticalAlign: '-0.15em' }} />
+              Thông tin đặt bàn
+            </h3>
+            <div className="resDetail__infoGrid">
+              <div className="resDetail__infoItem">
+                <span className="resDetail__infoLabel">Mã đặt bàn</span>
+                <span className="resDetail__infoValue">#{data.id}</span>
+              </div>
+              <div className="resDetail__infoItem">
+                <span className="resDetail__infoLabel">Tên khách hàng</span>
+                <span className="resDetail__infoValue">{data.fullName}</span>
+              </div>
+              <div className="resDetail__infoItem">
+                <span className="resDetail__infoLabel">Số điện thoại</span>
+                <span className="resDetail__infoValue">{data.phone}</span>
+              </div>
+              <div className="resDetail__infoItem">
+                <span className="resDetail__infoLabel">Ngày đặt</span>
+                <span className="resDetail__infoValue">{data.date}</span>
+              </div>
+              <div className="resDetail__infoItem">
+                <span className="resDetail__infoLabel">Giờ đặt</span>
+                <span className="resDetail__infoValue">{data.time}</span>
+              </div>
+              <div className="resDetail__infoItem">
+                <span className="resDetail__infoLabel">Số lượng khách</span>
+                <span className="resDetail__infoValue">{data.guestCount} khách</span>
+              </div>
+              <div className="resDetail__infoItem resDetail__infoItem--full">
+                <span className="resDetail__infoLabel">Thời gian tạo đơn</span>
+                <span className="resDetail__infoValue">
+                  {data.createdAt ? new Date(data.createdAt).toLocaleString('vi-VN') : '—'}
+                </span>
+              </div>
+              <div className="resDetail__infoItem resDetail__infoItem--full">
+                <span className="resDetail__infoLabel">Trạng thái hiện tại</span>
+                <span className="resDetail__infoValue">
+                  <StatusBadge status={String(data.status || '')} />
+                </span>
+              </div>
+              <div className="resDetail__infoItem resDetail__infoItem--full">
+                <span className="resDetail__infoLabel">Ghi chú</span>
+                <span className="resDetail__infoValue resDetail__infoValue--note">
+                  {data.note || 'Không có ghi chú'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* C. Thông tin bàn được gán */}
+          <div className="resDetail__section" style={{ marginTop: 20 }}>
+            <h3 className="resDetail__secTitle">
+              <MapPin size={18} style={{ marginRight: 6, verticalAlign: '-0.15em' }} />
+              Thông tin bàn gán
+            </h3>
+            {data.assignedTables && data.assignedTables.length > 0 ? (
+              <div className="resDetail__tableGrid">
+                {data.assignedTables.map((t) => (
+                  <div key={t.id} className="resDetail__tableCard">
+                    <div className="resDetail__tableHeader">
+                      <span className="resDetail__tableName">{t.name}</span>
+                      <span className={`resDetail__tableStatus resDetail__tableStatus--${t.status.toLowerCase()}`}>
+                        {tableStatusVi(t.status)}
+                      </span>
+                    </div>
+                    <div className="resDetail__tableBody">
+                      <p style={{ margin: '4px 0 2px' }}>Khu vực: <strong>{t.zone || 'Chung'}</strong></p>
+                      <p style={{ margin: 0 }}>Sức chứa: <strong>{t.capacity} chỗ</strong></p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : data.tables?.length ? (
+              <div className="resDetail__simpleTables">
+                Bàn đã gán: <strong>{data.tables.join(', ')}</strong>
+              </div>
+            ) : data.assignedTableId ? (
+              <div className="resDetail__simpleTables">
+                Bàn đã gán (mã): <strong>#{data.assignedTableId}</strong>
+              </div>
+            ) : (
+              <div className="resDetail__empty">
+                Chưa gán bàn
+              </div>
+            )}
+          </div>
+
+          {/* B. Danh sách món đã gọi (nếu có) */}
+          <div className="resDetail__section" style={{ marginTop: 20 }}>
+            <h3 className="resDetail__secTitle">
+              <ShoppingBag size={18} style={{ marginRight: 6, verticalAlign: '-0.15em' }} />
+              Danh sách món đã gọi
+            </h3>
+            {data.orderItems && data.orderItems.length > 0 ? (
+              <div className="resDetail__orderWrap">
+                <table className="resDetail__orderTable">
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left' }}>Tên món</th>
+                      <th style={{ textAlign: 'center' }}>SL</th>
+                      <th style={{ textAlign: 'right' }}>Đơn giá</th>
+                      <th style={{ textAlign: 'right' }}>Thành tiền</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.orderItems.map((item) => (
+                      <tr key={item.id}>
+                        <td style={{ textAlign: 'left' }}>
+                          <div className="resDetail__foodName">{item.foodName}</div>
+                          {item.note ? (
+                            <div className="resDetail__foodNote">Ghi chú: {item.note}</div>
+                          ) : null}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>{item.quantity}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          {item.price.toLocaleString('vi-VN')} ₫
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                          {(item.price * item.quantity).toLocaleString('vi-VN')} ₫
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="resDetail__orderTotal">
+                  <span>Tổng tiền món:</span>
+                  <strong>
+                    {data.orderItems
+                      .reduce((sum, item) => sum + item.price * item.quantity, 0)
+                      .toLocaleString('vi-VN')}{' '}
+                    ₫
+                  </strong>
+                </div>
+              </div>
+            ) : (
+              <div className="resDetail__empty">
+                Chưa gọi món
+              </div>
+            )}
+          </div>
+
           {data.tableOrderToken ? (
-            <p style={{ marginTop: 12 }}>
-              <Link to={`/order/table/${encodeURIComponent(data.tableOrderToken)}`}>Gọi món tại bàn</Link>
+            <p style={{ marginTop: 16 }}>
+              <Link to={`/order/table/${encodeURIComponent(data.tableOrderToken)}`} className="resDetail__orderLink">
+                Gọi món tại bàn
+              </Link>
             </p>
           ) : null}
           {['PENDING', 'HOLD'].includes(String(data.status || '').toUpperCase()) ? (
-            <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button type="button" className="nav__link" disabled={cancelling} onClick={() => void cancel()}>
+            <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="button" className="nav__link nav__cta" disabled={cancelling} onClick={() => void cancel()}>
                 {cancelling ? 'Đang hủy...' : 'Hủy đơn'}
               </button>
             </div>

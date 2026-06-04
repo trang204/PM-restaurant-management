@@ -4,6 +4,7 @@ import { apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import AdminPagination from '../../components/AdminPagination'
 import { getStatusLabel } from '../../lib/statusMapper'
+import ReservationDetailView from '../Booking/ReservationDetailView'
 import './BookingManagement.css'
 
 function badgeClass(status) {
@@ -166,6 +167,7 @@ export default function BookingManagement({ staffMode = false }) {
 
   const [search, setSearch] = useState(initialSearch || '')
   const [statusFilter, setStatusFilter] = useState('ALL') // ALL | PENDING | CONFIRMED | COMPLETED
+  const [detailBookingId, setDetailBookingId] = useState(null)
 
   function load() {
     setLoading(true)
@@ -1029,6 +1031,13 @@ export default function BookingManagement({ staffMode = false }) {
                       </td>
                       <td data-label="Thao tác">
                         <div className="booking-mgmt__actions">
+                          <button
+                            type="button"
+                            className="booking-mgmt__btn booking-mgmt__btn--secondary"
+                            onClick={() => setDetailBookingId(r.id)}
+                          >
+                            Xem
+                          </button>
                           {actionType === 'PENDING' ? (
                             <>
                               <button
@@ -1142,6 +1151,15 @@ export default function BookingManagement({ staffMode = false }) {
         <div className="booking-mgmt__table-wrap">
           <p className="booking-mgmt__empty">Chưa có đơn đặt bàn nào.</p>
         </div>
+      ) : null}
+
+      {detailBookingId ? (
+        <ReservationDetailView
+          bookingId={String(detailBookingId)}
+          variant="modal"
+          onClose={() => setDetailBookingId(null)}
+          onCancelled={load}
+        />
       ) : null}
     </div>
   )

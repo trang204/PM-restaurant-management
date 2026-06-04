@@ -222,7 +222,59 @@ export async function detail(req, res, next) {
       [id],
     )
     if (!r.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
-    return ok(res, mapBookingForAdmin(r.rows[0]))
+    const booking = r.rows[0]
+    const mapped = mapBookingForAdmin(booking)
+    mapped.createdAt = booking.created_at
+
+    // Fetch assigned tables detailed info
+    const tablesRes = await query(
+      `
+      SELECT t.id, t.name, t.zone, t.capacity, t.status
+      FROM booking_tables bt
+      JOIN tables t ON t.id = bt.table_id
+      WHERE bt.booking_id = $1
+      `,
+      [id]
+    )
+    mapped.assignedTables = tablesRes.rows.map(t => ({
+      id: t.id,
+      name: t.name,
+      zone: t.zone,
+      capacity: Number(t.capacity) || 0,
+      status: t.status
+    }))
+
+    // Fetch ordered items
+    const ordersRes = await query(
+      `SELECT id FROM orders WHERE booking_id = $1 ORDER BY id DESC LIMIT 1`,
+      [id]
+    )
+    if (ordersRes.rows.length) {
+      const orderId = ordersRes.rows[0].id
+      const itemsRes = await query(
+        `
+        SELECT
+          oi.id, oi.quantity, oi.price,
+          f.name AS food_name, oi.note
+        FROM order_items oi
+        LEFT JOIN foods f ON f.id = oi.food_id
+        WHERE oi.order_id = $1
+        ORDER BY oi.id ASC
+        `,
+        [orderId]
+      )
+      mapped.orderItems = itemsRes.rows.map(item => ({
+        id: item.id,
+        foodName: item.food_name,
+        quantity: Number(item.quantity) || 0,
+        price: Number(item.price) || 0,
+        note: item.note ?? null
+      }))
+    } else {
+      mapped.orderItems = []
+    }
+
+    return ok(res, mapped)
   } catch (e) {
     return next(e)
   }

@@ -110,15 +110,212 @@
 .resDetail__card {
   border: 1px solid var(--border, #e2d9cc);
   border-radius: 12px;
-  padding: 16px;
+  padding: 20px;
   max-width: 560px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(28, 23, 19, 0.05);
+}
+
+/* Styling for new elements in ReservationDetailView */
+.resDetail__section {
+  border-bottom: 1px dashed var(--border, #e2d9cc);
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.resDetail__section:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.resDetail__secTitle {
+  display: flex;
+  align-items: center;
+  margin: 0 0 12px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text, #1c1713);
+}
+
+.resDetail__infoGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 16px;
+}
+
+.resDetail__infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.resDetail__infoItem--full {
+  grid-column: span 2;
+}
+
+.resDetail__infoLabel {
+  font-size: 0.78rem;
+  color: var(--muted, #7a7069);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 500;
+}
+
+.resDetail__infoValue {
+  font-size: 0.92rem;
+  color: var(--text, #1c1713);
+  font-weight: 600;
+}
+
+.resDetail__infoValue--note {
+  font-weight: 400;
+  font-style: italic;
+  background: #fdfaf7;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #e2d9cc);
+}
+
+/* Assigned Table Cards */
+.resDetail__tableGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.resDetail__tableCard {
+  border: 1px solid var(--border, #e2d9cc);
+  border-radius: 8px;
+  background: #fdfaf7;
+  padding: 10px 12px;
+}
+
+.resDetail__tableHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border, #e2d9cc);
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+}
+
+.resDetail__tableName {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text, #1c1713);
+}
+
+.resDetail__tableStatus {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.resDetail__tableStatus--available {
+  background: #d1e7dd;
+  color: #0f5132;
+}
+
+.resDetail__tableStatus--occupied {
+  background: #f8d7da;
+  color: #842029;
+}
+
+.resDetail__tableStatus--reserved {
+  background: #fff3cd;
+  color: #664d03;
+}
+
+.resDetail__tableStatus--closed {
+  background: #e2e3e5;
+  color: #383d41;
+}
+
+.resDetail__tableBody p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted, #7a7069);
+}
+
+.resDetail__simpleTables {
+  font-size: 0.9rem;
+  color: var(--text, #1c1713);
+  padding: 4px 0;
+}
+
+.resDetail__empty {
+  font-size: 0.88rem;
+  color: var(--muted, #7a7069);
+  font-style: italic;
+  padding: 6px 0;
+}
+
+/* Order items list */
+.resDetail__orderWrap {
+  border: 1px solid var(--border, #e2d9cc);
+  border-radius: 8px;
+  overflow: hidden;
   background: #fff;
 }
 
-.resDetail__card p {
-  margin: 0 0 10px;
+.resDetail__orderTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
 }
 
-.resDetail__card p:last-child {
-  margin-bottom: 0;
+.resDetail__orderTable th,
+.resDetail__orderTable td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border, #e2d9cc);
+}
+
+.resDetail__orderTable th {
+  background: #fdfaf7;
+  font-weight: 700;
+  color: var(--text, #1c1713);
+}
+
+.resDetail__foodName {
+  font-weight: 600;
+  color: var(--text, #1c1713);
+}
+
+.resDetail__foodNote {
+  font-size: 0.78rem;
+  color: #b02a37;
+  margin-top: 2px;
+  font-style: italic;
+}
+
+.resDetail__orderTotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #fdfaf7;
+  font-size: 0.92rem;
+}
+
+.resDetail__orderTotal strong {
+  font-size: 1.05rem;
+  color: #8f5c38;
+}
+
+.resDetail__orderLink {
+  display: inline-block;
+  font-weight: 600;
+  color: #8f5c38;
+  text-decoration: underline;
+  transition: color 0.15s ease;
+}
+
+.resDetail__orderLink:hover {
+  color: #1c1713;
 }
