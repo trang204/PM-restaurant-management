@@ -191,14 +191,14 @@ export async function updateItem(req, res, next) {
 
 
     const sessionId = row.session_id
-    // Chỉ cho phép sửa items thuộc PENDING orders
+    // Chỉ cho phép sửa items thuộc PENDING orders, hoặc SERVING orders có kitchen_status = 'PENDING'
     const r = await query(
       `
       UPDATE order_items oi
       SET quantity = $1
       FROM orders o
       WHERE oi.id = $2 AND oi.order_id = o.id AND o.table_session_id = $3
-        AND o.status = 'PENDING'
+        AND (o.status = 'PENDING' OR (o.status = 'SERVING' AND COALESCE(oi.kitchen_status, 'PENDING') = 'PENDING'))
       RETURNING oi.*
     `,
       [qty, itemId, sessionId],
@@ -222,13 +222,13 @@ export async function removeItem(req, res, next) {
 
 
     const sessionId = row.session_id
-    // Chỉ cho phép xóa items thuộc PENDING orders
+    // Chỉ cho phép xóa items thuộc PENDING orders, hoặc SERVING orders có kitchen_status = 'PENDING'
     const r = await query(
       `
       DELETE FROM order_items oi
       USING orders o
       WHERE oi.id = $1 AND oi.order_id = o.id AND o.table_session_id = $2
-        AND o.status = 'PENDING'
+        AND (o.status = 'PENDING' OR (o.status = 'SERVING' AND COALESCE(oi.kitchen_status, 'PENDING') = 'PENDING'))
       RETURNING oi.id
     `,
       [itemId, sessionId],

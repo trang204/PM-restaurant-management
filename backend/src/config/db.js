@@ -405,6 +405,25 @@ export async function ensureDbSchema() {
     `)
   }
 
+  // Cột bổ sung cho bảng payments phục vụ thanh toán tiền mặt/quầy
+  const pmCols = [
+    ['transaction_code', 'TEXT'],
+    ['cashier_id', 'INT REFERENCES users(id)'],
+    ['note', 'TEXT'],
+    ['tax', 'DECIMAL(14,2) DEFAULT 0'],
+    ['discount', 'DECIMAL(14,2) DEFAULT 0'],
+    ['surcharge', 'DECIMAL(14,2) DEFAULT 0']
+  ]
+  for (const [col, type] of pmCols) {
+    const pmc = await query(
+      `SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='payments' AND column_name=$1 LIMIT 1`,
+      [col],
+    )
+    if (!pmc.rows.length) {
+      await query(`ALTER TABLE payments ADD COLUMN ${col} ${type}`)
+    }
+  }
+
   // Cột cài đặt thanh toán chuyển khoản (SePay QR).
   const paymentCols = [
     ['payment_bank_account', 'TEXT'],

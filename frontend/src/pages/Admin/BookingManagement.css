@@ -655,3 +655,16 @@
 @media (max-width: 480px) {
   .booking-mgmt__walkInGrid { grid-template-columns: 1fr; }
 }
+
+.booking-mgmt__btn--cash {
+  color: #a05a0b;
+  border-color: #f0cfb8;
+  background: #fff9f3;
+  font-weight: 700;
+}
+.booking-mgmt__btn--cash:hover:not(:disabled) {
+  background: #fdecd8;
+  border-color: #e0ac8e;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(160,90,11,0.15);
+}

@@ -50,6 +50,13 @@ type InvoiceLine = {
 type InvoiceRow = {
   paymentId: number; orderId: number; amount: string | number
   method: string | null; paidAt: string; items: InvoiceLine[]
+  transactionCode?: string | null
+  cashierId?: number | null
+  cashierName?: string | null
+  note?: string | null
+  tax?: string | number | null
+  discount?: string | number | null
+  surcharge?: string | number | null
 }
 type TableRow = {
   tableId: number | null; tableName: string
@@ -166,6 +173,36 @@ function InvoiceCard({ inv }: { inv: InvoiceRow }) {
       ) : (
         <p className="rev-report__noItems">Không có chi tiết món.</p>
       )}
+
+      {/* Chi tiết phụ thu, giảm giá, thuế, người thu tiền, mã giao dịch */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', marginTop: 10, padding: '8px 12px', background: '#faf8f5', borderRadius: 8, fontSize: '0.82rem', color: '#555', border: '1px dashed #e2d9cc' }}>
+        <div>
+          <span>Người thu tiền: </span><strong>{inv.cashierName || 'Hệ thống'}</strong>
+        </div>
+        <div>
+          <span>Mã giao dịch: </span><strong>{inv.transactionCode || '—'}</strong>
+        </div>
+        {inv.tax && Number(inv.tax) > 0 ? (
+          <div>
+            <span>Thuế VAT: </span><strong>{formatCurrency(Number(inv.tax))}</strong>
+          </div>
+        ) : null}
+        {inv.discount && Number(inv.discount) > 0 ? (
+          <div>
+            <span>Giảm giá: </span><strong style={{ color: '#c0392b' }}>-{formatCurrency(Number(inv.discount))}</strong>
+          </div>
+        ) : null}
+        {inv.surcharge && Number(inv.surcharge) > 0 ? (
+          <div>
+            <span>Phụ thu: </span><strong>{formatCurrency(Number(inv.surcharge))}</strong>
+          </div>
+        ) : null}
+        {inv.note ? (
+          <div style={{ gridColumn: 'span 2', borderTop: '1px dotted #e2d9cc', paddingTop: 6, marginTop: 2 }}>
+            <span>Ghi chú: </span><strong>{inv.note}</strong>
+          </div>
+        ) : null}
+      </div>
     </li>
   )
 }

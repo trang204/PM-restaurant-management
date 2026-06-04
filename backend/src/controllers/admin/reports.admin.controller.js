@@ -69,6 +69,13 @@ export async function revenueByTable(req, res, next) {
         p.amount::numeric AS amount,
         p.method,
         p.paid_at         AS "paidAt",
+        p.transaction_code AS "transactionCode",
+        p.cashier_id      AS "cashierId",
+        u.name            AS "cashierName",
+        p.note,
+        p.tax::numeric    AS tax,
+        p.discount::numeric AS discount,
+        p.surcharge::numeric AS surcharge,
         COALESCE(ts_t.id, bt_t.id)                         AS table_id,
         COALESCE(
           (
@@ -87,6 +94,7 @@ export async function revenueByTable(req, res, next) {
           '[]'::json
         ) AS items
       FROM payments p
+      LEFT JOIN users u ON u.id = p.cashier_id
       LEFT JOIN orders o ON o.id = p.order_id
       LEFT JOIN table_sessions ts ON ts.id = o.table_session_id
       LEFT JOIN tables ts_t      ON ts_t.id = ts.table_id
@@ -109,6 +117,13 @@ export async function revenueByTable(req, res, next) {
         amount:    row.amount,
         method:    row.method,
         paidAt:    row.paidAt,
+        transactionCode: row.transactionCode,
+        cashierId:   row.cashierId,
+        cashierName: row.cashierName,
+        note:        row.note,
+        tax:         row.tax,
+        discount:    row.discount,
+        surcharge:   row.surcharge,
         items:     row.items || [],
       })
     }
@@ -154,6 +169,13 @@ export async function revenueInvoices(req, res, next) {
         p.amount::numeric AS amount,
         p.method,
         p.paid_at AS "paidAt",
+        p.transaction_code AS "transactionCode",
+        p.cashier_id AS "cashierId",
+        u.name AS "cashierName",
+        p.note,
+        p.tax::numeric AS tax,
+        p.discount::numeric AS discount,
+        p.surcharge::numeric AS surcharge,
         COALESCE(
           (
             SELECT json_agg(
@@ -171,6 +193,7 @@ export async function revenueInvoices(req, res, next) {
           '[]'::json
         ) AS items
       FROM payments p
+      LEFT JOIN users u ON u.id = p.cashier_id
       WHERE ${where.join(' AND ')}
       ORDER BY p.paid_at DESC, p.id DESC
     `,

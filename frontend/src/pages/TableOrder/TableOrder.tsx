@@ -115,16 +115,19 @@ export default function TableOrder() {
 
   const handleClearAllCart = async () => {
     if (!ctx || !token) return
-    const pendingItems = ctx.items.filter(i => String(i.order_status || 'PENDING').toUpperCase() === 'PENDING')
+    const editableItems = ctx.items.filter(i => 
+      String(i.order_status || 'PENDING').toUpperCase() === 'PENDING' ||
+      String(i.kitchen_status || 'PENDING').toUpperCase() === 'PENDING'
+    )
     
-    if (pendingItems.length === 0) {
-      toast('Chỉ có thể xóa các món chưa xác nhận.')
+    if (editableItems.length === 0) {
+      toast('Chỉ có thể xóa các món chưa được bếp chế biến.')
       return
     }
 
     const ok = await confirm({
-      title: 'Xóa tất cả món chưa xác nhận',
-      message: 'Bạn có chắc chắn muốn xóa tất cả các món trong đợt gọi này không?',
+      title: 'Xóa tất cả món chưa chế biến',
+      message: 'Bạn có chắc chắn muốn xóa tất cả các món chưa được chế biến trong đơn này không?',
       confirmLabel: 'Xóa tất cả',
     })
     if (!ok) return
@@ -133,7 +136,7 @@ export default function TableOrder() {
     setLoading(true)
     try {
       await Promise.all(
-        pendingItems.map(i =>
+        editableItems.map(i =>
           publicApiFetch(`/table-session/${encodeURIComponent(token)}/items/${i.id}`, {
             method: 'DELETE',
           })
@@ -141,7 +144,7 @@ export default function TableOrder() {
       )
       await load()
       await loadPayment()
-      toast('Đã xóa tất cả món chưa xác nhận.')
+      toast('Đã xóa các món chưa chế biến.')
       setCartOpen(false)
     } catch (e) {
       setErr((e as Error).message)
@@ -737,7 +740,7 @@ export default function TableOrder() {
                                     </span>
                                 </div>
                                 <div className="tableOrder__lineActions">
-                                  {isPending ? (
+                                  {(String(group.status).toUpperCase() === 'PENDING' || String(i.kitchen_status || 'PENDING').toUpperCase() === 'PENDING') ? (
                                     <>
                                       <button
                                         type="button"
@@ -853,7 +856,7 @@ export default function TableOrder() {
                                     </span>
                                 </div>
                                 <div className="tableOrder__lineActions">
-                                  {isPending ? (
+                                  {(String(group.status).toUpperCase() === 'PENDING' || String(i.kitchen_status || 'PENDING').toUpperCase() === 'PENDING') ? (
                                     <>
                                       <button
                                         type="button"

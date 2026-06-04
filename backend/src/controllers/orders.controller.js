@@ -4,6 +4,22 @@ import { query, withTransaction } from '../config/db.js'
 
 const ALLOWED_STATUS = new Set(['PENDING', 'SERVING', 'DONE'])
 
+async function checkOrderModifiable(client, orderId) {
+  const r = await client.query(
+    `SELECT b.status FROM orders o JOIN bookings b ON b.id = o.booking_id WHERE o.id = $1`,
+    [orderId]
+  )
+  if (r.rows.length) {
+    const status = String(r.rows[0].status || '').toUpperCase()
+    if (status === 'COMPLETED') {
+      throw badRequest('Đơn đặt bàn đã được thanh toán hoàn thành, không thể thay đổi thông tin món ăn.')
+    }
+    if (status === 'CANCELLED') {
+      throw badRequest('Đơn đặt bàn đã bị hủy, không thể thay đổi thông tin món ăn.')
+    }
+  }
+}
+
 export async function createOrder(req, res, next) {
   try {
     const { booking_id } = req.body || {}
@@ -43,6 +59,7 @@ export async function addFoodToOrder(req, res, next) {
     const price = foodRes.rows[0].price
 
     const r = await withTransaction(async (client) => {
+      await checkOrderModifiable(client, orderId)
       const existing = await client.query(
         'SELECT id, quantity FROM order_items WHERE order_id = $1 AND food_id = $2',
         [orderId, foodId],
@@ -92,6 +109,7 @@ export async function updateItemQuantity(req, res, next) {
     if (!Number.isFinite(qty) || qty <= 0) throw badRequest('quantity không hợp lệ')
 
     const r = await withTransaction(async (client) => {
+      await checkOrderModifiable(client, orderId)
       const existingRes = await client.query(
         'SELECT food_id, quantity FROM order_items WHERE id = $1 AND order_id = $2',
         [itemId, orderId]
@@ -163,9 +181,13 @@ export async function changeOrderStatus(req, res, next) {
     const st = String(status || '').toUpperCase()
     if (!ALLOWED_STATUS.has(st)) throw badRequest('status không hợp lệ')
 
-    const r = await query('UPDATE orders SET status = $1 WHERE id = $2 RETURNING *', [st, orderId])
-    if (!r.rows.length) throw notFound('Không tìm thấy order')
-    return ok(res, r.rows[0])
+    const r = await withTransaction(async (client) => {
+      await checkOrderModifiable(client, orderId)
+      const resVal = await client.query('UPDATE orders SET status = $1 WHERE id = $2 RETURNING *', [st, orderId])
+      return resVal.rows[0]
+    })
+    if (!r) throw notFound('Không tìm thấy order')
+    return ok(res, r)
   } catch (e) {
     return next(e)
   }

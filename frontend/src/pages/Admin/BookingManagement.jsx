@@ -161,6 +161,13 @@ export default function BookingManagement({ staffMode = false }) {
   const [paymentModal, setPaymentModal] = useState(null)
   const [paymentBusy, setPaymentBusy] = useState(false)
   const [qrBusy, setQrBusy] = useState(false)
+  const [cashPaymentModal, setCashPaymentModal] = useState(null)
+  const [cashTaxPercent, setCashTaxPercent] = useState(10)
+  const [cashDiscount, setCashDiscount] = useState(0)
+  const [cashSurcharge, setCashSurcharge] = useState(0)
+  const [cashNote, setCashNote] = useState('')
+  const [cashTxCode, setCashTxCode] = useState('')
+  const [cashReceived, setCashReceived] = useState('')
   const [searchParams] = useSearchParams()
   const initialDate = searchParams.get('date')
   const initialSearch = searchParams.get('q')
@@ -525,6 +532,68 @@ export default function BookingManagement({ staffMode = false }) {
     }
   }
 
+  async function openCashPayment(r) {
+    setPaymentBusy(true)
+    try {
+      const data = await apiFetch(`/admin/reservations/${r.id}/order-items`)
+      const items = Array.isArray(data?.items) ? data.items : []
+      const subtotal = items.reduce((acc, it) => acc + Number(it.price) * Number(it.quantity), 0)
+      
+      setCashPaymentModal({
+        bookingId: r.id,
+        guestName: r.fullName || `Đơn #${r.id}`,
+        items,
+        subtotal
+      })
+      setCashTaxPercent(10)
+      setCashDiscount(0)
+      setCashSurcharge(0)
+      setCashNote('')
+      setCashTxCode('')
+      setCashReceived('')
+    } catch (e) {
+      toast(e.message, { variant: 'error' })
+    } finally {
+      setPaymentBusy(false)
+    }
+  }
+
+  async function submitCashPayment() {
+    if (!cashPaymentModal) return
+    
+    const subtotal = cashPaymentModal.subtotal
+    const taxAmt = Math.round(subtotal * (Number(cashTaxPercent || 0) / 100))
+    const finalTotal = Math.max(0, subtotal + taxAmt + Number(cashSurcharge || 0) - Number(cashDiscount || 0))
+    
+    if (cashReceived && Number(cashReceived) < finalTotal) {
+      toast(`Khách đưa không đủ tiền (Cần ${finalTotal.toLocaleString('vi-VN')} ₫).`, { variant: 'error' })
+      return
+    }
+    
+    setOpsBusy(true)
+    try {
+      await apiFetch(`/admin/reservations/${cashPaymentModal.bookingId}/cashier-pay`, {
+        method: 'POST',
+        body: JSON.stringify({
+          amount: finalTotal,
+          transactionCode: cashTxCode.trim() ? cashTxCode.trim() : undefined,
+          note: cashNote.trim() ? cashNote.trim() : undefined,
+          tax: taxAmt,
+          discount: Number(cashDiscount || 0),
+          surcharge: Number(cashSurcharge || 0)
+        })
+      })
+      setCashPaymentModal(null)
+      toast('Thanh toán tiền mặt thành công! Đơn hàng đã hoàn thành.', { variant: 'success' })
+      load()
+      refreshTables()
+    } catch (e) {
+      toast(e.message, { variant: 'error' })
+    } finally {
+      setOpsBusy(false)
+    }
+  }
+
   return (
     <div className="booking-mgmt">
       <header className="booking-mgmt__header">
@@ -866,6 +935,162 @@ export default function BookingManagement({ staffMode = false }) {
         </div>
       ) : null}
 
+      {cashPaymentModal ? (
+        <div className="booking-mgmt__modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="cash-payment-title">
+          <div className="booking-mgmt__modal booking-mgmt__modal--wide">
+            <h2 id="cash-payment-title" className="booking-mgmt__modal-title">
+              Thu tiền mặt tại quầy
+            </h2>
+            <div className="booking-mgmt__payment-info">
+              <p>
+                <span className="booking-mgmt__payment-label">Khách hàng:</span> <strong>{cashPaymentModal.guestName}</strong> &nbsp;|&nbsp;
+                <span className="booking-mgmt__payment-label">Mã đặt bàn:</span> <strong>#{cashPaymentModal.bookingId}</strong>
+              </p>
+            </div>
+
+            <div style={{ marginBottom: 18 }}>
+              <h3 style={{ fontSize: '0.9rem', marginBottom: 8, textTransform: 'uppercase', color: 'var(--bk-muted)', letterSpacing: '0.05em' }}>Danh sách món ăn đã gọi</h3>
+              {cashPaymentModal.items.length === 0 ? (
+                <p style={{ fontStyle: 'italic', fontSize: '0.9rem', color: 'var(--bk-muted)' }}>Không có món ăn nào.</p>
+              ) : (
+                <div style={{ maxHeight: 150, overflowY: 'auto', border: '1px solid var(--bk-border)', borderRadius: 8, padding: '8px 12px', background: '#fdfaf7' }}>
+                  {cashPaymentModal.items.map((it) => (
+                    <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', padding: '4px 0', borderBottom: '1px solid rgba(226,217,204,0.3)' }}>
+                      <span>{it.food_name} <strong style={{ color: 'var(--bk-muted)' }}>x{it.quantity}</strong></span>
+                      <strong>{(Number(it.price) * it.quantity).toLocaleString('vi-VN')} ₫</strong>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <label className="booking-mgmt__field">
+                <span>Phụ thu (₫)</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={cashSurcharge}
+                  onChange={(e) => setCashSurcharge(Math.max(0, Number(e.target.value)))}
+                />
+              </label>
+              <label className="booking-mgmt__field">
+                <span>Giảm giá (₫)</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={cashDiscount}
+                  onChange={(e) => setCashDiscount(Math.max(0, Number(e.target.value)))}
+                />
+              </label>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <label className="booking-mgmt__field">
+                <span>Thuế VAT (%)</span>
+                <select
+                  value={cashTaxPercent}
+                  onChange={(e) => setCashTaxPercent(Number(e.target.value))}
+                >
+                  <option value="0">0%</option>
+                  <option value="5">5%</option>
+                  <option value="8">8%</option>
+                  <option value="10">10%</option>
+                </select>
+              </label>
+              <label className="booking-mgmt__field">
+                <span>Mã giao dịch (Nếu có)</span>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: CASH123"
+                  value={cashTxCode}
+                  onChange={(e) => setCashTxCode(e.target.value)}
+                />
+              </label>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <label className="booking-mgmt__field">
+                <span>Số tiền khách đưa (₫)</span>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Nhập số tiền nhận..."
+                  value={cashReceived}
+                  onChange={(e) => setCashReceived(e.target.value ? Math.max(0, Number(e.target.value)) : '')}
+                />
+              </label>
+              <label className="booking-mgmt__field">
+                <span>Ghi chú thanh toán</span>
+                <input
+                  type="text"
+                  placeholder="Nhập ghi chú..."
+                  value={cashNote}
+                  onChange={(e) => setCashNote(e.target.value)}
+                />
+              </label>
+            </div>
+
+            {(() => {
+              const subtotal = cashPaymentModal.subtotal
+              const taxAmt = Math.round(subtotal * (Number(cashTaxPercent || 0) / 100))
+              const finalTotal = Math.max(0, subtotal + taxAmt + Number(cashSurcharge || 0) - Number(cashDiscount || 0))
+              const change = cashReceived ? Math.max(0, Number(cashReceived) - finalTotal) : 0
+              return (
+                <div style={{ background: '#fdfaf7', border: '1px solid var(--bk-border)', borderRadius: 10, padding: 14, marginTop: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: 6 }}>
+                    <span>Tạm tính (Món ăn):</span>
+                    <span>{subtotal.toLocaleString('vi-VN')} ₫</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: 6 }}>
+                    <span>Thuế VAT ({cashTaxPercent}%):</span>
+                    <span>{taxAmt.toLocaleString('vi-VN')} ₫</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: 6 }}>
+                    <span>Phụ thu:</span>
+                    <span>{Number(cashSurcharge || 0).toLocaleString('vi-VN')} ₫</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: 6, color: '#C0392B' }}>
+                    <span>Giảm giá:</span>
+                    <span>- {Number(cashDiscount || 0).toLocaleString('vi-VN')} ₫</span>
+                  </div>
+                  <hr style={{ border: 'none', borderTop: '1px solid var(--bk-border)', margin: '8px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: 700 }}>
+                    <span>Tổng thanh toán:</span>
+                    <span style={{ color: '#1a6e3c' }}>{finalTotal.toLocaleString('vi-VN')} ₫</span>
+                  </div>
+                  {cashReceived ? (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', fontWeight: 600, marginTop: 6, color: '#a05a0b' }}>
+                      <span>Tiền thừa trả khách:</span>
+                      <span>{change.toLocaleString('vi-VN')} ₫</span>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })()}
+
+            <div className="booking-mgmt__modal-actions">
+              <button
+                type="button"
+                className="booking-mgmt__btn booking-mgmt__btn--primary"
+                disabled={opsBusy}
+                onClick={submitCashPayment}
+              >
+                {opsBusy ? 'Đang xử lý...' : 'Xác nhận đã thu tiền'}
+              </button>
+              <button
+                type="button"
+                className="booking-mgmt__btn booking-mgmt__btn--ghost"
+                onClick={() => setCashPaymentModal(null)}
+                disabled={opsBusy}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {!loading && !err ? (
         <div className="booking-mgmt__today">
           <p className="booking-mgmt__todayEyebrow">Hôm nay</p>
@@ -1107,6 +1332,15 @@ export default function BookingManagement({ staffMode = false }) {
                                 onClick={() => openPaymentQr(r)}
                               >
                                 QR thanh toán
+                              </button>
+                              <button
+                                type="button"
+                                className="booking-mgmt__btn booking-mgmt__btn--cash"
+                                disabled={paymentBusy}
+                                title="Thu tiền mặt tại quầy"
+                                onClick={() => openCashPayment(r)}
+                              >
+                                Thu tiền mặt
                               </button>
                             </>
                           ) : null}

@@ -18,10 +18,22 @@ function tableStatusVi(st: string) {
 
 function statusBadgeStyle(statusRaw: string): React.CSSProperties {
   const s = String(statusRaw || '').toUpperCase()
-  if (s === 'COMPLETED') return { color: '#0f5132', background: '#d1e7dd', border: '1px solid #badbcc' }
-  if (s === 'CANCELLED') return { color: '#842029', background: '#f8d7da', border: '1px solid #f5c2c7' }
-  if (s === 'PENDING') return { color: '#664d03', background: '#fff3cd', border: '1px solid #ffecb5' }
-  return { color: 'inherit', background: 'transparent', border: '1px solid transparent' }
+  if (s === 'COMPLETED' || s === 'PAID') {
+    return { color: '#0f5132', background: '#d1e7dd', border: '1px solid #badbcc' }
+  }
+  if (s === 'CANCELLED') {
+    return { color: '#842029', background: '#f8d7da', border: '1px solid #f5c2c7' }
+  }
+  if (s === 'PENDING' || s === 'HOLD') {
+    return { color: '#664d03', background: '#fff3cd', border: '1px solid #ffecb5' }
+  }
+  if (s === 'CONFIRMED') {
+    return { color: '#055160', background: '#cff4fc', border: '1px solid #b6effb' }
+  }
+  if (s === 'CHECKED_IN') {
+    return { color: '#0f5132', background: '#e2f0d9', border: '1px solid #c5e0b4' }
+  }
+  return { color: '#495057', background: '#e9ecef', border: '1px solid #dee2e6' }
 }
 
 export function StatusBadge({ status }: { status: string }) {
