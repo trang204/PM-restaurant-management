@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import AdminPagination from '../../components/AdminPagination'
+import { getStatusLabel } from '../../lib/statusMapper'
 import './BookingManagement.css'
 
 function badgeClass(status) {
@@ -16,19 +17,8 @@ function badgeClass(status) {
   return 'book-badge'
 }
 
-const STATUS_LABELS = {
-  PENDING: 'Chờ xác nhận',
-  HOLD: 'Đang giữ bàn',
-  CONFIRMED: 'Đã xác nhận',
-  CHECKED_IN: 'Đã vào bàn',
-  COMPLETED: 'Hoàn thành',
-  CANCELLED: 'Đã hủy',
-  PAID: 'Đã thanh toán',
-}
-
 function statusLabel(status) {
-  const key = String(status || '').trim().toUpperCase()
-  return STATUS_LABELS[key] || key || '—'
+  return getStatusLabel(status, 'reservation')
 }
 
 function normDate(d) {

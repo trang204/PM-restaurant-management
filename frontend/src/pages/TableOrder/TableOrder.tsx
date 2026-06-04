@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { mediaUrl, publicApiFetch } from '../../lib/api'
-import './TableOrder.css'
 import { useNotifications } from '../../context/NotificationsContext'
+import { getStatusLabel } from '../../lib/statusMapper'
+import './TableOrder.css'
 
 
 type MenuItem = {
@@ -53,13 +54,6 @@ type PaymentCtx = {
   bankAccount?: string | null
   bankCode?: string | null
   transferContent?: string | null
-}
-
-const STATUS_VI: Record<string, string> = {
-  PENDING: 'Đang chờ bếp',
-  SERVING: 'Đang phục vụ',
-  DONE: 'Đã xong',
-  CANCELLED: 'Đã hủy',
 }
 
 function formatPrice(n: number) {
@@ -274,7 +268,7 @@ export default function TableOrder() {
   }
 
   const statusKey = ctx ? String(ctx.order.status || '').toUpperCase() : ''
-  const statusLabel = STATUS_VI[statusKey] || ctx?.order.status || '—'
+  const statusLabel = getStatusLabel(statusKey, 'kitchen')
 
   async function submit() {
     if (!token || !ctx) return

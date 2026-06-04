@@ -94,7 +94,11 @@ function BankSelect({ value, onChange }) {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [])
 
-  function select(code) {
+  function select(e, code) {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     onChange(code)
     setOpen(false)
     setSearch('')
@@ -105,7 +109,10 @@ function BankSelect({ value, onChange }) {
       <button
         type="button"
         className="bank-select__trigger"
-        onClick={() => setOpen((o) => !o)}
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpen((o) => !o)
+        }}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
@@ -122,7 +129,7 @@ function BankSelect({ value, onChange }) {
       </button>
 
       {open ? (
-        <div className="bank-select__dropdown" role="listbox">
+        <div className="bank-select__dropdown" role="listbox" onClick={(e) => e.stopPropagation()}>
           <div className="bank-select__search-wrap">
             <input
               autoFocus
@@ -130,6 +137,7 @@ function BankSelect({ value, onChange }) {
               placeholder="Tìm ngân hàng..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
             />
           </div>
           <ul className="bank-select__list">
@@ -137,7 +145,7 @@ function BankSelect({ value, onChange }) {
               role="option"
               aria-selected={value === ''}
               className={`bank-select__item ${value === '' ? 'bank-select__item--active' : ''}`}
-              onClick={() => select('')}
+              onClick={(e) => select(e, '')}
             >
               <span className="bank-select__item-placeholder">— Chưa chọn —</span>
             </li>
@@ -147,7 +155,7 @@ function BankSelect({ value, onChange }) {
                 role="option"
                 aria-selected={value === b.code}
                 className={`bank-select__item ${value === b.code ? 'bank-select__item--active' : ''}`}
-                onClick={() => select(b.code)}
+                onClick={(e) => select(e, b.code)}
               >
                 <img src={logoUrl(b.code)} alt={b.name} className="bank-select__logo" />
                 <span className="bank-select__item-name">{b.name}</span>
@@ -611,13 +619,13 @@ export default function Settings() {
                 />
                 {fieldErrors.paymentBankAccount ? <small className="settings-field__error">{fieldErrors.paymentBankAccount}</small> : null}
               </label>
-              <label className="settings-field">
+              <div className="settings-field">
                 <span>Ngân hàng</span>
                 <BankSelect
                   value={form.paymentBankCode}
                   onChange={(code) => setForm((f) => ({ ...f, paymentBankCode: code }))}
                 />
-              </label>
+              </div>
               <label className="settings-field settings-field--full">
                 <span>Nội dung chuyển khoản</span>
                 <input

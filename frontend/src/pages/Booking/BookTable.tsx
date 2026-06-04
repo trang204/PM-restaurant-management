@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { apiFetch, mediaUrl, publicApiFetch } from '../../lib/api'
 import { requiredMessage, validatePhone, normalizePhone } from '../../lib/validation'
 import { useNotifications } from '../../context/NotificationsContext'
+import { getStatusLabel } from '../../lib/statusMapper'
 import './BookTable.css'
 
 
@@ -26,12 +27,7 @@ function isTableAvailable(t: Table) {
 }  
 
 function tableStatusLabel(status: string) {
-  const s = String(status || '').toUpperCase()
-  if (s === 'AVAILABLE' || s === '') return 'Còn trống'
-  if (s === 'OCCUPIED' || s === 'IN_USE' || s === 'IN USE') return 'Đang dùng'
-  if (s === 'RESERVED') return 'Đang giữ'
-  if (s === 'CLOSED') return 'Bảo trì'
-  return 'Đang dùng'
+  return getStatusLabel(status, 'table')
 }
 
 /**

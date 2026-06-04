@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { analyzeTableLayoutImage, apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
+import { getStatusLabel } from '../../lib/statusMapper'
 import './TableLayoutEditor.css'
 
 const CANVAS_WIDTH = 1200
@@ -16,12 +17,7 @@ const START_Y = 96
 const LEGACY_GRID_LIMIT = 20
 
 function statusLabel(status) {
-  const s = String(status || '').toUpperCase()
-  if (s === 'AVAILABLE') return 'Trống'
-  if (s === 'OCCUPIED' || s === 'IN_USE' || s === 'IN USE') return 'Đang dùng'
-  if (s === 'RESERVED') return 'Đã giữ'
-  if (s === 'CLOSED') return 'Đóng'
-  return status || '—'
+  return getStatusLabel(status, 'table')
 }
 
 function seatClass(status) {

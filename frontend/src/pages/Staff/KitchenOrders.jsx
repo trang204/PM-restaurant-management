@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
+import { getStatusLabel } from '../../lib/statusMapper'
 import './KitchenOrders.css'
 import { RefreshCw } from 'lucide-react'
 
@@ -155,10 +156,7 @@ export default function KitchenOrders() {
   }
 
   const stVi = (s) => {
-    const u = String(s || '').toUpperCase()
-    if (u === 'PENDING') return 'Chờ gửi'
-    if (u === 'SERVING') return 'Đang phục vụ'
-    return s || '—'
+    return getStatusLabel(s, 'kitchen')
   }
 
   return (

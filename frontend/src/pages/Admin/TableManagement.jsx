@@ -3,16 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { apiFetch, mediaUrl, uploadTableImage } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import AdminPagination from '../../components/AdminPagination'
+import { getStatusLabel } from '../../lib/statusMapper'
 import './TableManagement.css'
 
 function statusMeta(status) {
   const s = String(status || '').toUpperCase()
-  if (s === 'AVAILABLE') return { className: 'table-card__status table-card__status--green', label: 'Trống' }
-  if (s === 'RESERVED') return { className: 'table-card__status table-card__status--yellow', label: 'Đang giữ' }
-  if (s === 'OCCUPIED') return { className: 'table-card__status table-card__status--blue', label: 'Đang dùng' }
-  if (s === 'CLOSED') return { className: 'table-card__status table-card__status--muted', label: 'Đóng' }
-  if (s === 'IN_USE' || s === 'IN USE') return { className: 'table-card__status table-card__status--blue', label: 'Đang dùng' }
-  return { className: 'table-card__status', label: status }
+  let className = 'table-card__status'
+  if (s === 'AVAILABLE') className += ' table-card__status--green'
+  else if (s === 'RESERVED') className += ' table-card__status--yellow'
+  else if (s === 'OCCUPIED' || s === 'IN_USE' || s === 'IN USE') className += ' table-card__status--blue'
+  else if (s === 'CLOSED') className += ' table-card__status--muted'
+  return { className, label: getStatusLabel(status, 'table') }
 }
 
 function formatCheckInTime(value) {

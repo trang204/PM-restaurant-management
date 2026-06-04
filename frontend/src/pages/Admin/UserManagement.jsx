@@ -4,6 +4,7 @@ import { apiFetch, mediaUrl, uploadUserAvatar } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import AdminPagination from '../../components/AdminPagination'
 import { requiredMessage, validatePhone } from '../../lib/validation'
+import { getStatusLabel, USER_STATUS } from '../../lib/statusMapper'
 import './UserManagement.css'
 
 const roles = ['CUSTOMER', 'STAFF', 'ADMIN']
@@ -15,10 +16,7 @@ const ROLE_LABELS = {
   ADMIN: 'Quản trị viên',
 }
 
-const STATUS_LABELS = {
-  ACTIVE: 'Hoạt động',
-  LOCKED: 'Bị khóa',
-}
+
 
 function groupMeta(group) {
   const g = String(group || 'customers').toLowerCase()
@@ -293,7 +291,7 @@ export default function UserManagement() {
           <option value="ALL">Tất cả trạng thái</option>
           {statuses.map((status) => (
             <option key={status} value={status}>
-              {STATUS_LABELS[status]}
+              {getStatusLabel(status, 'user')}
             </option>
           ))}
         </select>
@@ -337,7 +335,7 @@ export default function UserManagement() {
                 <td data-label="Ngày tạo">{formatDate(u.created_at)}</td>
                 <td data-label="Trạng thái">
                   <span className="user-mgmt__status" data-status={u.status}>
-                    {STATUS_LABELS[u.status] || u.status || '—'}
+                    {getStatusLabel(u.status, 'user')}
                   </span>
                 </td>
                 <td data-label="Vai trò">
@@ -437,7 +435,7 @@ export default function UserManagement() {
               >
                 {statuses.map((status) => (
                   <option key={status} value={status}>
-                    {STATUS_LABELS[status]}
+                    {getStatusLabel(status, 'user')}
                   </option>
                 ))}
               </select>
@@ -540,7 +538,7 @@ export default function UserManagement() {
               <select value={addForm.status} onChange={(e) => setAddForm((f) => ({ ...f, status: e.target.value }))}>
                 {statuses.map((status) => (
                   <option key={status} value={status}>
-                    {STATUS_LABELS[status]}
+                    {getStatusLabel(status, 'user')}
                   </option>
                 ))}
               </select>

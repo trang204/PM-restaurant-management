@@ -4,17 +4,8 @@ import { Calendar, MapPin, Pin, Users, X } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import { normalizeReservation, type ReservationRow } from '../../lib/reservation'
+import { getStatusLabel } from '../../lib/statusMapper'
 import './ReservationDetailView.css'
-
-export const STATUS_LABELS: Record<string, string> = {
-  HOLD: 'Đang giữ bàn',
-  PENDING: 'Chờ xác nhận',
-  CONFIRMED: 'Đã xác nhận',
-  CHECKED_IN: 'Đã vào bàn',
-  COMPLETED: 'Hoàn thành',
-  CANCELLED: 'Đã hủy',
-  PAID: 'Đã thanh toán',
-}
 
 function statusBadgeStyle(statusRaw: string): React.CSSProperties {
   const s = String(statusRaw || '').toUpperCase()
@@ -25,7 +16,7 @@ function statusBadgeStyle(statusRaw: string): React.CSSProperties {
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const label = STATUS_LABELS[status] || status
+  const label = getStatusLabel(status, 'reservation')
   const style = statusBadgeStyle(status)
   return (
     <span

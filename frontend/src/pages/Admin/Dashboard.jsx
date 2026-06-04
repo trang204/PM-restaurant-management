@@ -16,6 +16,7 @@ import {
   Package,
 } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
+import { getStatusLabel } from '../../lib/statusMapper'
 import './Dashboard.css'
 
 const vnd = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 })
@@ -39,15 +40,6 @@ function statusBadge(status) {
   return 'dash__badge'
 }
 
-const STATUS_LABELS = {
-  HOLD: 'Chờ xác nhận',
-  PENDING: 'Chờ xác nhận',
-  CONFIRMED: 'Đã xác nhận',
-  CHECKED_IN: 'Đã vào bàn',
-  COMPLETED: 'Hoàn thành',
-  CANCELLED: 'Đã hủy',
-  PAID: 'Đã thanh toán',
-}
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -300,7 +292,7 @@ export default function Dashboard() {
                     <td style={{ textAlign: 'center' }}>{r.guestCount}</td>
                     <td>
                       <span className={statusBadge(r.status)}>
-                        {STATUS_LABELS[String(r.status || '').toUpperCase()] || r.status}
+                        {getStatusLabel(r.status, 'reservation')}
                       </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
@@ -442,7 +434,7 @@ export default function Dashboard() {
               <div className="dash__modal-item">
                 <span className="dash__modal-label">Trạng thái đặt bàn:</span>
                 <span className="dash__modal-value">
-                  {STATUS_LABELS[String(infoModal.booking.status || '').toUpperCase()] || infoModal.booking.status}
+                  {getStatusLabel(infoModal.booking.status, 'reservation')}
                 </span>
               </div>
 
@@ -477,7 +469,7 @@ export default function Dashboard() {
                   <span className="dash__modal-value">
                     {infoModal.payment ? (
                       <span style={{ color: infoModal.payment.status === 'PAID' ? '#166534' : '#92400E' }}>
-                        {infoModal.payment.status === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                        {getStatusLabel(infoModal.payment.status, 'payment')}
                       </span>
                     ) : infoModal.items.length > 0 ? (
                       <span style={{ color: '#92400E' }}>Chưa thanh toán</span>
