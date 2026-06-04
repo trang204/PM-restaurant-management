@@ -245,6 +245,13 @@ export default function MenuManagement() {
       const rawImageUrl = form.imageUrl?.trim() ? form.imageUrl.trim() : null
       const imageUrl = rawImageUrl ? normalizeInputUrl(rawImageUrl) : null
 
+      const validIngredients = (form.ingredients || [])
+        .filter(ing => ing.ingredient_id !== '' && ing.ingredient_id != null)
+        .map(ing => ({
+          ingredient_id: Number(ing.ingredient_id),
+          quantity_needed: Number(ing.quantity_needed) || 1,
+        }))
+
       if (editingId) {
         await apiFetch(`/admin/menu-items/${editingId}`, {
           method: 'PATCH',
@@ -255,7 +262,7 @@ export default function MenuManagement() {
             image_url: imageUrl,
             description: cleanDescription || null,
             status: form.status,
-            ingredients: form.ingredients,
+            ingredients: validIngredients,
           }),
         })
         if (imageFile) {
@@ -271,7 +278,7 @@ export default function MenuManagement() {
             image_url: imageUrl,
             description: cleanDescription || null,
             status: form.status,
-            ingredients: form.ingredients,
+            ingredients: validIngredients,
           }),
         })
         if (imageFile && created?.id != null) {
@@ -644,6 +651,16 @@ export default function MenuManagement() {
                       className="menu-card__btn menu-card__btn--secondary"
                       onClick={(e) => {
                         e.stopPropagation()
+                        openDetail(it)
+                      }}
+                    >
+                      Chi tiết
+                    </button>
+                    <button
+                      type="button"
+                      className="menu-card__btn menu-card__btn--secondary"
+                      onClick={(e) => {
+                        e.stopPropagation()
                         openEdit(it)
                       }}
                     >
@@ -889,9 +906,26 @@ export default function MenuManagement() {
                     <span className="menu-detail__label">Danh mục</span>
                     <strong>{detailItem.category_name || '—'}</strong>
                   </div>
-                  <div className="menu-detail__item">
+                  <div className="menu-detail__item menu-detail__item--ingredients">
                     <span className="menu-detail__label">Nguyên liệu</span>
-                    <strong>{ingredientText(detailItem).replace('Nguyên liệu: ', '')}</strong>
+                    {detailItem.ingredients && detailItem.ingredients.length > 0 ? (
+                      <ul className="menu-detail__ingredients-list">
+                        {detailItem.ingredients.map((ing, idx) => {
+                          const ingName = ing.name || availableIngredients.find(ai => String(ai.id) === String(ing.ingredient_id))?.name || 'Nguyên liệu'
+                          const ingUnit = ing.unit || availableIngredients.find(ai => String(ai.id) === String(ing.ingredient_id))?.unit || ''
+                          return (
+                            <li key={idx} className="menu-detail__ingredient-bullet">
+                              <span className="menu-detail__ing-name">{ingName}</span>
+                              <span className="menu-detail__ing-qty">
+                                {Number(ing.quantity_needed).toLocaleString('vi-VN')} {ingUnit}
+                              </span>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    ) : (
+                      <strong>Chưa liên kết</strong>
+                    )}
                   </div>
                 </div>
 

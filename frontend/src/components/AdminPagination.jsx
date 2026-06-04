@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown } from 'lucide-react'
 import './AdminPagination.css'
 
 function buildPageItems(page, totalPages) {
@@ -68,7 +69,7 @@ export default function AdminPagination({
             onClick={() => onPageChange(1)}
             aria-label="Trang đầu"
           >
-            {'<<'}
+            <ChevronsLeft size={16} />
           </button>
           <button
             type="button"
@@ -77,7 +78,7 @@ export default function AdminPagination({
             onClick={() => onPageChange(Math.max(1, safePage - 1))}
             aria-label="Trang trước"
           >
-            {'<'}
+            <ChevronLeft size={16} />
           </button>
 
           {pageItems.map((item, index) => {
@@ -108,7 +109,7 @@ export default function AdminPagination({
             onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
             aria-label="Trang sau"
           >
-            {'>'}
+            <ChevronRight size={16} />
           </button>
           <button
             type="button"
@@ -117,7 +118,7 @@ export default function AdminPagination({
             onClick={() => onPageChange(totalPages)}
             aria-label="Trang cuối"
           >
-            {'>>'}
+            <ChevronsRight size={16} />
           </button>
         </div>
 
@@ -142,9 +143,7 @@ export default function AdminPagination({
                   <strong className="admin-pagination__pageSizeNum">{safePageSize}</strong>
                   <span className="admin-pagination__pageSizeSuffix"> dòng mỗi trang</span>
                 </span>
-                <span className="admin-pagination__pageSizeChevron" aria-hidden>
-                  ▾
-                </span>
+                <ChevronDown size={14} className="admin-pagination__pageSizeChevron" aria-hidden />
               </button>
               {pageSizeOpen ? (
                 <ul className="admin-pagination__pageSizeMenu" role="listbox">

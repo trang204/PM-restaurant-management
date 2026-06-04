@@ -44,7 +44,7 @@ function tableBookingValidationError(t: Table, guestN: number): string | null {
   const cap = Number(t.capacity)
   if (!Number.isFinite(cap)) return TABLE_ERR_IN_USE
   if (guestN > cap) return TABLE_ERR_CAPACITY
-  if (cap > guestN * 2) return TABLE_ERR_TABLE_TOO_LARGE
+  if (cap > guestN * MAX_TABLE_RATIO) return TABLE_ERR_TABLE_TOO_LARGE
   return null
 }
 
@@ -109,7 +109,7 @@ export default function BookTable() {
   const [menuError, setMenuError] = useState<string | null>(null)
   const [selectedZone, setSelectedZone] = useState<string | null>(null) // null = Tất cả, '' = Mặc định
   const [zonesData, setZonesData] = useState<{ id: number; name: string }[]>([])
-  const { toast, confirm } = useNotifications()
+  const { toast } = useNotifications()
   useEffect(() => {
     const token = localStorage.getItem('luxeat_token')
     if (!token) {

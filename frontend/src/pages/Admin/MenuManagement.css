@@ -888,3 +888,39 @@
 .menu-modal__ingredient-add:hover {
   background: var(--mn-gold-s);
 }
+
+/* ─── Ingredients Details ─── */
+.menu-detail__item--ingredients {
+  grid-column: span 2;
+}
+
+.menu-detail__ingredients-list {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.menu-detail__ingredient-bullet {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid var(--mn-border);
+  border-radius: 8px;
+  font-size: 0.88rem;
+}
+
+.menu-detail__ing-name {
+  font-weight: 600;
+  color: var(--mn-text);
+}
+
+.menu-detail__ing-qty {
+  font-weight: 700;
+  color: var(--mn-gold-d);
+  font-size: 0.85rem;
+}

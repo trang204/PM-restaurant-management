@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
+import AdminPagination from '../../components/AdminPagination'
 import { requiredMessage } from '../../lib/validation'
 import './IngredientManagement.css'
 
@@ -14,6 +15,18 @@ export default function IngredientManagement() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
   const [q, setQ] = useState('')
+
+  // Pagination state
+  const [ingPage, setIngPage] = useState(1)
+  const [ingPageSize, setIngPageSize] = useState(10)
+  const [unitPage, setUnitPage] = useState(1)
+  const [unitPageSize, setUnitPageSize] = useState(10)
+
+  // Reset pagination when search query or tab changes
+  useEffect(() => {
+    setIngPage(1)
+    setUnitPage(1)
+  }, [q, activeTab])
 
   // Modals state
   const [editModal, setEditModal] = useState(null)
@@ -52,9 +65,19 @@ export default function IngredientManagement() {
     ing.name.toLowerCase().includes(q.toLowerCase())
   )
 
+  const pagedIngredients = useMemo(() => {
+    const start = (ingPage - 1) * ingPageSize
+    return filteredIngredients.slice(start, start + ingPageSize)
+  }, [filteredIngredients, ingPage, ingPageSize])
+
   const filteredUnits = units.filter((u) =>
     u.name.toLowerCase().includes(q.toLowerCase())
   )
+
+  const pagedUnits = useMemo(() => {
+    const start = (unitPage - 1) * unitPageSize
+    return filteredUnits.slice(start, start + unitPageSize)
+  }, [filteredUnits, unitPage, unitPageSize])
 
   // ---- Ingredients CRUD ----
 
@@ -322,7 +345,7 @@ export default function IngredientManagement() {
               </tr>
             </thead>
             <tbody>
-              {filteredIngredients.map((ing) => (
+              {pagedIngredients.map((ing) => (
                 <tr key={ing.id}>
                   <td><strong>{ing.name}</strong></td>
                   <td>{ing.unit}</td>
@@ -360,6 +383,16 @@ export default function IngredientManagement() {
               )}
             </tbody>
           </table>
+          {filteredIngredients.length > 0 && (
+            <AdminPagination
+              className="ing-mgmt__pagination"
+              page={ingPage}
+              pageSize={ingPageSize}
+              total={filteredIngredients.length}
+              onPageChange={setIngPage}
+              onPageSizeChange={setIngPageSize}
+            />
+          )}
         </div>
       )}
 
@@ -374,7 +407,7 @@ export default function IngredientManagement() {
               </tr>
             </thead>
             <tbody>
-              {filteredUnits.map((u) => (
+              {pagedUnits.map((u) => (
                 <tr key={u.id}>
                   <td><strong>{u.name}</strong></td>
                   <td>{formatDate(u.created_at)}</td>
@@ -396,6 +429,16 @@ export default function IngredientManagement() {
               )}
             </tbody>
           </table>
+          {filteredUnits.length > 0 && (
+            <AdminPagination
+              className="ing-mgmt__pagination"
+              page={unitPage}
+              pageSize={unitPageSize}
+              total={filteredUnits.length}
+              onPageChange={setUnitPage}
+              onPageSizeChange={setUnitPageSize}
+            />
+          )}
         </div>
       )}
 

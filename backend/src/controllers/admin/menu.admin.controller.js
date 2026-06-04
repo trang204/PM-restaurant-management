@@ -73,8 +73,19 @@ export async function list(req, res, next) {
         f.status,
         f.created_at,
         (
-          SELECT COALESCE(json_agg(json_build_object('ingredient_id', fi.ingredient_id, 'quantity_needed', fi.quantity_needed)), '[]'::json)
+          SELECT COALESCE(
+            json_agg(
+              json_build_object(
+                'ingredient_id', fi.ingredient_id,
+                'name', ing.name,
+                'unit', ing.unit,
+                'quantity_needed', fi.quantity_needed
+              )
+            ),
+            '[]'::json
+          )
           FROM food_ingredients fi
+          LEFT JOIN ingredients ing ON ing.id = fi.ingredient_id
           WHERE fi.food_id = f.id
         ) AS ingredients
       FROM foods f
@@ -129,11 +140,12 @@ export async function create(req, res, next) {
       const food = insRes.rows[0]
       if (Array.isArray(ingredients) && ingredients.length > 0) {
         for (const ing of ingredients) {
+          const ingId = Number(ing.ingredient_id)
           const qty = Number(ing.quantity_needed)
-          if (Number.isFinite(qty) && qty > 0) {
+          if (Number.isFinite(ingId) && ingId > 0 && Number.isFinite(qty) && qty > 0) {
             await client.query(
               'INSERT INTO food_ingredients (food_id, ingredient_id, quantity_needed) VALUES ($1, $2, $3)',
-              [food.id, Number(ing.ingredient_id), qty]
+              [food.id, ingId, qty]
             )
           }
         }
@@ -202,11 +214,12 @@ export async function update(req, res, next) {
         await client.query('DELETE FROM food_ingredients WHERE food_id = $1', [food.id])
         if (Array.isArray(ingredients) && ingredients.length > 0) {
           for (const ing of ingredients) {
+            const ingId = Number(ing.ingredient_id)
             const qty = Number(ing.quantity_needed)
-            if (Number.isFinite(qty) && qty > 0) {
+            if (Number.isFinite(ingId) && ingId > 0 && Number.isFinite(qty) && qty > 0) {
               await client.query(
                 'INSERT INTO food_ingredients (food_id, ingredient_id, quantity_needed) VALUES ($1, $2, $3)',
-                [food.id, Number(ing.ingredient_id), qty]
+                [food.id, ingId, qty]
               )
             }
           }
