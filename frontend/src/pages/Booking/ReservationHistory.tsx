@@ -110,32 +110,34 @@ export default function ReservationHistory() {
         {!loading && !error && rows.length === 0 ? <p>Chưa có đơn nào (khi đặt đã đăng nhập, đơn sẽ gắn tài khoản).</p> : null}
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {rows.map((r) => (
-            <li key={r.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 12, marginBottom: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                <strong>{r.fullName}</strong>
-                <span style={{ opacity: 0.9 }}>· {r.phone}</span>
+            <li key={r.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                  <strong>{r.fullName}</strong>
+                  <span style={{ opacity: 0.9 }}>· {r.phone}</span>
+                </div>
+
+                <div style={{ marginTop: 6, display: 'grid', gap: 2 }}>
+                  <div>
+                    <Calendar size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
+                    {formatDateVi(r.date)} - {formatTimeVi(r.time)}
+                  </div>
+                  <div>
+                    <Users size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
+                    {r.guestCount} khách
+                  </div>
+                  <div>
+                    <MapPin size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
+                    {r.tables?.length ? `Bàn ${r.tables.join(', ')}` : r.assignedTableId ? `Bàn ${r.assignedTableId}` : 'Chưa gán bàn'}
+                  </div>
+                  <div>
+                    <Pin size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
+                    Trạng thái: <StatusBadge status={String(r.status || '')} />
+                  </div>
+                </div>
               </div>
 
-              <div style={{ marginTop: 6, display: 'grid', gap: 2 }}>
-                <div>
-                  <Calendar size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
-                  {formatDateVi(r.date)} - {formatTimeVi(r.time)}
-                </div>
-                <div>
-                  <Users size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
-                  {r.guestCount} khách
-                </div>
-                <div>
-                  <MapPin size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
-                  {r.tables?.length ? `Bàn ${r.tables.join(', ')}` : r.assignedTableId ? `Bàn ${r.assignedTableId}` : 'Chưa gán bàn'}
-                </div>
-                <div>
-                  <Pin size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
-                  Trạng thái: <StatusBadge status={String(r.status || '')} />
-                </div>
-              </div>
-
-              <div style={{ marginTop: 8 }}>
+              <div style={{ flexShrink: 0 }}>
                 <button
                   type="button"
                   className="nav__link nav__cta"
