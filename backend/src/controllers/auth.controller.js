@@ -157,7 +157,7 @@ export async function forgotPassword(req, res, next) {
       await query(
         `
         INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
-        VALUES ($1, $2, NOW() + INTERVAL '30 minutes')
+        VALUES ($1, $2, NOW() + INTERVAL '10 minutes')
         `,
         [user.id, tokenHash],
       )
