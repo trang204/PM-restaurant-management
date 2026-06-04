@@ -40,6 +40,10 @@ export async function register(req, res, next) {
     const emailNorm = normalizeEmail(email)
     if (!emailNorm || !password) throw badRequest('email và password là bắt buộc')
 
+    const phoneVal = phone != null ? String(phone).trim() : ''
+    if (!phoneVal) throw badRequest('Số điện thoại không được để trống')
+    if (!/^0[0-9]{9,10}$/.test(phoneVal)) throw badRequest('Số điện thoại không hợp lệ')
+
     const exists = await query('SELECT id FROM users WHERE email = $1', [emailNorm])
     if (exists.rows.length) throw badRequest('Email đã tồn tại')
 
@@ -57,7 +61,7 @@ export async function register(req, res, next) {
       VALUES ($1, $2, $3, $4, $5)
       RETURNING id, name, email, phone, role_id, created_at
     `,
-      [userName, emailNorm, passwordHash, phone ? String(phone) : null, roleId],
+      [userName, emailNorm, passwordHash, phoneVal, roleId],
     )
 
     const roleNameRes = await query('SELECT name FROM roles WHERE id = $1', [roleId])

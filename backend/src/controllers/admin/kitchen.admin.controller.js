@@ -125,6 +125,29 @@ export async function acknowledgeItem(req, res, next) {
   }
 }
 
+export async function serveItem(req, res, next) {
+  try {
+    const itemId = Number(req.params.itemId)
+    if (!Number.isFinite(itemId)) throw badRequest('itemId không hợp lệ')
+
+    const r = await query(
+      `
+      UPDATE order_items oi
+      SET kitchen_status = 'SERVED'
+      FROM orders o
+      INNER JOIN table_sessions ts ON ts.id = o.table_session_id AND ts.status = 'ACTIVE'
+      WHERE oi.id = $1 AND oi.order_id = o.id
+      RETURNING oi.id, oi.order_id, oi.kitchen_status, oi.kitchen_ack_at
+    `,
+      [itemId],
+    )
+    if (!r.rows.length) throw notFound('Không tìm thấy dòng món hoặc đơn không còn hiệu lực')
+    return ok(res, r.rows[0])
+  } catch (e) {
+    return next(e)
+  }
+}
+
 export async function acknowledgeAllPending(req, res, next) {
   try {
     const orderId = Number(req.params.orderId)

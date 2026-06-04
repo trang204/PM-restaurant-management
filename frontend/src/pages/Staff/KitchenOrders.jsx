@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
@@ -22,17 +22,32 @@ export default function KitchenOrders() {
   const [detail, setDetail] = useState(null)
   const [busy, setBusy] = useState(null) // item id | -1 ack-all | -2 confirm pay
 
-  const load = useCallback(() => {
-    setLoading(true)
+  const load = useCallback((silent = false) => {
+    if (!silent) setLoading(true)
     apiFetch('/admin/kitchen/orders')
       .then((d) => setRows(Array.isArray(d) ? d : []))
-      .catch((e) => setErr(e.message))
-      .finally(() => setLoading(false))
+      .catch((e) => { if (!silent) setErr(e.message) })
+      .finally(() => { if (!silent) setLoading(false) })
   }, [])
+
+  // Ref để theo dõi chi tiết hiện đang mở (tránh dependency cycle)
+  const detailRef = React.useRef(detail)
+  React.useEffect(() => {
+    detailRef.current = detail
+  }, [detail])
 
   useEffect(() => {
     load()
-    const t = window.setInterval(load, 12000)
+    const t = window.setInterval(() => {
+      load(true)
+      const currentDetailId = detailRef.current?.order_id
+      if (currentDetailId) {
+        // Silently reload detail
+        apiFetch(`/admin/kitchen/orders/${currentDetailId}`)
+          .then((d) => setDetail(d))
+          .catch(() => {})
+      }
+    }, 3000)
     return () => window.clearInterval(t)
   }, [load])
 
@@ -61,6 +76,24 @@ export default function KitchenOrders() {
     setErr(null)
     try {
       await apiFetch(`/admin/kitchen/order-items/${itemId}/ack`, {
+        method: 'PATCH',
+        body: JSON.stringify({}),
+      })
+      if (oid != null) await openDetail(oid)
+      load()
+    } catch (e) {
+      setErr(e.message)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function serveLine(itemId) {
+    const oid = detail?.order_id
+    setBusy(itemId)
+    setErr(null)
+    try {
+      await apiFetch(`/admin/kitchen/order-items/${itemId}/serve`, {
         method: 'PATCH',
         body: JSON.stringify({}),
       })
@@ -215,15 +248,20 @@ export default function KitchenOrders() {
                   </thead>
                   <tbody>
                     {(detail.items || []).map((it) => {
-                      const ack = String(it.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
+                      const status = String(it.kitchen_status || '').toUpperCase()
+                      const ack = status === 'ACKNOWLEDGED' || status === 'SERVED'
+                      const served = status === 'SERVED'
+                      
                       return (
                         <tr key={it.id}>
                           <td>{it.food_name || `Món #${it.food_id}`}</td>
                           <td>{it.quantity}</td>
                           <td>{formatPrice(it.price)}</td>
                           <td>
-                            {ack ? (
-                              <span className="kitchen__pill kitchen__pill--ok">Đã nhận lên</span>
+                            {served ? (
+                              <span className="kitchen__pill kitchen__pill--ok" style={{ background: '#E3F2FD', color: '#1976D2' }}>Đã lên món</span>
+                            ) : ack ? (
+                              <span className="kitchen__pill kitchen__pill--ok">Đã nhận làm</span>
                             ) : (
                               <span className="kitchen__pill kitchen__pill--warn">Chưa xác nhận</span>
                             )}
@@ -238,11 +276,19 @@ export default function KitchenOrders() {
                               >
                                 {busy === it.id ? '…' : 'Đã nhận'}
                               </button>
+                            ) : !served ? (
+                              <button
+                                type="button"
+                                className="kitchen__btn kitchen__btn--primary"
+                                style={{ background: '#1976D2' }}
+                                disabled={busy === it.id}
+                                onClick={() => serveLine(it.id)}
+                              >
+                                {busy === it.id ? '…' : 'Lên món'}
+                              </button>
                             ) : (
                               <span className="kitchen__muted">
-                                {it.kitchen_ack_at
-                                  ? new Date(it.kitchen_ack_at).toLocaleTimeString('vi-VN')
-                                  : '—'}
+                                Xong
                               </span>
                             )}
                           </td>

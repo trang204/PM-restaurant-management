@@ -17,11 +17,10 @@ export function normalizePhone(raw: string): string {
  * Trả về null nếu hợp lệ, hoặc chuỗi lỗi nếu không hợp lệ.
  */
 export function validatePhone(raw: string): string | null {
-  const phone = normalizePhone(raw)
-  if (!phone) return 'Số điện thoại là trường bắt buộc.'
-  // Cho phép: 0[35789]xxxxxxxx hoặc +84[35789]xxxxxxxx (sau đầu số là 8 chữ số)
-  if (!/^(?:\+?84|0)[35789]\d{8}$/.test(phone)) {
-    return 'Số điện thoại không hợp lệ (VD: 0901234567 hoặc +84901234567).'
+  const phone = String(raw || '').trim()
+  if (!phone) return 'Số điện thoại không được để trống'
+  if (!/^0[0-9]{9,10}$/.test(phone)) {
+    return 'Số điện thoại không hợp lệ'
   }
   return null
 }

@@ -74,17 +74,12 @@ export async function updateMe(req, res, next) {
     const { fullName, name, phone, email } = req.body || {}
     const nextNameRaw = fullName ?? name
     const nextName = nextNameRaw != null ? String(nextNameRaw).trim() : ''
-    const nextPhoneRaw = phone != null && String(phone).trim() ? String(phone).trim() : null
     const nextEmailRaw = email != null && String(email).trim() ? String(email).trim().toLowerCase() : null
     if (!nextName) throw badRequest('fullName là bắt buộc')
 
-    // Validate phone (VN). Cho phép để trống.
-    const nextPhone = nextPhoneRaw
-      ? String(nextPhoneRaw).replace(/[.\s-]/g, '')
-      : null
-    if (nextPhone && !/^(?:\+?84|0)\d{9,10}$/.test(nextPhone)) {
-      throw badRequest('Số điện thoại không hợp lệ')
-    }
+    const phoneVal = phone != null ? String(phone).trim() : ''
+    if (!phoneVal) throw badRequest('Số điện thoại không được để trống')
+    if (!/^0[0-9]{9,10}$/.test(phoneVal)) throw badRequest('Số điện thoại không hợp lệ')
 
     // Validate + unique email nếu có gửi lên
     let nextEmail = null
@@ -104,7 +99,7 @@ export async function updateMe(req, res, next) {
       WHERE id = $4
       RETURNING id, name, email, phone, avatar_url, role_id, created_at
     `,
-      [nextName, nextPhone, nextEmail, id],
+      [nextName, phoneVal, nextEmail, id],
     )
     if (!r.rows.length) throw notFound('Không tìm thấy người dùng')
 

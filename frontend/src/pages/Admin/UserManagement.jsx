@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { apiFetch, mediaUrl, uploadUserAvatar } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import AdminPagination from '../../components/AdminPagination'
-import { requiredMessage } from '../../lib/validation'
+import { requiredMessage, validatePhone } from '../../lib/validation'
 import './UserManagement.css'
 
 const roles = ['CUSTOMER', 'STAFF', 'ADMIN']
@@ -108,6 +108,9 @@ export default function UserManagement() {
     if (!String(editModal.fullName || '').trim()) nextErrors.fullName = requiredMessage('Họ tên')
     if (!String(editModal.email || '').trim()) nextErrors.email = requiredMessage('Email')
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(editModal.email).trim())) nextErrors.email = 'Email không hợp lệ'
+    const phoneErr = validatePhone(editModal.phone)
+    if (phoneErr) nextErrors.phone = phoneErr
+
     if (Object.keys(nextErrors).length) {
       setEditErrors(nextErrors)
       return
@@ -179,6 +182,9 @@ export default function UserManagement() {
     if (!email) nextErrors.email = requiredMessage('Email')
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) nextErrors.email = 'Email không hợp lệ'
     if (!password) nextErrors.password = requiredMessage('Mật khẩu')
+    const phoneErr = validatePhone(phone)
+    if (phoneErr) nextErrors.phone = phoneErr
+
     if (Object.keys(nextErrors).length) {
       setAddErrors(nextErrors)
       return
@@ -401,7 +407,14 @@ export default function UserManagement() {
             </label>
             <label className="user-mgmt__dialogField">
               <span>Số điện thoại</span>
-              <input value={editModal.phone} onChange={(e) => setEditModal((m) => (m ? { ...m, phone: e.target.value } : m))} />
+              <input
+                value={editModal.phone}
+                onChange={(e) => {
+                  setEditErrors((prev) => ({ ...prev, phone: '' }))
+                  setEditModal((m) => (m ? { ...m, phone: e.target.value } : m))
+                }}
+              />
+              {editErrors.phone ? <small className="user-mgmt__dialogError">{editErrors.phone}</small> : null}
             </label>
             <label className="user-mgmt__dialogField">
               <span>Vai trò</span>
@@ -505,8 +518,12 @@ export default function UserManagement() {
               <input
                 type="text"
                 value={addForm.phone}
-                onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value }))}
+                onChange={(e) => {
+                  setAddErrors((prev) => ({ ...prev, phone: '' }))
+                  setAddForm((f) => ({ ...f, phone: e.target.value }))
+                }}
               />
+              {addErrors.phone ? <small className="user-mgmt__dialogError">{addErrors.phone}</small> : null}
             </label>
             <label className="user-mgmt__dialogField">
               <span>Vai trò</span>

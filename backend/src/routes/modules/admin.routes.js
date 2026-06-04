@@ -81,6 +81,7 @@ router.post('/tables/layout/analyze-image', ...staff, upload.single('image'), ad
 router.get('/kitchen/orders', ...staff, adminKitchen.listTableOrders)
 router.get('/kitchen/orders/:orderId', ...staff, adminKitchen.getOrderDetail)
 router.patch('/kitchen/order-items/:itemId/ack', ...staff, adminKitchen.acknowledgeItem)
+router.patch('/kitchen/order-items/:itemId/serve', ...staff, adminKitchen.serveItem)
 router.post('/kitchen/orders/:orderId/ack-all', ...staff, adminKitchen.acknowledgeAllPending)
 router.post('/kitchen/orders/:orderId/confirm-payment', ...staff, adminKitchen.confirmTablePayment)
 

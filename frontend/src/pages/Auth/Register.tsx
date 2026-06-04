@@ -54,14 +54,11 @@ export default function Register() {
       setFieldErr({ email: emailErr })
       return
     }
-    // SĐT tuỳ chọn — nếu nhập thì phải đúng format
     const phoneRaw = phone.trim()
-    if (phoneRaw) {
-      const phoneErr = validatePhone(phoneRaw)
-      if (phoneErr) {
-        setFieldErr({ phone: phoneErr })
-        return
-      }
+    const phoneErr = validatePhone(phoneRaw)
+    if (phoneErr) {
+      setFieldErr({ phone: phoneErr })
+      return
     }
     if (!password) {
       setFieldErr({ password: requiredMessage('Mật khẩu') })
@@ -175,7 +172,7 @@ export default function Register() {
 
           <div className="authField">
             <label htmlFor="reg-phone" className="authField__label">
-              Số điện thoại <span className="authField__optional">(tuỳ chọn)</span>
+              Số điện thoại
             </label>
             <input
               id="reg-phone"
