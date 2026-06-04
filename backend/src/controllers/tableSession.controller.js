@@ -8,7 +8,6 @@ import {
   publicOrderUrl,
 } from '../services/tableSession.service.js'
 import { notifyStaffAdmins } from '../utils/notifyStaff.js'
-import { deductIngredientsForFood } from '../services/inventory.service.js'
 
 export async function getMyActiveSession(req, res, next) {
   try {
@@ -286,12 +285,6 @@ export async function submitOrder(req, res, next) {
         [orderId],
       )
       if (!upd.rows.length) return null
-
-      // Fetch items to deduct inventory
-      const itemsRes = await client.query('SELECT food_id, quantity FROM order_items WHERE order_id = $1', [orderId])
-      for (const item of itemsRes.rows) {
-        await deductIngredientsForFood(client, item.food_id, item.quantity)
-      }
 
       return upd.rows[0]
     })

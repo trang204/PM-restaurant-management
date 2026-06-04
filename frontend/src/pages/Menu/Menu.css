@@ -141,8 +141,30 @@
   gap: 28px;
   align-items: start;
 }
-.menuRefreshBtn{
-  
+.menuRefreshBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--mp-border);
+  background: var(--mp-card);
+  color: var(--mp-text);
+  transition: all var(--mp-ease);
+}
+
+.menuRefreshBtn:hover:not(:disabled) {
+  background: var(--mp-gold-s);
+  border-color: rgba(184,147,90,0.35);
+}
+
+.menuRefreshBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* ─── Sidebar ─── */

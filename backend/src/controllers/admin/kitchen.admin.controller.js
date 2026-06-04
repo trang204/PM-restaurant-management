@@ -1,6 +1,7 @@
 import { ok } from '../../utils/response.js'
 import { badRequest, notFound } from '../../utils/httpError.js'
 import { query, withTransaction } from '../../config/db.js'
+import { deductIngredientsForFood } from '../../services/inventory.service.js'
 
 /** Danh sách đơn gọi món tại bàn (phiên ACTIVE). */
 export async function listTableOrders(req, res, next) {
@@ -107,19 +108,30 @@ export async function acknowledgeItem(req, res, next) {
     const itemId = Number(req.params.itemId)
     if (!Number.isFinite(itemId)) throw badRequest('itemId không hợp lệ')
 
-    const r = await query(
-      `
-      UPDATE order_items oi
-      SET kitchen_status = 'ACKNOWLEDGED', kitchen_ack_at = NOW()
-      FROM orders o
-      INNER JOIN table_sessions ts ON ts.id = o.table_session_id AND ts.status = 'ACTIVE'
-      WHERE oi.id = $1 AND oi.order_id = o.id
-      RETURNING oi.id, oi.order_id, oi.kitchen_status, oi.kitchen_ack_at
-    `,
-      [itemId],
-    )
-    if (!r.rows.length) throw notFound('Không tìm thấy dòng món hoặc đơn không còn hiệu lực')
-    return ok(res, r.rows[0])
+    const r = await withTransaction(async (client) => {
+      const upd = await client.query(
+        `
+        UPDATE order_items oi
+        SET kitchen_status = 'ACKNOWLEDGED', kitchen_ack_at = NOW()
+        FROM orders o
+        INNER JOIN table_sessions ts ON ts.id = o.table_session_id AND ts.status = 'ACTIVE'
+        WHERE oi.id = $1 AND oi.order_id = o.id
+          AND COALESCE(oi.kitchen_status, 'PENDING') = 'PENDING'
+        RETURNING oi.id, oi.order_id, oi.kitchen_status, oi.kitchen_ack_at, oi.food_id, oi.quantity
+      `,
+        [itemId],
+      )
+      if (!upd.rows.length) return null
+      await deductIngredientsForFood(client, upd.rows[0].food_id, upd.rows[0].quantity)
+      return upd.rows[0]
+    })
+    if (!r) throw notFound('Không tìm thấy dòng món hoặc đã xác nhận')
+    return ok(res, {
+      id: r.id,
+      order_id: r.order_id,
+      kitchen_status: r.kitchen_status,
+      kitchen_ack_at: r.kitchen_ack_at,
+    })
   } catch (e) {
     return next(e)
   }
@@ -153,18 +165,25 @@ export async function acknowledgeAllPending(req, res, next) {
     const orderId = Number(req.params.orderId)
     if (!Number.isFinite(orderId)) throw badRequest('orderId không hợp lệ')
 
-    await query(
-      `
-      UPDATE order_items oi
-      SET kitchen_status = 'ACKNOWLEDGED', kitchen_ack_at = NOW()
-      FROM orders o
-      INNER JOIN table_sessions ts ON ts.id = o.table_session_id AND ts.status = 'ACTIVE'
-      WHERE oi.order_id = o.id
-        AND o.id = $1
-        AND COALESCE(oi.kitchen_status, 'PENDING') <> 'ACKNOWLEDGED'
-    `,
-      [orderId],
-    )
+    await withTransaction(async (client) => {
+      const upd = await client.query(
+        `
+        UPDATE order_items oi
+        SET kitchen_status = 'ACKNOWLEDGED', kitchen_ack_at = NOW()
+        FROM orders o
+        INNER JOIN table_sessions ts ON ts.id = o.table_session_id AND ts.status = 'ACTIVE'
+        WHERE oi.order_id = o.id
+          AND o.id = $1
+          AND COALESCE(oi.kitchen_status, 'PENDING') = 'PENDING'
+        RETURNING oi.food_id, oi.quantity
+      `,
+        [orderId],
+      )
+
+      for (const row of upd.rows) {
+        await deductIngredientsForFood(client, row.food_id, row.quantity)
+      }
+    })
     return ok(res, { ok: true })
   } catch (e) {
     return next(e)

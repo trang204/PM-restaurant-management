@@ -105,6 +105,7 @@ export default function BookTable() {
   const [menuError, setMenuError] = useState<string | null>(null)
   const [selectedZone, setSelectedZone] = useState<string | null>(null) // null = Tất cả, '' = Mặc định
   const [zonesData, setZonesData] = useState<{ id: number; name: string }[]>([])
+  const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null)
   const { toast } = useNotifications()
   useEffect(() => {
     const token = localStorage.getItem('luxeat_token')
@@ -168,6 +169,20 @@ export default function BookTable() {
       .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    if (!previewImage) return
+    const prevOverflow = document.body.style.overflow
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPreviewImage(null)
+    }
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = prevOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [previewImage])
+
   const menuByCategory = useMemo(() => {
     const map = new Map<string, MenuRow[]>()
     for (const m of menu) {
@@ -194,6 +209,12 @@ export default function BookTable() {
   }, [menu, qtyByMenuId])
 
   const selectedTable = tables.find((t) => String(t.id) === (selectedTableId ?? ''))
+  const selectedTablePreview = selectedTable
+    ? {
+        src: selectedTable.image_url ? mediaUrl(selectedTable.image_url) : tablePlaceholder,
+        alt: `Góc nhìn ${selectedTable.name}`,
+      }
+    : null
   const autoSuggestedTable = useMemo(() => {
     const cands = tables
       .filter((t) => tableBookingValidationError(t, guestCount) === null)
@@ -702,14 +723,17 @@ export default function BookTable() {
                     : '—'}
               </li>
             </ul>
-            {selectedTable ? (
+            {selectedTablePreview ? (
               <div className="bookSummary__tablePreview">
                 <div className="bookSummary__tableLabel">Góc nhìn bàn đã chọn</div>
-                <img
-                  className="bookSummary__tableImg"
-                  src={selectedTable.image_url ? mediaUrl(selectedTable.image_url) : tablePlaceholder}
-                  alt={`Góc nhìn ${selectedTable.name}`}
-                />
+                <button
+                  type="button"
+                  className="bookSummary__tableImgBtn"
+                  onClick={() => setPreviewImage(selectedTablePreview)}
+                  aria-label="Phóng to góc nhìn bàn"
+                >
+                  <img className="bookSummary__tableImg" src={selectedTablePreview.src} alt={selectedTablePreview.alt} />
+                </button>
               </div>
             ) : null}
             <div>
@@ -728,6 +752,22 @@ export default function BookTable() {
           </div>
         </aside>
       </div>
+      {previewImage ? (
+        <div
+          className="bookImageModal"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Xem ảnh bàn"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="bookImageModal__body" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="bookImageModal__close" onClick={() => setPreviewImage(null)}>
+              Đóng
+            </button>
+            <img className="bookImageModal__img" src={previewImage.src} alt={previewImage.alt} />
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }

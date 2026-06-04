@@ -1,7 +1,6 @@
 import { ok, created } from '../utils/response.js'
 import { badRequest, notFound } from '../utils/httpError.js'
 import { query, withTransaction } from '../config/db.js'
-import { deductIngredientsForFood } from '../services/inventory.service.js'
 
 const ALLOWED_STATUS = new Set(['PENDING', 'SERVING', 'DONE'])
 
@@ -73,12 +72,6 @@ export async function addFoodToOrder(req, res, next) {
         orderItem = insRes.rows[0]
       }
 
-      const orderRowRes = await client.query('SELECT status FROM orders WHERE id = $1', [orderId])
-      const st = orderRowRes.rows[0]?.status
-      if (st === 'SERVING' || st === 'DONE') {
-        await deductIngredientsForFood(client, foodId, qty)
-      }
-
       return orderItem
     })
 
@@ -118,12 +111,6 @@ export async function updateItemQuantity(req, res, next) {
       `,
         [qty, itemId, orderId],
       )
-
-      const orderRowRes = await client.query('SELECT status FROM orders WHERE id = $1', [orderId])
-      const st = orderRowRes.rows[0]?.status
-      if (st === 'SERVING' || st === 'DONE') {
-        await deductIngredientsForFood(client, foodId, diff)
-      }
 
       return updRes.rows[0]
     })

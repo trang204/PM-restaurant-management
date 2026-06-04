@@ -10,6 +10,7 @@
 2. [API Reference](#2-api-reference)
 3. [Cơ sở dữ liệu](#3-cơ-sở-dữ-liệu)
 4. [Biến môi trường](#4-biến-môi-trường)
+5. [Background Jobs](#5-background-jobs)
 
 ---
 
@@ -141,7 +142,8 @@ backend/
 │   │       ├── kitchen.admin.controller.js
 │   │       ├── notifications.admin.controller.js
 │   │       ├── settings.admin.controller.js
-│   │       └── tableLayout.admin.controller.js
+│   │       ├── tableLayout.admin.controller.js
+│   │       └── ingredients.admin.controller.js  # Quản lý nguyên liệu & kho
 │   ├── services/                 # Logic nghiệp vụ phức tạp / tích hợp bên ngoài
 │   │   ├── tableSession.service.js   # Quản lý vòng đời QR session
 │   │   ├── mail.service.js           # Gửi email qua SMTP
@@ -1052,11 +1054,13 @@ backend/
 {
   "success": true,
   "data": {
-    "total_bookings_today": 12,
-    "revenue_today": "3500000.00",
-    "total_users": 150,
-    "total_tables": 20,
-    "pending_bookings": 5
+    "totalBookings": 150,
+    "totalRevenue": "25000000.00",
+    "totalUsers": 50,
+    "totalTables": 20,
+    "revenueByDate": [
+      { "date": "2025-12-25", "revenue": "3500000.00" }
+    ]
   }
 }
 ```
@@ -1107,6 +1111,47 @@ backend/
 
 **Mô tả:** Tính tổng tiền order của booking.
 **Role:** ADMIN, STAFF
+
+**Response 200:**
+```json
+{ "success": true, "data": { "bookingId": 10, "amount": 170000 } }
+```
+
+---
+
+#### GET /api/admin/reservations/:id/order-items
+
+**Mô tả:** Lấy chi tiết danh sách món ăn trong order và thông tin thanh toán của booking.
+**Role:** ADMIN, STAFF
+
+**Path Params:**
+
+| Param | Type | Mô tả |
+|---|---|---|
+| `id` | number | ID booking |
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": {
+    "order": { "id": 5, "status": "SERVING", "created_at": "2025-12-25T18:00:00Z" },
+    "items": [
+      {
+        "id": 1,
+        "quantity": 2,
+        "price": "85000.00",
+        "kitchen_status": "ACKNOWLEDGED",
+        "kitchen_ack_at": "2025-12-25T18:05:00Z",
+        "food_name": "Phở bò"
+      }
+    ],
+    "payment": { "id": 3, "amount": "170000.00", "method": "cash", "status": "UNPAID", "paid_at": null }
+  }
+}
+```
+
+> Nếu booking chưa có order, trả về `{ "order": null, "items": [], "payment": null }`.
 
 ---
 
@@ -1385,9 +1430,17 @@ backend/
 {
   "success": true,
   "data": {
-    "summary": { "total_revenue": "15000000.00", "total_orders": 42 },
-    "chart": [
-      { "period": "2025-12-01", "revenue": "3500000.00", "orders": 10 }
+    "from": "2025-12-01",
+    "to": "2025-12-31",
+    "groupBy": "day",
+    "total": 15000000,
+    "invoiceCount": 42,
+    "averageOrderValue": 357142.86,
+    "previousTotal": 12000000,
+    "growthPercent": 25.0,
+    "previousRange": { "from": "2025-11-01", "to": "2025-11-30" },
+    "series": [
+      { "date": "2025-12-01", "revenue": "3500000" }
     ]
   }
 }
@@ -1397,19 +1450,65 @@ backend/
 
 #### GET /api/admin/reports/revenue/by-table
 
-**Mô tả:** Doanh thu nhóm theo từng bàn.
+**Mô tả:** Doanh thu nhóm theo từng bàn (kèm danh sách hóa đơn của mỗi bàn).
 **Role:** ADMIN, STAFF
 
 **Query Parameters:** `from`, `to` (YYYY-MM-DD)
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "tableId": 1,
+      "tableName": "Bàn 01",
+      "invoiceCount": 5,
+      "total": "2500000",
+      "invoices": [
+        {
+          "paymentId": 10,
+          "orderId": 7,
+          "amount": "500000",
+          "method": "cash",
+          "paidAt": "2025-12-01T18:30:00Z",
+          "items": [
+            { "foodName": "Phở bò", "quantity": 2, "unitPrice": "85000", "lineTotal": "170000" }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
 
 ---
 
 #### GET /api/admin/reports/revenue/invoices
 
-**Mô tả:** Danh sách chi tiết từng hóa đơn thanh toán.
+**Mô tả:** Danh sách chi tiết từng hóa đơn thanh toán (trạng thái PAID) kèm từng dòng món.
 **Role:** ADMIN, STAFF
 
 **Query Parameters:** `from`, `to` (YYYY-MM-DD)
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "paymentId": 10,
+      "orderId": 7,
+      "amount": "500000",
+      "method": "cash",
+      "paidAt": "2025-12-01T18:30:00Z",
+      "items": [
+        { "foodName": "Phở bò", "quantity": 2, "unitPrice": "85000", "lineTotal": "170000" }
+      ]
+    }
+  ]
+}
+```
 
 ---
 
@@ -1509,7 +1608,261 @@ backend/
 
 ---
 
+### Module: Admin — Ingredients (Kho Nguyên Liệu) — `/api/admin/ingredients`
+
+> Tất cả endpoint yêu cầu `requireAuth` + `requireAnyRole('ADMIN', 'STAFF')` trừ khi ghi chú khác.
+
+---
+
+#### GET /api/admin/ingredients/units
+
+**Mô tả:** Lấy danh sách đơn vị tính (kg, g, lít, cái...).
+**Role:** ADMIN, STAFF
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": [
+    { "id": 1, "name": "kg", "created_at": "2025-01-01T00:00:00Z" }
+  ]
+}
+```
+
+---
+
+#### POST /api/admin/ingredients/units
+
+**Mô tả:** Tạo đơn vị tính mới (không lỗi nếu đã tồn tại — trả về unit hiện có).
+**Role:** ADMIN
+
+**Request Body:**
+
+| Field | Type | Required | Mô tả |
+|---|---|---|---|
+| `name` | string | ✅ | Tên đơn vị (duy nhất, không phân biệt hoa thường) |
+
+**Response 201:**
+```json
+{ "success": true, "data": { "id": 2, "name": "lít", "created_at": "..." } }
+```
+
+---
+
+#### DELETE /api/admin/ingredients/units/:id
+
+**Mô tả:** Xóa đơn vị tính.
+**Role:** ADMIN
+
+**Response 200:**
+```json
+{ "success": true, "data": { "id": 2, "deleted": true } }
+```
+
+**Error Codes:**
+
+| Code | Message | Nguyên nhân |
+|---|---|---|
+| 404 | Không tìm thấy đơn vị tính | ID không tồn tại |
+
+---
+
+#### GET /api/admin/ingredients/imports/recent
+
+**Mô tả:** Lấy danh sách lần nhập kho gần nhất (tối đa 50 bản ghi), dùng cho widget dashboard.
+**Role:** ADMIN, STAFF
+
+**Query Parameters:**
+
+| Param | Type | Required | Mô tả |
+|---|---|---|---|
+| `limit` | number | ❌ | Số bản ghi tối đa (mặc định: 10, tối đa: 50) |
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "quantity": 5,
+      "note": "Nhập thứ 2 hàng tuần",
+      "import_date": "2025-12-25T08:00:00Z",
+      "ingredient_name": "Thịt bò",
+      "ingredient_unit": "kg"
+    }
+  ]
+}
+```
+
+---
+
+#### GET /api/admin/ingredients
+
+**Mô tả:** Lấy danh sách tất cả nguyên liệu kèm tình trạng tồn kho.
+**Role:** ADMIN, STAFF
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "Thịt bò",
+      "unit": "kg",
+      "stock_quantity": 10,
+      "min_stock_alert": 2,
+      "status": "Còn hàng",
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+> **Trạng thái tính năng:** `status` được tính theo quy tắc:
+> - `"Hết hàng"` — `stock_quantity <= 0`
+> - `"Sắp hết"` — `0 < stock_quantity <= min_stock_alert`
+> - `"Còn hàng"` — `stock_quantity > min_stock_alert`
+
+---
+
+#### POST /api/admin/ingredients
+
+**Mô tả:** Tạo nguyên liệu mới. Nếu `stock_quantity > 0`, tự động ghi một bản ghi nhập kho ban đầu.
+**Role:** ADMIN
+
+**Request Body:**
+
+| Field | Type | Required | Mô tả |
+|---|---|---|---|
+| `name` | string | ✅ | Tên nguyên liệu |
+| `unit` | string | ✅ | Đơn vị tính (ví dụ: `kg`, `lít`) |
+| `stock_quantity` | number | ❌ | Số lượng tồn ban đầu (mặc định: 0) |
+| `min_stock_alert` | number | ❌ | Ngưỡng cảnh báo sắp hết (mặc định: 0) |
+
+**Response 201:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 5,
+    "name": "Thịt bò",
+    "unit": "kg",
+    "stock_quantity": 10,
+    "min_stock_alert": 2,
+    "status": "Còn hàng",
+    "created_at": "2025-12-25T00:00:00Z"
+  }
+}
+```
+
+**Error Codes:**
+
+| Code | Message | Nguyên nhân |
+|---|---|---|
+| 400 | Tên nguyên liệu là bắt buộc | Thiếu `name` |
+| 400 | Đơn vị tính là bắt buộc | Thiếu `unit` |
+| 400 | Số lượng tồn ban đầu không được âm | `stock_quantity < 0` |
+| 400 | Ngưỡng cảnh báo không được âm | `min_stock_alert < 0` |
+
+---
+
+#### PATCH /api/admin/ingredients/:id
+
+**Mô tả:** Cập nhật thông tin nguyên liệu (tên, đơn vị, ngưỡng cảnh báo).
+**Role:** ADMIN
+
+**Path Params:**
+
+| Param | Type | Mô tả |
+|---|---|---|
+| `id` | number | ID nguyên liệu |
+
+**Request Body:** Tương tự POST (tất cả field đều bắt buộc khi update).
+
+**Response 200:** Trả về nguyên liệu đã cập nhật (cùng format với GET).
+
+**Error Codes:**
+
+| Code | Message | Nguyên nhân |
+|---|---|---|
+| 404 | Không tìm thấy nguyên liệu | ID không tồn tại |
+
+---
+
+#### DELETE /api/admin/ingredients/:id
+
+**Mô tả:** Xóa nguyên liệu. Không được xóa nếu nguyên liệu đang liên kết với món ăn.
+**Role:** ADMIN
+
+**Response 200:**
+```json
+{ "success": true, "data": { "id": 5, "deleted": true } }
+```
+
+**Error Codes:**
+
+| Code | Message | Nguyên nhân |
+|---|---|---|
+| 400 | Không thể xoá nguyên liệu đã liên kết với món ăn | FK constraint 23503 |
+| 404 | Không tìm thấy nguyên liệu | ID không tồn tại |
+
+---
+
+#### POST /api/admin/ingredients/:id/import
+
+**Mô tả:** Nhập thêm hàng vào kho (cộng dồn `stock_quantity`). Ghi lịch sử nhập kho.
+**Role:** ADMIN
+
+**Path Params:**
+
+| Param | Type | Mô tả |
+|---|---|---|
+| `id` | number | ID nguyên liệu |
+
+**Request Body:**
+
+| Field | Type | Required | Mô tả |
+|---|---|---|---|
+| `quantity` | number | ✅ | Số lượng nhập (> 0) |
+| `note` | string | ❌ | Ghi chú lần nhập này |
+
+**Response 200:** Trả về nguyên liệu sau khi cập nhật tồn kho.
+
+**Error Codes:**
+
+| Code | Message | Nguyên nhân |
+|---|---|---|
+| 400 | Số lượng nhập phải lớn hơn 0 | `quantity <= 0` |
+| 404 | Không tìm thấy nguyên liệu | ID không tồn tại |
+
+---
+
+#### GET /api/admin/ingredients/:id/imports
+
+**Mô tả:** Xem lịch sử nhập kho của một nguyên liệu (mới nhất trước).
+**Role:** ADMIN, STAFF
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "quantity": 5,
+      "note": "Nhập thứ 2 hàng tuần",
+      "import_date": "2025-12-25T08:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
 ## 3. Cơ sở dữ liệu
+
 
 ### Tổng quan
 
@@ -1659,6 +2012,64 @@ erDiagram
         TEXT logo_url
         TEXT_ARRAY banner_urls
         BOOLEAN banner_enabled
+        VARCHAR_20 banner_mode
+        BOOLEAN banner_show_on_home
+        BOOLEAN banner_show_on_auth
+        VARCHAR header_cta_label
+        TEXT header_cta_url
+        TEXT footer_tagline
+        TEXT footer_copyright
+        JSONB footer_links
+        JSONB social_links
+        INT total_tables
+        TEXT address
+        VARCHAR phone
+        VARCHAR email
+        TIME open_time
+        TIME close_time
+        TEXT payment_bank_account
+        TEXT payment_bank_code
+        TEXT payment_transfer_content
+        TEXT payment_qr_template
+        TEXT hero_eyebrow
+        TEXT hero_lead
+        TEXT hero_meta
+        TEXT home_features_title
+        TEXT home_features_desc
+        TEXT home_cta_title
+        TEXT home_cta_text
+        TEXT home_features_json
+        TIMESTAMP updated_at
+    }
+
+    ingredient_units {
+        SERIAL id PK
+        VARCHAR_50 name UK
+        TIMESTAMP created_at
+    }
+
+    ingredients {
+        SERIAL id PK
+        VARCHAR_150 name
+        VARCHAR_50 unit
+        DECIMAL_14_2 stock_quantity
+        DECIMAL_14_2 min_stock_alert
+        TIMESTAMP created_at
+    }
+
+    ingredient_imports {
+        SERIAL id PK
+        INT ingredient_id FK
+        DECIMAL_14_2 quantity
+        TEXT note
+        TIMESTAMP import_date
+    }
+
+    food_ingredients {
+        SERIAL id PK
+        INT food_id FK
+        INT ingredient_id FK
+        DECIMAL_14_2 quantity_needed
     }
 
     roles ||--o{ users : "has"
@@ -1675,6 +2086,9 @@ erDiagram
     orders ||--o{ order_items : "contains"
     foods ||--o{ order_items : "referenced by"
     orders ||--o{ payments : "settled by"
+    ingredients ||--o{ ingredient_imports : "has history"
+    ingredients ||--o{ food_ingredients : "used in"
+    foods ||--o{ food_ingredients : "requires"
 ```
 
 ---
@@ -1740,6 +2154,26 @@ erDiagram
 | `hero_subtitle` | TEXT | YES | NULL | Phụ đề hero section |
 | `hero_cta_label` | VARCHAR(100) | YES | NULL | Nhãn nút CTA hero |
 | `hero_cta_url` | TEXT | YES | NULL | URL nút CTA hero |
+| `hero_eyebrow` | TEXT | YES | NULL | Dòng nhãn trên tiêu đề hero |
+| `hero_lead` | TEXT | YES | NULL | Mỏ tả ngắn hero section |
+| `hero_meta` | TEXT | YES | NULL | Metadata/tag hiển thị trên hero |
+| `hero_panel_tag` | TEXT | YES | NULL | Nhãn panel trên hero |
+| `banner_show_on_home` | BOOLEAN | YES | `true` | Hiển thị banner trên trang chủ |
+| `banner_show_on_auth` | BOOLEAN | YES | `true` | Hiển thị banner trang đăng nhập |
+| `footer_tagline` | TEXT | YES | NULL | Khẩu hiệu footer |
+| `footer_copyright` | TEXT | YES | NULL | Thông tin bản quyền footer |
+| `total_tables` | INT | YES | NULL | Tổng số bàn (cài đặt hiển thị) |
+| `payment_bank_account` | TEXT | YES | NULL | Số tài khoản ngân hàng |
+| `payment_bank_code` | TEXT | YES | NULL | Mã ngân hàng (VD: `VCB`, `TCB`) |
+| `payment_transfer_content` | TEXT | YES | NULL | Nội dung chuyển khoản mặc định |
+| `payment_qr_template` | TEXT | YES | NULL | Template QR chuyển khoản |
+| `home_features_desc` | TEXT | YES | NULL | Mô tả khu vực tính năng |
+| `home_cta_title` | TEXT | YES | NULL | Tiêu đề khu vực CTA trang chủ |
+| `home_cta_text` | TEXT | YES | NULL | Văn bản mô tả CTA trang chủ |
+| `home_features_json` | TEXT | YES | NULL | JSON cấu hình tính năng trang chủ (ghi đè `home_features_items`) |
+| `system_email` | TEXT | YES | NULL | Email hệ thống gửi |
+| `system_email_password` | TEXT | YES | NULL | Mật khẩu email hệ thống |
+| `updated_at` | TIMESTAMP | YES | `NOW()` | Lần cập nhật cuối |
 
 ---
 
@@ -1912,6 +2346,58 @@ PENDING → HOLD → (hết hạn tự động) → CANCELLED
 
 ---
 
+#### Bảng `ingredient_units`
+
+| Tên cột | Kiểu | Nullable | Default | Mô tả |
+|---|---|---|---|---|
+| `id` | SERIAL | NO | auto | Khóa chính |
+| `name` | VARCHAR(50) | NO | — | Tên đơn vị tính (UNIQUE): `kg`, `g`, `lít`, `ml`, `hộp`, `cái`, `lon`, `chai` |
+| `created_at` | TIMESTAMP | NO | `NOW()` | Thời gian tạo |
+
+**Seed data mặc định:** `kg`, `g`, `lít`, `ml`, `hộp`, `cái`, `lon`, `chai`
+
+---
+
+#### Bảng `ingredients`
+
+| Tên cột | Kiểu | Nullable | Default | Mô tả |
+|---|---|---|---|---|
+| `id` | SERIAL | NO | auto | Khóa chính |
+| `name` | VARCHAR(150) | NO | — | Tên nguyên liệu |
+| `unit` | VARCHAR(50) | NO | — | Đơn vị tính (ví dụ: `kg`, `lít`) |
+| `stock_quantity` | DECIMAL(14,2) | NO | `0` | Số lượng tồn kho hiện tại |
+| `min_stock_alert` | DECIMAL(14,2) | NO | `0` | Ngưỡng cảnh báo sắp hết |
+| `created_at` | TIMESTAMP | NO | `NOW()` | Thời gian tạo |
+
+---
+
+#### Bảng `ingredient_imports`
+
+Lưu lịch sử mỗi lần nhập kho (cộng dồn `ingredients.stock_quantity`).
+
+| Tên cột | Kiểu | Nullable | Default | Mô tả |
+|---|---|---|---|---|
+| `id` | SERIAL | NO | auto | Khóa chính |
+| `ingredient_id` | INT | YES | NULL | FK → `ingredients.id` ON DELETE CASCADE |
+| `quantity` | DECIMAL(14,2) | NO | — | Số lượng nhập mỗi lần |
+| `note` | TEXT | YES | NULL | Ghi chú lần nhập |
+| `import_date` | TIMESTAMP | NO | `NOW()` | Thời điểm nhập kho |
+
+---
+
+#### Bảng `food_ingredients`
+
+Liên kết món ăn với các nguyên liệu cần dùng.
+
+| Tên cột | Kiểu | Nullable | Default | Mô tả |
+|---|---|---|---|---|
+| `id` | SERIAL | NO | auto | Khóa chính |
+| `food_id` | INT | YES | NULL | FK → `foods.id` ON DELETE CASCADE |
+| `ingredient_id` | INT | YES | NULL | FK → `ingredients.id` ON DELETE RESTRICT |
+| `quantity_needed` | DECIMAL(14,2) | NO | `1` | Lượng nguyên liệu cần cho 1 phần món |
+
+---
+
 ### Ghi chú về Migration Strategy
 
 > Dự án không sử dụng migration framework (Flyway, Liquibase, db-migrate...). Thay vào đó, hàm `ensureDbSchema()` trong [config/db.js](../src/config/db.js) được gọi mỗi khi server khởi động. Hàm này dùng `CREATE TABLE IF NOT EXISTS` và `INSERT ... ON CONFLICT DO NOTHING` để đảm bảo tính idempotent.
@@ -1927,19 +2413,25 @@ PENDING → HOLD → (hết hạn tự động) → CANCELLED
 | Variable | Type | Required | Default | Mô tả | Ví dụ |
 |---|---|---|---|---|---|
 | `PORT` | number | ❌ | `5000` | Cổng server lắng nghe | `5000` |
+| `HOST` | string | ❌ | `undefined` | Địa chỉ IP bind (mặc định lắng nghe tất cả interface) | `127.0.0.1` |
 | `FRONTEND_URL` | string | ✅ | — | URL frontend (dùng cho CORS + link email) | `http://localhost:5173` |
 
 ---
 
 ### Database (PostgreSQL)
 
+> **Ưu tiên kết nối:** Server kiểm tra `DATABASE_URL` trước. Nếu đã có thì dùng connection string đó; không thì đọc từng biến `PG*`.
+
 | Variable | Type | Required | Default | Mô tả | Ví dụ |
 |---|---|---|---|---|---|
-| `PGHOST` | string | ✅ | — | Host PostgreSQL | `localhost` |
+| `DATABASE_URL` | string | ❌ | — | Connection string đầy đủ (thay thế các biến `PG*`) | `postgresql://user:pass@host:5432/db` |
+| `PGHOST` | string | ✅\* | `127.0.0.1` | Host PostgreSQL | `localhost` |
 | `PGPORT` | number | ❌ | `5432` | Port PostgreSQL | `5432` |
-| `PGUSER` | string | ✅ | — | Username kết nối | `postgres` |
-| `PGPASSWORD` | string | ✅ | — | Password kết nối | `secretpassword` |
-| `PGDATABASE` | string | ✅ | — | Tên database | `restaurant_db` |
+| `PGUSER` | string | ✅\* | `postgres` | Username kết nối | `postgres` |
+| `PGPASSWORD` | string | ✅\* | `""` | Password kết nối | `secretpassword` |
+| `PGDATABASE` | string | ✅\* | `postgres` | Tên database | `restaurant_db` |
+
+> \* Bắt buộc khi không dùng `DATABASE_URL`.
 
 ---
 
@@ -1968,4 +2460,49 @@ PENDING → HOLD → (hết hạn tự động) → CANCELLED
 
 ---
 
-> ⚠️ **Cần bổ sung:** Nếu tích hợp Vision API cho tính năng phân tích sơ đồ bàn (`/api/admin/tables/layout/analyze-image`), cần thêm biến môi trường cho API key tương ứng. Hiện tại `tableLayoutVision.service.js` có fallback về thuật toán grid-based nếu không có API key.
+> ⚠️ **Lưu ý Vision API:** Nếu tích hợp Vision API cho tính năng phân tích sơ đồ bàn (`/api/admin/tables/layout/analyze-image`), cần thêm biến môi trường cho API key tương ứng. Hiện tại `tableLayoutVision.service.js` có fallback về thuật toán grid-based nếu không có API key.
+
+---
+
+## 5. Background Jobs
+
+Server tự động chạy một số tiến trình nền ngay sau khi khởi động.
+
+---
+
+### Job: Tự hủy HOLD booking hết hạn
+
+| Thuộc tính | Giá trị |
+|---|---|
+| **Kích hoạt** | Mỗi 60 giây (`setInterval`, chạy trong `server.js`) |
+| **Logic** | Tìm tất cả booking có `status = 'HOLD'` và `hold_expires_at <= NOW()` |
+| **Hành động** | 1. Giải phóng bàn đã giữ (`tables.status` → `AVAILABLE`) 2. Xóa `booking_tables` tương ứng 3. Đặt booking `status = 'CANCELLED'`, `hold_expires_at = NULL` |
+| **Giới hạn** | Xử lý tối đa 200 booking hết hạn mỗi lần chạy |
+| **Lỗi** | Bỏ qua silently (không crash server) |
+
+**Luồng giữ bàn (HOLD flow):**
+```
+1. Khách gọi POST /api/reservations/:id/hold { tableId }
+2. booking.status → HOLD, hold_expires_at = NOW() + 15 phút
+3. bàn.status → RESERVED
+4a. Khách hoàn tất thanh toán → admin xác nhận → CONFIRMED
+4b. Hết 15 phút không làm gì → background job hủy → CANCELLED, bàn → AVAILABLE
+```
+
+---
+
+### Job: Khởi tạo Schema cơ sở dữ liệu
+
+| Thuộc tính | Giá trị |
+|---|---|
+| **Khi nào chạy** | Một lần duy nhất khi server khởi động (trước khi `app.listen`) |
+| **Hàm** | `ensureDbSchema()` trong `src/config/db.js` |
+| **Logic** | `CREATE TABLE IF NOT EXISTS` + `ALTER TABLE ADD COLUMN IF NOT EXISTS` + seed data mặc định |
+| **Thất bại** | Nếu `ensureDbSchema()` thất bại, server thoát ngay (`process.exit(1)`) |
+
+**Seed data tự động:**
+- Bảng `roles`: `ADMIN`, `STAFF`, `CUSTOMER`
+- Bảng `ingredient_units`: `kg`, `g`, `lít`, `ml`, `hộp`, `cái`, `lon`, `chai`
+- Bảng `settings`: Chèn 1 row id=1 nếu chưa tồn tại
+
+---

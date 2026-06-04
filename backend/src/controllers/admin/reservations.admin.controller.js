@@ -392,7 +392,7 @@ export async function confirm(req, res, next) {
       reservationId: id,
       status: r.rows[0].status,
       tableSession: null,
-      tableSessionNote: 'Đã xác nhận đơn. Khi khách tới quán, bấm Vào bàn để tạo QR gọi món.',
+      tableSessionNote: 'Đã xác nhận đơn.',
     })
   } catch (e) {
     return next(e)

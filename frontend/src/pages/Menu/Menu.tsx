@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { RefreshCw } from 'lucide-react'
 import './Menu.css'
 import phoUrl from '../../assets/menu/pho.svg?url'
 import bunchaUrl from '../../assets/menu/buncha.svg?url'
@@ -164,8 +165,9 @@ export default function Menu() {
               <p className="menuSection__hint" style={{ margin: 0 }}>
                 {loading ? 'Đang tải...' : error ? `Lỗi: ${error}` : `${visible.length} món`}
               </p>
-              <button type="button" className="dash__btn dash__btn--ghost" onClick={load} style={{ padding: '6px 10px' }}>
-                Làm mới
+              <button type="button" className="menuRefreshBtn" onClick={load} disabled={loading}>
+                <RefreshCw size={16} />
+                {loading ? 'Đang tải…' : 'Làm mới'}
               </button>
             </div>
         </div>
@@ -236,7 +238,7 @@ export default function Menu() {
 
           <div className="menuMain">
             {!loading && !error && visible.length === 0 ? (
-              <p>Chưa có món phù hợp. Thử đổi danh mục, trạng thái hoặc từ khóa.</p>
+              <p>Chưa có món phù hợp.</p>
             ) : null}
             <div className="menuGrid" role="list">
               {visible.map((item) => {

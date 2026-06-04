@@ -8,6 +8,9 @@
 2. [Trang & Điều hướng](#2-trang--điều-hướng)
 3. [Components](#3-components)
 4. [Tích hợp API](#4-tích-hợp-api)
+   - 4.1 [Auth, User, Settings](#auth)
+   - 4.2 [Menu, Reservations, Tables, Table Session](#menu-public)
+   - 4.3 [Admin — Reservations, Menu, Ingredients, Users, Kitchen, Reports, Notifications, Settings](#admin--reservations)
 5. [Quản lý State](#5-quản-lý-state)
 6. [Biến môi trường](#6-biến-môi-trường)
 
@@ -35,7 +38,8 @@
 | State Management | React Context API + useState | — |
 | HTTP Client | Fetch API (wrapper tự xây dựng) | — |
 | Icons | lucide-react | ^1.7.0 |
-| Excel Export | xlsx | ^0.18.5 |
+| Biểu đồ | recharts | ^2.x |
+| Excel Export | exceljs + file-saver | ^4.x / ^2.x |
 | Linting | ESLint | — |
 
 ## Yêu cầu cài đặt
@@ -107,7 +111,18 @@ frontend/
 │   │   ├── TableOrder/        # Gọi món tại bàn qua QR
 │   │   ├── Profile/           # Hồ sơ người dùng
 │   │   ├── Admin/             # Toàn bộ trang quản trị
+│   │   │   ├── Dashboard.jsx
+│   │   │   ├── BookingManagement.jsx
+│   │   │   ├── TableManagement.jsx
+│   │   │   ├── TableLayoutEditor.jsx
+│   │   │   ├── MenuManagement.jsx
+│   │   │   ├── IngredientManagement.jsx  # Quản lý nguyên liệu & đơn vị tính
+│   │   │   ├── UserManagement.jsx
+│   │   │   ├── Settings.jsx
+│   │   │   └── RevenueReports.tsx
 │   │   └── Staff/             # Giao diện nhân viên
+│   │       ├── StaffDesk.jsx  # Alias BookingManagement với prop staffMode
+│   │       └── KitchenOrders.jsx
 │   │
 │   ├── components/            # Shared UI components tái sử dụng
 │   │   ├── NotificationBell   # Chuông thông báo realtime
@@ -116,6 +131,7 @@ frontend/
 │   │
 │   └── lib/                   # Utilities, API client, helpers
 │       ├── api.ts             # HTTP client wrapper (apiFetch, publicApiFetch)
+│       ├── format.ts          # formatCurrency, formatPercent
 │       ├── validation.ts      # Validators (email, phone VN)
 │       ├── reservation.ts     # Normalize dữ liệu đặt bàn từ API
 │       └── settings.ts        # Fetch cài đặt nhà hàng công khai
@@ -150,6 +166,8 @@ frontend/
 | `/admin/tables` | `TableManagement` | Quản lý bàn & khu vực | **ADMIN** | `AdminLayout` |
 | `/admin/tables/layout` | `TableLayoutEditor` | Chỉnh sơ đồ bàn kéo-thả | **ADMIN** | `AdminLayout` |
 | `/admin/menu` | `MenuManagement` | Quản lý thực đơn | **ADMIN** | `AdminLayout` |
+| `/admin/ingredients` | `IngredientManagement` | Quản lý nguyên liệu & đơn vị tính | **ADMIN** | `AdminLayout` |
+| `/admin/users` | `Navigate` | Redirect đến `/admin/users/customers` | **ADMIN** | `AdminLayout` |
 | `/admin/users/:group` | `UserManagement` | Quản lý người dùng theo nhóm | **ADMIN** | `AdminLayout` |
 | `/admin/settings` | `Settings` | Cài đặt nhà hàng | **ADMIN** | `AdminLayout` |
 | `/admin/reports` | `RevenueReports` | Báo cáo doanh thu | **ADMIN** | `AdminLayout` |
@@ -276,6 +294,90 @@ graph TD
 
 ---
 
+### `/admin/bookings` — BookingManagement
+
+**Mục đích**: Quản lý toàn bộ đặt bàn theo ngày. Dùng kép cho cả Admin (`/admin/bookings`) và Staff (`/staff`) qua prop `staffMode`.
+
+**Thao tác người dùng**:
+- Điều hướng theo ngày (pager từng ngày)
+- Lọc theo trạng thái (tất cả / chờ xác nhận / đã xác nhận / hoàn thành)
+- Tìm kiếm theo tên, SĐT, ID đơn
+- Gán bàn cho đặt bàn
+- Xác nhận đặt bàn → trả về QR gọi món nếu có phiên
+- Check-in khách → mở phiên gọi món, hiện modal QR
+- Chuyển bàn (transfer-table) với lý do
+- Trả bàn / gỡ khách (release-guest) — kết thúc phiên QR, bàn trở lại trống
+- Hủy đơn
+- **Mở bàn vãng lai** (walk-in): mở bàn tức thì cho khách không đặt trước
+- Xem QR gọi món của đơn đang check-in
+- Xem QR thanh toán chuyển khoản (tích hợp SePay)
+
+**API endpoints**: `GET /admin/reservations`, `GET /tables`, `GET /admin/settings`, `POST /admin/reservations/:id/confirm`, `POST /admin/reservations/:id/check-in`, `POST /admin/reservations/:id/cancel`, `POST /admin/reservations/:id/assign-table`, `POST /admin/reservations/:id/transfer-table`, `POST /admin/reservations/:id/release-guest`, `GET /admin/reservations/:id/order-qr`, `GET /admin/reservations/:id/order-total`, `POST /admin/reservations/walk-in`
+
+---
+
+### `/admin/menu` — MenuManagement
+
+**Mục đích**: Quản lý toàn bộ món ăn và danh mục trong thực đơn.
+
+**Thao tác người dùng**:
+- Lọc theo danh mục (chip), lọc theo tình trạng (còn / hết món), tìm kiếm
+- Thêm / sửa / xóa món ăn
+- Upload ảnh món ăn hoặc nhập URL ảnh
+- Bật/tắt tình trạng có sẵn bằng toggle switch
+- Thêm / xóa danh mục
+- **Liên kết nguyên liệu**: mỗi món ăn có thể gán danh sách nguyên liệu kèm số lượng cần dùng (lấy từ `IngredientManagement`)
+- Phân trang
+
+**API endpoints**: `GET /admin/menu-items`, `POST /admin/menu-items`, `PATCH /admin/menu-items/:id`, `DELETE /admin/menu-items/:id`, `POST /admin/menu-items/:id/image`, `POST /admin/menu-items/:id/toggle-active`, `GET /admin/categories`, `POST /admin/categories`, `DELETE /admin/categories/:id`, `GET /admin/ingredients`
+
+---
+
+### `/admin/ingredients` — IngredientManagement
+
+**Mục đích**: Quản lý nguyên liệu kho và đơn vị tính. Gồm hai tab chính.
+
+**Tab Danh sách Nguyên liệu**:
+- Xem danh sách nguyên liệu với tên, đơn vị tính, tồn kho, ngưỡng cảnh báo, trạng thái
+- Tìm kiếm theo tên
+- **Thêm** nguyên liệu mới (tên, đơn vị tính, số lượng tồn ban đầu, ngưỡng cảnh báo tối thiểu)
+- **Sửa** nguyên liệu
+- **Nhập kho**: thêm số lượng vào tồn kho kèm ghi chú
+- **Lịch sử nhập kho**: xem toàn bộ lịch sử nhập với ngày, số lượng, ghi chú
+- **Xóa** nguyên liệu
+
+**Tab Đơn vị tính**:
+- Xem danh sách đơn vị tính (kg, lít, hộp...)
+- Thêm đơn vị tính mới
+- Xóa đơn vị tính
+
+**Validation**: tên không được trống, số lượng và ngưỡng cảnh báo không được âm, số lượng nhập kho phải > 0
+
+**API endpoints**: `GET /admin/ingredients`, `POST /admin/ingredients`, `PATCH /admin/ingredients/:id`, `DELETE /admin/ingredients/:id`, `POST /admin/ingredients/:id/import`, `GET /admin/ingredients/:id/imports`, `GET /admin/ingredients/units`, `POST /admin/ingredients/units`, `DELETE /admin/ingredients/units/:id`
+
+---
+
+### `/admin/reports` và `/staff/reports` — RevenueReports
+
+**Mục đích**: Xem và xuất báo cáo doanh thu theo hai chế độ.
+
+**Tab Theo kỳ thời gian**:
+- Chọn nhóm theo Ngày / Tháng / Năm
+- Lọc theo khoảng ngày (từ — đến), bộ lọc nhanh: Hôm nay, 7 ngày, 30 ngày
+- 4 KPI cards: Tổng doanh thu, Số hóa đơn, Giá trị trung bình, Tăng trưởng so kỳ trước
+- Biểu đồ cột (Recharts `BarChart`) trực quan hóa doanh thu theo kỳ
+- Bảng chi tiết phân trang, click vào một kỳ để xem chi tiết hóa đơn trong modal
+
+**Tab Theo bàn**:
+- Xem tổng doanh thu phân theo từng bàn
+- Expand từng bàn để xem danh sách hóa đơn + chi tiết món
+
+**Xuất Excel** (ExcelJS + file-saver): 4 sheet — Tổng quan, Doanh thu theo kỳ, Hóa đơn, Chi tiết món
+
+**API endpoints**: `GET /admin/reports/revenue`, `GET /admin/reports/revenue/by-table`, `GET /admin/reports/revenue/invoices`
+
+---
+
 ### `/admin/users/:group` — UserManagement
 
 **`:group`** nhận giá trị: `customers`, `staff`, `admins`
@@ -285,6 +387,16 @@ graph TD
 - Tạo / sửa / xóa người dùng
 - Upload avatar
 - Phân trang
+
+---
+
+### `/staff` — StaffDesk
+
+**Mục đích**: Giao diện tiếp đón của nhân viên — thực chất là component `BookingManagement` được render với prop `staffMode={true}`.
+
+**Điểm khác biệt so với admin view**: tiêu đề hiển thị "Tiếp đón & quản lý bàn" thay vì "Đặt bàn". Toàn bộ chức năng quản lý đặt bàn, gán bàn, check-in, mở bàn vãng lai đều giống admin.
+
+**Vị trí**: [src/pages/Staff/StaffDesk.jsx](src/pages/Staff/StaffDesk.jsx) — chỉ 5 dòng, re-export `BookingManagement` với prop `staffMode`.
 
 ---
 
@@ -326,9 +438,9 @@ graph TD
 
 **Sidebar navigation**:
 - Tổng quan → `/admin`
-- **Vận hành**: Đặt bàn, Bàn, Bếp & Gọi món, Báo cáo
-- **Thực đơn**: Món ăn
-- **Hệ thống**: Người dùng (Khách hàng, Nhân viên, Quản trị viên), Cài đặt
+- **Vận hành**: Đặt bàn (`/admin/bookings`), Quản lý bàn (`/admin/tables`), Bếp & Gọi món (`/admin/kitchen`), Doanh thu (`/admin/reports`)
+- **Thực đơn**: Món ăn (`/admin/menu`), Nguyên liệu (`/admin/ingredients`)
+- **Hệ thống**: Người dùng (`/admin/users/customers`), Cài đặt (`/admin/settings`)
 
 **Props**: Không có (dùng `<Outlet />` của React Router)
 
@@ -623,24 +735,43 @@ storagePathFromMediaUrl(url)      // Trích xuất storage path từ URL đầy 
 | Endpoint | Method | Function/Hook | Dùng trong | Mô tả |
 |----------|--------|---------------|------------|-------|
 | `/admin/reservations` | GET | `apiFetch` | `BookingManagement`, `Dashboard` | Danh sách tất cả đặt bàn |
-| `/admin/reservations/:id` | PATCH | `apiFetch` | `BookingManagement` | Cập nhật (gán bàn, ghi chú) |
+| `/admin/reservations/walk-in` | POST | `apiFetch` | `BookingManagement` | Mở bàn vãng lai tức thì |
 | `/admin/reservations/:id/confirm` | POST | `apiFetch` | `BookingManagement`, `Dashboard` | Xác nhận đặt bàn |
-| `/admin/reservations/:id/check-in` | POST | `apiFetch` | `BookingManagement` | Check-in khách |
-| `/admin/reservations/:id/complete` | POST | `apiFetch` | `BookingManagement` | Hoàn thành đặt bàn |
-| `/admin/reservations/:id/cancel` | POST | `apiFetch` | `BookingManagement` | Hủy đặt bàn |
-| `/admin/reservations/:id/qr` | GET | `apiFetch` | `BookingManagement` | Tạo QR gọi món tại bàn |
+| `/admin/reservations/:id/check-in` | POST | `apiFetch` | `BookingManagement` | Check-in khách, mở phiên gọi món |
+| `/admin/reservations/:id/cancel` | POST | `apiFetch` | `BookingManagement`, `Dashboard` | Hủy đặt bàn |
+| `/admin/reservations/:id/assign-table` | POST | `apiFetch` | `BookingManagement` | Gán bàn cho đặt bàn |
+| `/admin/reservations/:id/transfer-table` | POST | `apiFetch` | `BookingManagement` | Chuyển bàn (có lý do, giữ QR) |
+| `/admin/reservations/:id/release-guest` | POST | `apiFetch` | `BookingManagement` | Trả bàn / gỡ khách, đóng phiên QR |
+| `/admin/reservations/:id/order-qr` | GET | `apiFetch` | `BookingManagement` | Lấy QR gọi món của đơn đang check-in |
+| `/admin/reservations/:id/order-total` | GET | `apiFetch` | `BookingManagement` | Lấy tổng tiền đơn để hiển thị QR thanh toán |
 
 ### Admin — Menu
 
 | Endpoint | Method | Function/Hook | Dùng trong | Mô tả |
 |----------|--------|---------------|------------|-------|
 | `/admin/menu-items` | GET | `apiFetch` | `MenuManagement` | Danh sách món ăn (admin) |
-| `/admin/menu-items` | POST | `apiFetch` | `MenuManagement` | Tạo món ăn mới |
-| `/admin/menu-items/:id` | PATCH | `apiFetch` | `MenuManagement` | Cập nhật món ăn |
+| `/admin/menu-items` | POST | `apiFetch` | `MenuManagement` | Tạo món ăn mới (kèm ingredients) |
+| `/admin/menu-items/:id` | PATCH | `apiFetch` | `MenuManagement` | Cập nhật món ăn (kèm ingredients) |
 | `/admin/menu-items/:id` | DELETE | `apiFetch` | `MenuManagement` | Xóa món ăn |
 | `/admin/menu-items/:id/image` | POST | `uploadFoodImage()` | `MenuManagement` | Upload ảnh món ăn |
-| `/admin/menu-items/:id/status` | PATCH | `apiFetch` | `MenuManagement` | Bật/tắt tình trạng có sẵn |
+| `/admin/menu-items/:id/toggle-active` | POST | `apiFetch` | `MenuManagement` | Bật/tắt tình trạng có sẵn (toggle switch) |
 | `/admin/categories` | GET | `apiFetch` | `MenuManagement` | Danh mục món ăn (admin) |
+| `/admin/categories` | POST | `apiFetch` | `MenuManagement` | Tạo danh mục mới |
+| `/admin/categories/:id` | DELETE | `apiFetch` | `MenuManagement` | Xóa danh mục |
+
+### Admin — Ingredients
+
+| Endpoint | Method | Function/Hook | Dùng trong | Mô tả |
+|----------|--------|---------------|------------|-------|
+| `/admin/ingredients` | GET | `apiFetch` | `IngredientManagement`, `MenuManagement` | Danh sách nguyên liệu |
+| `/admin/ingredients` | POST | `apiFetch` | `IngredientManagement` | Tạo nguyên liệu mới |
+| `/admin/ingredients/:id` | PATCH | `apiFetch` | `IngredientManagement` | Cập nhật nguyên liệu |
+| `/admin/ingredients/:id` | DELETE | `apiFetch` | `IngredientManagement` | Xóa nguyên liệu |
+| `/admin/ingredients/:id/import` | POST | `apiFetch` | `IngredientManagement` | Nhập kho (cộng thêm số lượng) |
+| `/admin/ingredients/:id/imports` | GET | `apiFetch` | `IngredientManagement` | Lịch sử nhập kho |
+| `/admin/ingredients/units` | GET | `apiFetch` | `IngredientManagement` | Danh sách đơn vị tính |
+| `/admin/ingredients/units` | POST | `apiFetch` | `IngredientManagement` | Tạo đơn vị tính mới |
+| `/admin/ingredients/units/:id` | DELETE | `apiFetch` | `IngredientManagement` | Xóa đơn vị tính |
 
 ### Admin — Users
 
@@ -667,7 +798,8 @@ storagePathFromMediaUrl(url)      // Trích xuất storage path từ URL đầy 
 | Endpoint | Method | Function/Hook | Dùng trong | Mô tả |
 |----------|--------|---------------|------------|-------|
 | `/admin/reports/revenue` | GET | `apiFetch` | `RevenueReports`, `Dashboard` | Báo cáo theo kỳ (day/month/year) |
-| `/admin/reports/revenue/table` | GET | `apiFetch` | `RevenueReports` | Báo cáo theo bàn |
+| `/admin/reports/revenue/by-table` | GET | `apiFetch` | `RevenueReports` | Báo cáo doanh thu theo bàn |
+| `/admin/reports/revenue/invoices` | GET | `apiFetch` | `RevenueReports` | Danh sách hóa đơn chi tiết (xuất Excel + modal) |
 
 ### Admin — Notifications
 
@@ -681,7 +813,7 @@ storagePathFromMediaUrl(url)      // Trích xuất storage path từ URL đầy 
 
 | Endpoint | Method | Function/Hook | Dùng trong | Mô tả |
 |----------|--------|---------------|------------|-------|
-| `/admin/settings/public` | GET | `apiFetch` | `Settings` | Lấy cài đặt hiện tại (admin) |
+| `/admin/settings` | GET | `apiFetch` | `Settings`, `BookingManagement` | Lấy cài đặt hiện tại (admin) |
 | `/admin/settings` | PATCH | `apiFetch` | `Settings` | Lưu cài đặt |
 
 ### Admin — Tables (Layout Analysis)
@@ -697,12 +829,17 @@ storagePathFromMediaUrl(url)      // Trích xuất storage path từ URL đầy 
 Ba hàm upload trong [src/lib/api.ts](src/lib/api.ts):
 
 ```typescript
-uploadFoodImage(itemId: string | number, file: File)
-uploadUserAvatar(userId: string, file: File)
-uploadTableImage(tableId: string, file: File)
+// key: 'image' — dùng cho ảnh món ăn
+uploadFoodImage(itemId: number, file: File): Promise<{ id: number; image_url: string }>
+
+// key: 'avatar' — dùng cho ảnh đại diện người dùng
+uploadUserAvatar(userId: number, file: File): Promise<{ id: number; avatar_url: string }>
+
+// key: 'image' — dùng cho ảnh bàn
+uploadTableImage(tableId: number, file: File): Promise<{ id: number; image_url: string }>
 ```
 
-Tất cả dùng `FormData` với key `image`, gắn Bearer token qua header `Authorization`.
+Tất cả dùng `FormData`, gắn Bearer token qua header `Authorization`. ❗ Lưu ý: `uploadUserAvatar` dùng key `avatar` (khác `image`), endpoint `/admin/users/:id/avatar`.
 
 ---
 
@@ -862,6 +999,15 @@ window.addEventListener('luxeat:me-updated', reloadMe)
 
 ## Utilities
 
+### src/lib/format.ts
+
+| Hàm | Mô tả |
+|-----|-------|
+| `formatCurrency(amount)` | Format số tiền VND (`Intl.NumberFormat vi-VN`) — trả về dạng `"100.000 đ"` |
+| `formatPercent(current, previous)` | Tính % tăng trưởng so kỳ trước — trả về `"+12.5%"` hoặc `"Không có dữ liệu"` |
+
+Dùng trong `RevenueReports.tsx` để hiển thị KPI và xuất Excel.
+
 ### src/lib/validation.ts
 
 | Hàm | Mô tả |
@@ -911,4 +1057,4 @@ Khi deploy, set biến môi trường trên hosting platform (Vercel, Netlify, D
 
 ---
 
-*Tài liệu được tạo tự động từ source code — cập nhật lần cuối: 2026-05-19*
+*Tài liệu được rà soát và cập nhật đầy đủ từ source code — cập nhật lần cuối: 2026-06-01*
