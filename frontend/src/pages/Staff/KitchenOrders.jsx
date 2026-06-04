@@ -331,13 +331,6 @@ export default function KitchenOrders() {
                 )}
               </div>
 
-              <p className="kitchen__foot">
-                <a className="kitchen__link" href={`${window.location.origin}/order/table/${encodeURIComponent(detail.qr_token)}`} target="_blank" rel="noreferrer">
-                  Mở trang gọi món khách (xem trước)
-                </a>
-                <span className="kitchen__muted"> · </span>
-                <span className="kitchen__muted">Quay lại {base === '/admin' ? 'Quản trị' : 'Nhân viên'} từ menu.</span>
-              </p>
             </>
           )}
         </section>

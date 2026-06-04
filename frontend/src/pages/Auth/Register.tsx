@@ -40,24 +40,18 @@ export default function Register() {
     setFieldErr(null)
 
     const nextFullName = fullName.trim()
-    const emailErr = validateEmail(email)
-    const passwordErr = validatePassword(password)
-    if (passwordErr) {
-      setFieldErr({ password: passwordErr })
-      return
-    }
     if (!nextFullName) {
       setFieldErr({ fullName: requiredMessage('Họ và tên') })
       return
     }
-    if (emailErr) {
-      setFieldErr({ email: emailErr })
+    const nextEmail = email.trim()
+    if (!nextEmail) {
+      setFieldErr({ email: requiredMessage('Email') })
       return
     }
     const phoneRaw = phone.trim()
-    const phoneErr = validatePhone(phoneRaw)
-    if (phoneErr) {
-      setFieldErr({ phone: phoneErr })
+    if (!phoneRaw) {
+      setFieldErr({ phone: requiredMessage('Số điện thoại') })
       return
     }
     if (!password) {
@@ -68,12 +62,23 @@ export default function Register() {
       setFieldErr({ confirmPassword: requiredMessage('Xác nhận mật khẩu') })
       return
     }
-    if (password !== confirmPassword) {
-      setFieldErr({ confirmPassword: 'Mật khẩu xác nhận không khớp.' })
+    const emailErr = validateEmail(nextEmail)
+    if (emailErr) {
+      setFieldErr({ email: emailErr })
       return
     }
-    if (password.length < 6) {
-      setFieldErr({ password: 'Mật khẩu tối thiểu 6 ký tự' })
+    const phoneErr = validatePhone(phoneRaw)
+    if (phoneErr) {
+      setFieldErr({ phone: phoneErr })
+      return
+    }
+    const passwordErr = validatePassword(password)
+    if (passwordErr) {
+      setFieldErr({ password: passwordErr })
+      return
+    }
+    if (password !== confirmPassword) {
+      setFieldErr({ confirmPassword: 'Mật khẩu xác nhận không khớp.' })
       return
     }
 
@@ -84,9 +89,9 @@ export default function Register() {
         body: JSON.stringify({
           name: nextFullName,
           fullName: nextFullName,
-          email: email.trim().toLowerCase(),
+          email: nextEmail.toLowerCase(),
           password,
-          phone: phoneRaw ? normalizePhone(phoneRaw) : undefined,
+          phone: normalizePhone(phoneRaw),
         }),
       })
       setToken(data.token)
@@ -118,7 +123,7 @@ export default function Register() {
       <div className="authCard">
         <div className="authCard__head">
           <h2 className="authCard__title">Đăng ký</h2>
-          <p className="authCard__subtitle">Điền thông tin bên dưới. Bạn có thể bật/tắt hiển thị mật khẩu bằng biểu tượng mắt.</p>
+          <p className="authCard__subtitle">Điền thông tin bên dưới.</p>
         </div>
 
         <form className="authForm" onSubmit={onSubmit} noValidate>
@@ -185,10 +190,9 @@ export default function Register() {
                 setPhone(e.target.value)
               }}
               onBlur={() => {
-                if (phone.trim()) {
-                  const err = validatePhone(phone)
-                  if (err) setFieldErr((prev) => ({ ...(prev || {}), phone: err }))
-                }
+                const nextPhone = phone.trim()
+                const err = nextPhone ? validatePhone(nextPhone) : requiredMessage('Số điện thoại')
+                if (err) setFieldErr((prev) => ({ ...(prev || {}), phone: err }))
               }}
               placeholder="0901 234 567"
               disabled={loading}
@@ -225,7 +229,7 @@ export default function Register() {
             error={fieldErr?.confirmPassword || null}
           />
 
-          <p className="authHint">Mật khẩu có thể hiện hoặc ẩn bằng nút bên phải ô nhập.</p>
+        
 
           {error ? <p className="authError">{error}</p> : null}
 

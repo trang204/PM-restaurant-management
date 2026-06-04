@@ -109,10 +109,7 @@ export default function Profile() {
         phone: String(updatedMe?.phone ?? ''),
       })
 
-      if (pendingAvatar) {
-        URL.revokeObjectURL(pendingAvatar.previewUrl)
-        setPendingAvatar(null)
-      }
+      clearPendingAvatar()
 
       toast('Đã lưu thay đổi thông tin.', { variant: 'success' })
       setEditing(false)
@@ -124,6 +121,12 @@ export default function Profile() {
     }
   }
 
+  function clearPendingAvatar() {
+    if (!pendingAvatar) return
+    URL.revokeObjectURL(pendingAvatar.previewUrl)
+    setPendingAvatar(null)
+  }
+
   async function onAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
@@ -132,6 +135,7 @@ export default function Profile() {
       toast('Vui lòng chọn file ảnh (JPEG, PNG, WebP hoặc GIF).', { variant: 'error' })
       return
     }
+    clearPendingAvatar()
     const previewUrl = URL.createObjectURL(file)
     setPendingAvatar({ file, previewUrl })
     setEditing(true)
@@ -250,6 +254,16 @@ export default function Profile() {
                     >
                       {pendingAvatar ? 'Đổi ảnh khác' : 'Tải ảnh lên'}
                     </button>
+                    {pendingAvatar ? (
+                      <button
+                        type="button"
+                        className="profileBtn profileBtn--danger"
+                        disabled={!editing || saving}
+                        onClick={clearPendingAvatar}
+                      >
+                        Xóa ảnh
+                      </button>
+                    ) : null}
                   </div>
                   {pendingAvatar && (
                     <p className="profileAvatar__hint profileAvatar__hint--pending">
@@ -370,10 +384,7 @@ export default function Profile() {
                         onClick={() => {
                           setEditing(false)
                           setFieldErr(null)
-                          if (pendingAvatar) {
-                            URL.revokeObjectURL(pendingAvatar.previewUrl)
-                            setPendingAvatar(null)
-                          }
+                          clearPendingAvatar()
                           setForm({
                             fullName: String(me.fullName ?? ''),
                             email: String(me.email ?? ''),
