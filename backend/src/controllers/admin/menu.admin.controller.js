@@ -266,35 +266,18 @@ export async function remove(req, res, next) {
   try {
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
-    try {
-      const r = await withTransaction(async (client) => {
-        // Gỡ liên kết trong order_items để không dính lỗi khóa ngoại (giữ lại giá trị lịch sử của đơn hàng)
-        await client.query('UPDATE order_items SET food_id = NULL WHERE food_id = $1', [id])
-        
-        // Tiến hành xóa món (food_ingredients sẽ bị xóa do CASCADE)
-        const resDel = await client.query('DELETE FROM foods WHERE id = $1 RETURNING id', [id])
-        return resDel.rows[0]
-      })
-      if (!r) throw notFound('Không tìm thấy món')
-      return ok(res, { id: r.id, deleted: true })
-    } catch (e) {
-      // Postgres foreign key violation code = '23503'
-      const msg = String(e?.message || '')
-      const detail = String(e?.detail || '')
-      if (
-        (e && typeof e.code === 'string' && e.code === '23503') ||
-        msg.toLowerCase().includes('foreign key') ||
-        detail.toLowerCase().includes('still referenced') ||
-        detail.toLowerCase().includes('fk')
-      ) {
-        // eslint-disable-next-line no-console
-        console.warn('Delete menu item blocked by foreign key constraint:', e)
-        return next(
-          badRequest('Không thể xóa món do có ràng buộc (ví dụ: đơn/phiên gọi món). Hãy xóa các mục tham chiếu trước.'),
-        )
-      }
-      throw e
-    }
+
+    // food_ingredients xóa theo CASCADE.
+    // order_items.food_id sẽ tự SET NULL (FK đã được migrate trong ensureDbSchema).
+    // Nếu DB cũ chưa được migrate, ta vẫn xử lý thủ công trong transaction.
+    const r = await withTransaction(async (client) => {
+      await client.query('UPDATE order_items SET food_id = NULL WHERE food_id = $1', [id])
+      const resDel = await client.query('DELETE FROM foods WHERE id = $1 RETURNING id', [id])
+      return resDel.rows[0] ?? null
+    })
+
+    if (!r) throw notFound('Không tìm thấy món')
+    return ok(res, { id: r.id, deleted: true })
   } catch (e) {
     return next(e)
   }

@@ -508,4 +508,28 @@ export async function ensureDbSchema() {
     `UPDATE foods SET status = 'AVAILABLE' WHERE UPPER(TRIM(status)) NOT IN ('AVAILABLE', 'UNAVAILABLE')`,
   )
   await query(`ALTER TABLE foods ALTER COLUMN status SET DEFAULT 'AVAILABLE'`)
+
+  // Nâng cấp FK order_items.food_id → ON DELETE SET NULL
+  // (giúp xóa món mà không mất lịch sử đơn hàng)
+  const fkCheck = await query(`
+    SELECT tc.constraint_name, rc.delete_rule
+    FROM information_schema.table_constraints AS tc
+    JOIN information_schema.referential_constraints AS rc
+      ON rc.constraint_name = tc.constraint_name
+    JOIN information_schema.key_column_usage AS kcu
+      ON kcu.constraint_name = tc.constraint_name
+    WHERE tc.constraint_type = 'FOREIGN KEY'
+      AND tc.table_name = 'order_items'
+      AND kcu.column_name = 'food_id'
+    LIMIT 1
+  `)
+  if (fkCheck.rows.length) {
+    const rule = String(fkCheck.rows[0].delete_rule || '').toUpperCase()
+    if (rule !== 'SET NULL') {
+      const constraintName = fkCheck.rows[0].constraint_name
+      await query(`ALTER TABLE order_items DROP CONSTRAINT IF EXISTS "${constraintName}"`)
+      await query(`ALTER TABLE order_items ADD CONSTRAINT order_items_food_id_fkey
+        FOREIGN KEY (food_id) REFERENCES foods(id) ON DELETE SET NULL`)
+    }
+  }
 }
