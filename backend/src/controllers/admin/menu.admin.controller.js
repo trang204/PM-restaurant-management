@@ -267,9 +267,16 @@ export async function remove(req, res, next) {
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
     try {
-      const r = await query('DELETE FROM foods WHERE id = $1 RETURNING id', [id])
-      if (!r.rows.length) throw notFound('Không tìm thấy món')
-      return ok(res, { id: r.rows[0].id, deleted: true })
+      const r = await withTransaction(async (client) => {
+        // Gỡ liên kết trong order_items để không dính lỗi khóa ngoại (giữ lại giá trị lịch sử của đơn hàng)
+        await client.query('UPDATE order_items SET food_id = NULL WHERE food_id = $1', [id])
+        
+        // Tiến hành xóa món (food_ingredients sẽ bị xóa do CASCADE)
+        const resDel = await client.query('DELETE FROM foods WHERE id = $1 RETURNING id', [id])
+        return resDel.rows[0]
+      })
+      if (!r) throw notFound('Không tìm thấy món')
+      return ok(res, { id: r.id, deleted: true })
     } catch (e) {
       // Postgres foreign key violation code = '23503'
       const msg = String(e?.message || '')
