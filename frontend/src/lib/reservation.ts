@@ -37,7 +37,12 @@ export type ReservationRow = {
 function formatDateRaw(v: unknown): string {
   if (v == null || v === '') return ''
   if (typeof v === 'string') return v.length >= 10 ? v.slice(0, 10) : v
-  if (v instanceof Date) return v.toISOString().slice(0, 10)
+  if (v instanceof Date) {
+    const y = v.getFullYear()
+    const m = String(v.getMonth() + 1).padStart(2, '0')
+    const d = String(v.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
   return String(v)
 }
 

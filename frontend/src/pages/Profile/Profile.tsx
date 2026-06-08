@@ -276,12 +276,13 @@ export default function Profile() {
                 </div>
 
                 <div className="profileField">
-                  <span>Họ tên</span>
+                  <span>Họ tên <span className="required-asterisk">*</span></span>
                   {!editing ? (
                     <div className="profileValue">{me.fullName || '—'}</div>
                   ) : (
                     <>
                       <input
+                        className={fieldErr?.fullName ? 'input-error' : ''}
                         value={form.fullName}
                         onChange={(e) => {
                           setFieldErr((prev) => ({ ...(prev || {}), fullName: undefined }))
@@ -295,12 +296,13 @@ export default function Profile() {
                   )}
                 </div>
                 <div className="profileField">
-                  <span>Email</span>
+                  <span>Email <span className="required-asterisk">*</span></span>
                   {!editing ? (
                     <div className="profileValue">{me.email || '—'}</div>
                   ) : (
                     <>
                       <input
+                        className={fieldErr?.email ? 'input-error' : ''}
                         value={form.email}
                         onChange={(e) => {
                           setFieldErr((prev) => ({ ...(prev || {}), email: undefined }))
@@ -325,6 +327,7 @@ export default function Profile() {
                   ) : (
                     <>
                       <input
+                        className={fieldErr?.phone ? 'input-error' : ''}
                         value={form.phone}
                         onChange={(e) => {
                           setFieldErr((prev) => ({ ...(prev || {}), phone: undefined }))

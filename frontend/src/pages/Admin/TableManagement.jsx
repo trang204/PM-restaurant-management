@@ -583,9 +583,10 @@ export default function TableManagement() {
               {editingId ? 'Sửa bàn' : 'Thêm bàn mới'}
             </h2>
             <label className="table-mgmt__field">
-              <span>Tên bàn</span>
+              <span>Tên bàn <span className="required-asterisk">*</span></span>
               <input
                 type="text"
+                required
                 value={form.name}
                 onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
               />
@@ -603,7 +604,7 @@ export default function TableManagement() {
               </select>
             </label>
             <label className="table-mgmt__field">
-              <span>Số khách / bàn</span>
+              <span>Số khách / bàn <span className="required-asterisk">*</span></span>
               <select value={form.capacity} onChange={(e) => setForm((prev) => ({ ...prev, capacity: e.target.value }))}>
                 {seatOptions.map((seat) => (
                   <option key={seat} value={seat}>

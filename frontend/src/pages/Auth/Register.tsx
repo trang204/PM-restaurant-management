@@ -129,11 +129,11 @@ export default function Register() {
         <form className="authForm" onSubmit={onSubmit} noValidate>
           <div className="authField">
             <label htmlFor="reg-name" className="authField__label">
-              Họ và tên
+              Họ và tên <span className="required-asterisk">*</span>
             </label>
             <input
               id="reg-name"
-              className={`authField__input${fieldErr?.fullName ? ' authField__input--error' : ''}`}
+              className={`authField__input${fieldErr?.fullName ? ' authField__input--error input-error' : ''}`}
               type="text"
               autoComplete="name"
               required
@@ -151,11 +151,11 @@ export default function Register() {
 
           <div className="authField">
             <label htmlFor="reg-email" className="authField__label">
-              Email
+              Email <span className="required-asterisk">*</span>
             </label>
             <input
               id="reg-email"
-              className={`authField__input${fieldErr?.email ? ' authField__input--error' : ''}`}
+              className={`authField__input${fieldErr?.email ? ' authField__input--error input-error' : ''}`}
               type="email"
               autoComplete="email"
               required
@@ -177,11 +177,11 @@ export default function Register() {
 
           <div className="authField">
             <label htmlFor="reg-phone" className="authField__label">
-              Số điện thoại
+              Số điện thoại <span className="required-asterisk">*</span>
             </label>
             <input
               id="reg-phone"
-              className={`authField__input${fieldErr?.phone ? ' authField__input--error' : ''}`}
+              className={`authField__input${fieldErr?.phone ? ' authField__input--error input-error' : ''}`}
               type="tel"
               autoComplete="tel"
               value={phone}

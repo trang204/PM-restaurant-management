@@ -113,11 +113,11 @@ export default function Login() {
         <form className="authForm" onSubmit={onSubmit} noValidate>
           <div className="authField">
             <label htmlFor="login-email" className="authField__label">
-              Email
+              Email <span className="required-asterisk">*</span>
             </label>
             <input
               id="login-email"
-              className={`authField__input${fieldErr?.email ? ' authField__input--error' : ''}`}
+              className={`authField__input${fieldErr?.email ? ' authField__input--error input-error' : ''}`}
               type="email"
               autoComplete="email"
               required

@@ -513,41 +513,42 @@ export default function Settings() {
         {activeTab === 'general' ? (
         <div className="settings-card__grid">
           <label className="settings-field">
-            <span>Tên nhà hàng</span>
-            <input name="restaurantName" value={form.restaurantName} onChange={onChange} required />
+            <span>Tên nhà hàng <span className="required-asterisk">*</span></span>
+            <input name="restaurantName" className={fieldErrors.restaurantName ? 'input-error' : ''} value={form.restaurantName} onChange={onChange} required />
             {fieldErrors.restaurantName ? <small className="settings-field__error">{fieldErrors.restaurantName}</small> : null}
           </label>
           <label className="settings-field">
-            <span>Điện thoại</span>
-            <input name="phone" value={form.phone} onChange={onChange} required />
+            <span>Điện thoại <span className="required-asterisk">*</span></span>
+            <input name="phone" className={fieldErrors.phone ? 'input-error' : ''} value={form.phone} onChange={onChange} required />
             {fieldErrors.phone ? <small className="settings-field__error">{fieldErrors.phone}</small> : null}
           </label>
           <label className="settings-field">
-            <span>Email</span>
-            <input name="email" type="email" value={form.email} onChange={onChange} required />
+            <span>Email <span className="required-asterisk">*</span></span>
+            <input name="email" type="email" className={fieldErrors.email ? 'input-error' : ''} value={form.email} onChange={onChange} required />
             {fieldErrors.email ? <small className="settings-field__error">{fieldErrors.email}</small> : null}
           </label>
           <label className="settings-field settings-field--full">
-            <span>Địa chỉ</span>
-            <input name="address" value={form.address} onChange={onChange} required />
+            <span>Địa chỉ <span className="required-asterisk">*</span></span>
+            <input name="address" className={fieldErrors.address ? 'input-error' : ''} value={form.address} onChange={onChange} required />
             {fieldErrors.address ? <small className="settings-field__error">{fieldErrors.address}</small> : null}
           </label>
           <label className="settings-field">
-            <span>Mở cửa</span>
-            <input name="openTime" type="time" value={form.openTime} onChange={onChange} required />
+            <span>Mở cửa <span className="required-asterisk">*</span></span>
+            <input name="openTime" type="time" className={fieldErrors.openTime ? 'input-error' : ''} value={form.openTime} onChange={onChange} required />
             {fieldErrors.openTime ? <small className="settings-field__error">{fieldErrors.openTime}</small> : null}
           </label>
           <label className="settings-field">
-            <span>Đóng cửa</span>
-            <input name="closeTime" type="time" value={form.closeTime} onChange={onChange} required />
+            <span>Đóng cửa <span className="required-asterisk">*</span></span>
+            <input name="closeTime" type="time" className={fieldErrors.closeTime ? 'input-error' : ''} value={form.closeTime} onChange={onChange} required />
             {fieldErrors.closeTime ? <small className="settings-field__error">{fieldErrors.closeTime}</small> : null}
           </label>
           <label className="settings-field">
-            <span>Thời gian giữ bàn hết hạn (phút)</span>
+            <span>Thời gian giữ bàn hết hạn (phút) <span className="required-asterisk">*</span></span>
             <input
               name="reservationHoldDuration"
               type="number"
               min="1"
+              className={fieldErrors.reservationHoldDuration ? 'input-error' : ''}
               value={form.reservationHoldDuration}
               onChange={onChange}
               required

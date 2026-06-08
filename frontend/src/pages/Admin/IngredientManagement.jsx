@@ -449,15 +449,15 @@ export default function IngredientManagement() {
             <h2 className="ing-mgmt__dialogTitle">Thêm nguyên liệu mới</h2>
             
             <label className="ing-mgmt__dialogField">
-              <span>Tên nguyên liệu (*)</span>
-              <input value={addForm.name} onChange={(e) => setAddForm(f => ({...f, name: e.target.value}))} />
+              <span>Tên nguyên liệu <span className="required-asterisk">*</span></span>
+              <input className={formErrors.name ? 'input-error' : ''} value={addForm.name} onChange={(e) => setAddForm(f => ({...f, name: e.target.value}))} />
               {formErrors.name && <small className="ing-mgmt__dialogError">{formErrors.name}</small>}
             </label>
             
             <label className="ing-mgmt__dialogField">
-              <span>Đơn vị tính (*)</span>
+              <span>Đơn vị tính <span className="required-asterisk">*</span></span>
               {units.length > 0 ? (
-                <select value={addForm.unit} onChange={(e) => setAddForm(f => ({...f, unit: e.target.value}))}>
+                <select className={formErrors.unit ? 'input-error' : ''} value={addForm.unit} onChange={(e) => setAddForm(f => ({...f, unit: e.target.value}))}>
                   <option value="">— Chọn đơn vị —</option>
                   {units.map(u => (
                     <option key={u.id} value={u.name}>{u.name}</option>
@@ -496,15 +496,15 @@ export default function IngredientManagement() {
             <h2 className="ing-mgmt__dialogTitle">Sửa nguyên liệu</h2>
             
             <label className="ing-mgmt__dialogField">
-              <span>Tên nguyên liệu (*)</span>
-              <input value={editModal.name} onChange={(e) => setEditModal(f => ({...f, name: e.target.value}))} />
+              <span>Tên nguyên liệu <span className="required-asterisk">*</span></span>
+              <input className={formErrors.name ? 'input-error' : ''} value={editModal.name} onChange={(e) => setEditModal(f => ({...f, name: e.target.value}))} />
               {formErrors.name && <small className="ing-mgmt__dialogError">{formErrors.name}</small>}
             </label>
             
             <label className="ing-mgmt__dialogField">
-              <span>Đơn vị tính (*)</span>
+              <span>Đơn vị tính <span className="required-asterisk">*</span></span>
               {units.length > 0 ? (
-                <select value={editModal.unit} onChange={(e) => setEditModal(f => ({...f, unit: e.target.value}))}>
+                <select className={formErrors.unit ? 'input-error' : ''} value={editModal.unit} onChange={(e) => setEditModal(f => ({...f, unit: e.target.value}))}>
                   <option value="">— Chọn đơn vị —</option>
                   {/* Nếu unit hiện tại không có trong list, thêm nó vào list tạm */}
                   {!units.some(u => u.name === editModal.unit) && editModal.unit && (
@@ -547,8 +547,8 @@ export default function IngredientManagement() {
             <h2 className="ing-mgmt__dialogTitle">Nhập kho: {importModal.name}</h2>
             
             <label className="ing-mgmt__dialogField">
-              <span>Số lượng nhập thêm (*)</span>
-              <input type="number" min="0.01" step="0.01" value={importForm.quantity} onChange={(e) => setImportForm(f => ({...f, quantity: e.target.value}))} />
+              <span>Số lượng nhập thêm <span className="required-asterisk">*</span></span>
+              <input type="number" min="0.01" step="0.01" className={formErrors.quantity ? 'input-error' : ''} value={importForm.quantity} onChange={(e) => setImportForm(f => ({...f, quantity: e.target.value}))} />
               {formErrors.quantity && <small className="ing-mgmt__dialogError">{formErrors.quantity}</small>}
             </label>
 
@@ -608,8 +608,8 @@ export default function IngredientManagement() {
             <h2 className="ing-mgmt__dialogTitle">Thêm đơn vị tính mới</h2>
             
             <label className="ing-mgmt__dialogField">
-              <span>Tên đơn vị tính (*) (vd: kg, lít, hộp, ...)</span>
-              <input value={unitAddForm.name} onChange={(e) => setUnitAddForm(f => ({...f, name: e.target.value}))} />
+              <span>Tên đơn vị tính (vd: kg, lít, hộp, ...) <span className="required-asterisk">*</span></span>
+              <input className={formErrors.name ? 'input-error' : ''} value={unitAddForm.name} onChange={(e) => setUnitAddForm(f => ({...f, name: e.target.value}))} />
               {formErrors.name && <small className="ing-mgmt__dialogError">{formErrors.name}</small>}
             </label>
 

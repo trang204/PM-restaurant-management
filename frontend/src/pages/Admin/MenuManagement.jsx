@@ -704,8 +704,9 @@ export default function MenuManagement() {
             </h2>
             <form className="menu-modal__form" onSubmit={saveItem} noValidate>
               <label className="menu-modal__field">
-                <span>Tên</span>
+                <span>Tên <span className="required-asterisk">*</span></span>
                 <input
+                  className={formErrors.name ? 'input-error' : ''}
                   value={form.name}
                   onChange={(e) => {
                     setFormErrors((prev) => ({ ...prev, name: '' }))
@@ -718,8 +719,9 @@ export default function MenuManagement() {
                 {formErrors.name ? <small className="menu-modal__error">{formErrors.name}</small> : null}
               </label>
               <label className="menu-modal__field">
-                <span>Giá (VND)</span>
+                <span>Giá (VND) <span className="required-asterisk">*</span></span>
                 <input
+                  className={formErrors.price ? 'input-error' : ''}
                   value={form.price}
                   onChange={(e) => {
                     setFormErrors((prev) => ({ ...prev, price: '' }))
@@ -732,8 +734,9 @@ export default function MenuManagement() {
                 {formErrors.price ? <small className="menu-modal__error">{formErrors.price}</small> : null}
               </label>
               <label className="menu-modal__field">
-                <span>Danh mục</span>
+                <span>Danh mục <span className="required-asterisk">*</span></span>
                 <select
+                  className={formErrors.categoryId ? 'input-error' : ''}
                   value={form.categoryId}
                   onChange={(e) => {
                     setFormErrors((prev) => ({ ...prev, categoryId: '' }))

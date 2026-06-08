@@ -30,8 +30,6 @@ const options = {
             }
         }
     },
-    // Quét toàn bộ file cấu hình router trong thư mục src/routes để lấy comment tài liệu.
-    // Dùng .replace(/\\/g, '/') vì thư viện glob của swagger-jsdoc không hoạt động với dấu gạch chéo ngược (\) trên Windows.
     apis: [
         path.join(__dirname, '../routes/*.js').replace(/\\/g, '/'),
         path.join(__dirname, '../routes/modules/*.js').replace(/\\/g, '/')

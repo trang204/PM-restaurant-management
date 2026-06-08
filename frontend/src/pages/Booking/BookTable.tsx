@@ -92,7 +92,10 @@ export default function BookTable() {
   const [menu, setMenu] = useState<MenuRow[]>([])
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })
   const [time, setTime] = useState('18:30')
   const [guestCount, setGuestCount] = useState(2)
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
@@ -393,10 +396,11 @@ export default function BookTable() {
             </div>
             <div className="bookGrid2">
               <label className="bookField">
-                <span>Họ và tên *</span>
+                <span>Họ và tên <span className="required-asterisk">*</span></span>
                 <input
                   required
                   autoComplete="name"
+                  className={fieldErrors.fullName ? 'input-error' : ''}
                   value={fullName}
                   onChange={(e) => {
                     setFieldErrors((prev) => ({ ...prev, fullName: '' }))
@@ -407,11 +411,12 @@ export default function BookTable() {
                 {fieldErrors.fullName ? <small className="bookField__error">{fieldErrors.fullName}</small> : null}
               </label>
               <label className="bookField">
-                <span>Số điện thoại *</span>
+                <span>Số điện thoại <span className="required-asterisk">*</span></span>
                 <input
                   required
                   type="tel"
                   autoComplete="tel"
+                  className={fieldErrors.phone ? 'input-error' : ''}
                   value={phone}
                   maxLength={10}
                   onChange={(e) => {
@@ -435,10 +440,11 @@ export default function BookTable() {
             </div>
             <div className="bookGrid2">
               <label className="bookField">
-                <span>Ngày *</span>
+                <span>Ngày <span className="required-asterisk">*</span></span>
                 <input
                   type="date"
                   required
+                  className={fieldErrors.date ? 'input-error' : ''}
                   value={date}
                   onChange={(e) => {
                     setFieldErrors((prev) => ({ ...prev, date: '' }))
@@ -448,10 +454,11 @@ export default function BookTable() {
                 {fieldErrors.date ? <small className="bookField__error">{fieldErrors.date}</small> : null}
               </label>
               <label className="bookField">
-                <span>Giờ *</span>
+                <span>Giờ <span className="required-asterisk">*</span></span>
                 <input
                   type="time"
                   required
+                  className={fieldErrors.time ? 'input-error' : ''}
                   value={time}
                   onChange={(e) => {
                     setFieldErrors((prev) => ({ ...prev, time: '' }))
@@ -463,8 +470,8 @@ export default function BookTable() {
             </div>
             <div style={{ marginTop: 16, marginLeft: 26, marginBottom: 16 }}>
               <label className="bookField bookField--guest">
-                <span>Số khách *</span>
-                <div className="bookQty" style={{ maxWidth: 160 }}>
+                <span>Số khách <span className="required-asterisk">*</span></span>
+                <div className={`bookQty ${fieldErrors.guestCount ? 'input-error' : ''}`} style={{ maxWidth: 160 }}>
                   <button type="button" onClick={() => bumpGuest(-1)} aria-label="Giảm">
                     −
                   </button>

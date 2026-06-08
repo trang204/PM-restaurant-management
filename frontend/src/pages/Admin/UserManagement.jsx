@@ -381,8 +381,9 @@ export default function UserManagement() {
               Chỉnh sửa người dùng
             </h2>
             <label className="user-mgmt__dialogField">
-              <span>Họ tên</span>
+              <span>Họ tên <span className="required-asterisk">*</span></span>
               <input
+                className={editErrors.fullName ? 'input-error' : ''}
                 value={editModal.fullName}
                 onChange={(e) => {
                   setEditErrors((prev) => ({ ...prev, fullName: '' }))
@@ -392,9 +393,10 @@ export default function UserManagement() {
               {editErrors.fullName ? <small className="user-mgmt__dialogError">{editErrors.fullName}</small> : null}
             </label>
             <label className="user-mgmt__dialogField">
-              <span>Email</span>
+              <span>Email <span className="required-asterisk">*</span></span>
               <input
                 type="email"
+                className={editErrors.email ? 'input-error' : ''}
                 value={editModal.email}
                 onChange={(e) => {
                   setEditErrors((prev) => ({ ...prev, email: '' }))
@@ -406,6 +408,7 @@ export default function UserManagement() {
             <label className="user-mgmt__dialogField">
               <span>Số điện thoại</span>
               <input
+                className={editErrors.phone ? 'input-error' : ''}
                 value={editModal.phone}
                 onChange={(e) => {
                   setEditErrors((prev) => ({ ...prev, phone: '' }))
@@ -474,9 +477,10 @@ export default function UserManagement() {
               Thêm {meta.label}
             </h2>
             <label className="user-mgmt__dialogField">
-              <span>Họ tên</span>
+              <span>Họ tên <span className="required-asterisk">*</span></span>
               <input
                 type="text"
+                className={addErrors.fullName ? 'input-error' : ''}
                 value={addForm.fullName}
                 onChange={(e) => {
                   setAddErrors((prev) => ({ ...prev, fullName: '' }))
@@ -486,10 +490,11 @@ export default function UserManagement() {
               {addErrors.fullName ? <small className="user-mgmt__dialogError">{addErrors.fullName}</small> : null}
             </label>
             <label className="user-mgmt__dialogField">
-              <span>Email</span>
+              <span>Email <span className="required-asterisk">*</span></span>
               <input
                 type="email"
                 autoComplete="off"
+                className={addErrors.email ? 'input-error' : ''}
                 value={addForm.email}
                 onChange={(e) => {
                   setAddErrors((prev) => ({ ...prev, email: '' }))
@@ -499,10 +504,11 @@ export default function UserManagement() {
               {addErrors.email ? <small className="user-mgmt__dialogError">{addErrors.email}</small> : null}
             </label>
             <label className="user-mgmt__dialogField">
-              <span>Mật khẩu</span>
+              <span>Mật khẩu <span className="required-asterisk">*</span></span>
               <input
                 type="password"
                 autoComplete="new-password"
+                className={addErrors.password ? 'input-error' : ''}
                 value={addForm.password}
                 onChange={(e) => {
                   setAddErrors((prev) => ({ ...prev, password: '' }))
@@ -515,6 +521,7 @@ export default function UserManagement() {
               <span>Số điện thoại</span>
               <input
                 type="text"
+                className={addErrors.phone ? 'input-error' : ''}
                 value={addForm.phone}
                 onChange={(e) => {
                   setAddErrors((prev) => ({ ...prev, phone: '' }))
