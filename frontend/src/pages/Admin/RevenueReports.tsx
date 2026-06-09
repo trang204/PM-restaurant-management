@@ -50,6 +50,7 @@ type InvoiceLine = {
 type InvoiceRow = {
   paymentId: number; orderId: number; amount: string | number
   method: string | null; paidAt: string; items: InvoiceLine[]
+  tableName?: string | null
   transactionCode?: string | null
   cashierId?: number | null
   cashierName?: string | null
