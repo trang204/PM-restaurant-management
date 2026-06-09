@@ -12,7 +12,6 @@ import * as adminReports from '../../controllers/admin/reports.admin.controller.
 import * as adminDashboard from '../../controllers/admin/dashboard.admin.controller.js'
 import * as adminSettings from '../../controllers/admin/settings.admin.controller.js'
 import * as adminTables from '../../controllers/admin/tables.admin.controller.js'
-import * as adminTableLayout from '../../controllers/admin/tableLayout.admin.controller.js'
 import * as adminKitchen from '../../controllers/admin/kitchen.admin.controller.js'
 import * as adminNotifications from '../../controllers/admin/notifications.admin.controller.js'
 import * as adminIngredients from '../../controllers/admin/ingredients.admin.controller.js'
@@ -393,27 +392,35 @@ router.post('/tables/:id/reopen', ...staff, adminTables.reopenTable)
 
 /**
  * @swagger
- * /admin/tables/layout/analyze-image:
- *   post:
- *     summary: Phân tích ảnh sơ đồ bàn bằng AI (Staff)
- *     tags: [Admin]
+ * /admin/tables/layout/bulk:
+ *   patch:
+ *     summary: Cập nhật vị trí nhiều bàn cùng lúc
+ *     tags: [Admin, Table]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
  *             type: object
  *             properties:
- *               image:
- *                 type: string
- *                 format: binary
+ *               layout:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     pos_x:
+ *                       type: number
+ *                     pos_y:
+ *                       type: number
  *     responses:
  *       200:
- *         description: Kết quả phân tích sơ đồ thành công
+ *         description: Cập nhật sơ đồ bàn thành công
  */
-router.post('/tables/layout/analyze-image', ...staff, upload.single('image'), adminTableLayout.analyzeImage)
+router.patch('/tables/layout/bulk', ...staff, adminTables.bulkUpdateLayout)
 
 /**
  * @swagger

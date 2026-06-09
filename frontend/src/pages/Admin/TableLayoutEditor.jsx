@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { analyzeTableLayoutImage, apiFetch } from '../../lib/api'
+import { apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import { getStatusLabel } from '../../lib/statusMapper'
 import './TableLayoutEditor.css'
@@ -70,12 +70,7 @@ export default function TableLayoutEditor() {
   const [draggingId, setDraggingId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [analyzingImage, setAnalyzingImage] = useState(false)
   const [err, setErr] = useState(null)
-  const [analysisError, setAnalysisError] = useState(null)
-  const [analysisWarnings, setAnalysisWarnings] = useState([])
-  const [analysisSource, setAnalysisSource] = useState('')
-  const [sourceImagePreview, setSourceImagePreview] = useState('')
   const canvasRef = useRef(null)
   const dragRef = useRef(null)
 
@@ -93,13 +88,7 @@ export default function TableLayoutEditor() {
       .finally(() => setLoading(false))
   }, [])
 
-  useEffect(() => {
-    return () => {
-      if (sourceImagePreview?.startsWith('blob:')) {
-        URL.revokeObjectURL(sourceImagePreview)
-      }
-    }
-  }, [sourceImagePreview])
+
 
   const dirty = useMemo(
     () =>
@@ -198,45 +187,7 @@ export default function TableLayoutEditor() {
     setPositions(Object.fromEntries(tables.map((table, index) => [table.id, theaterPosition(index)])))
   }
 
-  async function onImageSelected(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
 
-    if (sourceImagePreview?.startsWith('blob:')) {
-      URL.revokeObjectURL(sourceImagePreview)
-    }
-    const previewUrl = URL.createObjectURL(file)
-    setSourceImagePreview(previewUrl)
-    setAnalysisError(null)
-    setAnalysisWarnings([])
-    setAnalyzingImage(true)
-
-    try {
-      const result = await analyzeTableLayoutImage(file)
-      setAnalysisSource(result.source || '')
-      setAnalysisWarnings(Array.isArray(result.warnings) ? result.warnings : [])
-      setPositions((prev) => {
-        const next = { ...prev }
-        const detections = Array.isArray(result.detections) ? result.detections : []
-        tables.forEach((table, index) => {
-          const hit = detections[index]
-          if (!hit) return
-          next[table.id] = {
-            x: clamp(Math.round(Number(hit.x) || 0), PADDING, CANVAS_WIDTH - SEAT_WIDTH - PADDING),
-            y: clamp(Math.round(Number(hit.y) || 0), PADDING, CANVAS_HEIGHT - SEAT_HEIGHT - PADDING),
-          }
-        })
-        return next
-      })
-      toast('Đã tạo layout nháp từ ảnh. Bạn kiểm tra lại rồi bấm Lưu sơ đồ.', { variant: 'success' })
-    } catch (error) {
-      setAnalysisError(error.message)
-      toast(error.message, { variant: 'error' })
-    } finally {
-      setAnalyzingImage(false)
-      e.target.value = ''
-    }
-  }
 
   return (
     <div className="layout-editor">

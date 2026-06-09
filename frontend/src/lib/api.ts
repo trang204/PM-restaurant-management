@@ -18,7 +18,6 @@ export {
   uploadFoodImage,
   uploadUserAvatar,
   uploadTableImage,
-  analyzeTableLayoutImage,
 } from '../apis'
 
 export type { ApiError, ApiResponse } from '../apis'

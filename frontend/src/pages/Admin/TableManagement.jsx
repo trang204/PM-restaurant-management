@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { apiFetch, mediaUrl, uploadTableImage } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import AdminPagination from '../../components/AdminPagination'
+import DetailModal from '../../components/DetailModal/DetailModal'
 import { getStatusLabel } from '../../lib/statusMapper'
 import './TableManagement.css'
 
@@ -573,79 +574,72 @@ export default function TableManagement() {
       ) : null}
 
       {modalOpen ? (
-        <div
-          className="table-mgmt__backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="table-form-title"
-          onClick={closeFormModal}
-        >
-          <form className="table-mgmt__dialog" onSubmit={submitForm} onClick={(e) => e.stopPropagation()}>
-            <h2 id="table-form-title" className="table-mgmt__dialogTitle">
-              {editingId ? 'Sửa bàn' : 'Thêm bàn mới'}
-            </h2>
-            <label className="table-mgmt__field">
-              <span>Tên bàn <span className="required-asterisk">*</span></span>
-              <input
-                type="text"
-                required
-                value={form.name}
-                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-              />
-            </label>
-            <label className="table-mgmt__field">
-              <span>Khu vực</span>
-              <select
-                value={form.zone}
-                onChange={(e) => setForm((prev) => ({ ...prev, zone: e.target.value }))}
-              >
-                <option value="">Mặc định (không có khu vực)</option>
-                {zones.map((z) => (
-                  <option key={z.id} value={z.name}>{z.name}</option>
-                ))}
-              </select>
-            </label>
-            <label className="table-mgmt__field">
-              <span>Số khách / bàn <span className="required-asterisk">*</span></span>
-              <select value={form.capacity} onChange={(e) => setForm((prev) => ({ ...prev, capacity: e.target.value }))}>
-                {seatOptions.map((seat) => (
-                  <option key={seat} value={seat}>
-                    {seat} người
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="table-mgmt__field">
-              <span>Ảnh view bàn</span>
-              <input type="file" accept="image/*" onChange={onFileChange} />
-            </label>
-            <div className="table-mgmt__preview">
-              <img className="table-mgmt__previewImg" src={previewSrc} alt="Xem trước ảnh bàn" />
-            </div>
-            <div className="table-mgmt__dialogActions">
-              <button type="button" className="table-card__btn table-card__btn--secondary" onClick={closeFormModal}>
-                Hủy
-              </button>
-              <button type="submit" className="table-card__btn table-card__btn--primary">
-                Lưu
-              </button>
-            </div>
-          </form>
-        </div>
+        <DetailModal title={editingId ? 'Sửa bàn' : 'Thêm bàn mới'} onClose={closeFormModal}>
+          <DetailModal.Card>
+            <form className="table-mgmt__form" onSubmit={submitForm} noValidate>
+              <label className="table-mgmt__field">
+                <span>Tên bàn <span className="required-asterisk">*</span></span>
+                <input
+                  type="text"
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                />
+              </label>
+              <label className="table-mgmt__field">
+                <span>Khu vực</span>
+                <select
+                  value={form.zone}
+                  onChange={(e) => setForm((prev) => ({ ...prev, zone: e.target.value }))}
+                >
+                  <option value="">Mặc định (không có khu vực)</option>
+                  {zones.map((z) => (
+                    <option key={z.id} value={z.name}>{z.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="table-mgmt__field">
+                <span>Số khách / bàn <span className="required-asterisk">*</span></span>
+                <select value={form.capacity} onChange={(e) => setForm((prev) => ({ ...prev, capacity: e.target.value }))}>
+                  {seatOptions.map((seat) => (
+                    <option key={seat} value={seat}>
+                      {seat} người
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="table-mgmt__field">
+                <span>Ảnh view bàn</span>
+                <input type="file" accept="image/*" onChange={onFileChange} />
+              </label>
+              <div className="table-mgmt__preview">
+                <img className="table-mgmt__previewImg" src={previewSrc} alt="Xem trước ảnh bàn" />
+              </div>
+              <div className="table-mgmt__dialogActions">
+                <button type="button" className="table-card__btn table-card__btn--secondary" onClick={closeFormModal}>
+                  Hủy
+                </button>
+                <button type="submit" className="table-card__btn table-card__btn--primary">
+                  Lưu
+                </button>
+              </div>
+            </form>
+          </DetailModal.Card>
+        </DetailModal>
       ) : null}
 
       {closeModal ? (
-        <div
-          className="table-mgmt__backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="table-close-title"
-          onClick={() => setCloseModal(null)}
-        >
-          <div className="table-mgmt__dialog" onClick={(e) => e.stopPropagation()}>
-            <h2 id="table-close-title" className="table-mgmt__dialogTitle">
-              Bảo trì bàn
-            </h2>
+        <DetailModal title="Bảo trì bàn" onClose={() => setCloseModal(null)} footerActions={
+          <>
+            <button type="button" className="table-card__btn table-card__btn--secondary" onClick={() => setCloseModal(null)}>
+              Hủy
+            </button>
+            <button type="button" className="table-card__btn table-card__btn--primary" onClick={submitCloseTable}>
+              Xác nhận bảo trì
+            </button>
+          </>
+        }>
+          <DetailModal.Card>
             <p className="table-mgmt__dialogHint">
               Đánh dấu bàn không phục vụ (sự cố, vệ sinh…). Để gỡ khách và trả bàn trống, dùng mục Tiếp đón → Trả bàn.
             </p>
@@ -657,16 +651,8 @@ export default function TableManagement() {
               onChange={(e) => setCloseReason(e.target.value)}
               placeholder="Ví dụ: bảo trì, hỏng đèn…"
             />
-            <div className="table-mgmt__dialogActions">
-              <button type="button" className="table-card__btn table-card__btn--secondary" onClick={() => setCloseModal(null)}>
-                Hủy
-              </button>
-              <button type="button" className="table-card__btn table-card__btn--primary" onClick={submitCloseTable}>
-                Xác nhận bảo trì
-              </button>
-            </div>
-          </div>
-        </div>
+          </DetailModal.Card>
+        </DetailModal>
       ) : null}
     </div>
   )

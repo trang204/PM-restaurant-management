@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { apiFetch, mediaUrl, uploadFoodImage } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import AdminPagination from '../../components/AdminPagination'
+import DetailModal from '../../components/DetailModal/DetailModal'
 import { requiredMessage } from '../../lib/validation'
 import './MenuManagement.css'
 
@@ -696,12 +697,8 @@ export default function MenuManagement() {
       ) : null}
 
       {modalOpen ? (
-        <div className="menu-modal" role="dialog" aria-modal="true" aria-labelledby="menu-modal-title">
-          <div className="menu-modal__backdrop" onClick={closeModal} aria-hidden />
-          <div className="menu-modal__panel">
-            <h2 id="menu-modal-title" className="menu-modal__title">
-              {editingId ? 'Sửa món' : 'Thêm món'}
-            </h2>
+        <DetailModal title={editingId ? 'Sửa món' : 'Thêm món'} onClose={closeModal}>
+          <DetailModal.Card>
             <form className="menu-modal__form" onSubmit={saveItem} noValidate>
               <label className="menu-modal__field">
                 <span>Tên <span className="required-asterisk">*</span></span>
@@ -849,17 +846,29 @@ export default function MenuManagement() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+          </DetailModal.Card>
+        </DetailModal>
       ) : null}
 
       {detailItem ? (
-        <div className="menu-modal" role="dialog" aria-modal="true" aria-labelledby="menu-detail-title">
-          <div className="menu-modal__backdrop" onClick={closeDetail} aria-hidden />
-          <div className="menu-modal__panel menu-modal__panel--detail">
-            <h2 id="menu-detail-title" className="menu-modal__title">
-              Chi tiết món ăn
-            </h2>
+        <DetailModal title="Chi tiết món ăn" onClose={closeDetail} footerActions={
+          <>
+            <button type="button" className="menu-modal__cancel" onClick={closeDetail}>
+              Đóng
+            </button>
+            <button
+              type="button"
+              className="menu-modal__submit"
+              onClick={() => {
+                closeDetail()
+                openEdit(detailItem)
+              }}
+            >
+              Chỉnh sửa
+            </button>
+          </>
+        }>
+          <DetailModal.Card>
             <div className="menu-detail">
               <div className="menu-detail__imageWrap">
                 <img
@@ -938,24 +947,8 @@ export default function MenuManagement() {
                 </div>
               </div>
             </div>
-
-            <div className="menu-modal__footer">
-              <button type="button" className="menu-modal__cancel" onClick={closeDetail}>
-                Đóng
-              </button>
-              <button
-                type="button"
-                className="menu-modal__submit"
-                onClick={() => {
-                  closeDetail()
-                  openEdit(detailItem)
-                }}
-              >
-                Chỉnh sửa
-              </button>
-            </div>
-          </div>
-        </div>
+          </DetailModal.Card>
+        </DetailModal>
       ) : null}
     </div>
   )

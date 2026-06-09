@@ -17,27 +17,7 @@ export type Zone = {
   name: string
 }
 
-export type TableLayoutDetection = {
-  x: number
-  y: number
-  width: number
-  height: number
-  confidence: number
-  source?: string
-}
-
-export type AnalyzeTableLayoutResult = {
-  canvasWidth: number
-  canvasHeight: number
-  imageWidth: number
-  imageHeight: number
-  source: string
-  tableCount: number
-  mode: string
-  detections: TableLayoutDetection[]
-  warnings?: string[]
-}
-
+// removed
 // ─── Public ───────────────────────────────────────────────────────────────────
 
 export async function getPublicTables(): Promise<Table[]> {
@@ -127,18 +107,4 @@ export async function uploadTableImage(
   throw new Error(json.error?.message || 'Upload ảnh thất bại')
 }
 
-export async function analyzeTableLayoutImage(file: File): Promise<AnalyzeTableLayoutResult> {
-  const token = getToken()
-  const fd = new FormData()
-  fd.append('image', file)
-  fd.append('mode', 'layout_only')
-  const res = await fetch(`${API_BASE}/admin/tables/layout/analyze-image`, {
-    method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: fd,
-  })
-  const json = await res.json().catch(() => null)
-  if (!json) throw new Error('Invalid API response')
-  if (json.success) return json.data as AnalyzeTableLayoutResult
-  throw new Error(json.error?.message || 'Phân tích sơ đồ thất bại')
-}
+// removed
