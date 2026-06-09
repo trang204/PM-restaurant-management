@@ -66,3 +66,33 @@ export async function reopenTable(req, res, next) {
     return next(e)
   }
 }
+
+/**
+ * Cập nhật vị trí nhiều bàn cùng lúc
+ * Body: { layout: [{ id, pos_x, pos_y }] }
+ */
+export async function bulkUpdateLayout(req, res, next) {
+  try {
+    const { layout } = req.body || {}
+    if (!Array.isArray(layout)) {
+      throw badRequest('layout phải là một mảng')
+    }
+
+    await query('BEGIN')
+    try {
+      for (const item of layout) {
+        if (!item || typeof item.id !== 'number') continue
+        const posX = Number.isFinite(Number(item.pos_x)) ? Number(item.pos_x) : null
+        const posY = Number.isFinite(Number(item.pos_y)) ? Number(item.pos_y) : null
+        await query('UPDATE tables SET pos_x = $1, pos_y = $2 WHERE id = $3', [posX, posY, item.id])
+      }
+      await query('COMMIT')
+      return ok(res, { message: 'Cập nhật sơ đồ bàn thành công' })
+    } catch (err) {
+      await query('ROLLBACK')
+      throw err
+    }
+  } catch (e) {
+    return next(e)
+  }
+}
