@@ -87,7 +87,7 @@ export async function walkIn(req, res, next) {
         VALUES (NULL, $1::date, $2::time, $3, 'CHECKED_IN', $4, $5, $6)
         RETURNING id
       `,
-        [bDate, timeForDb, gCount, 'Walk-in (vãng lai)', name, phone],
+        [bDate, timeForDb, gCount, 'Khách vãng lai', name, phone],
       )
       const bid = ins.rows[0].id
       await client.query('INSERT INTO booking_tables (booking_id, table_id) VALUES ($1, $2)', [bid, tId])
@@ -636,7 +636,7 @@ export async function cashierPay(req, res, next) {
       // 1. Kiểm tra đơn đặt bàn
       const cur = await client.query('SELECT status FROM bookings WHERE id = $1 FOR UPDATE', [bookingId])
       if (!cur.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
-      
+
       const curStatus = String(cur.rows[0].status || '').toUpperCase()
       if (curStatus === 'COMPLETED') {
         throw badRequest('Đơn đặt bàn này đã được thanh toán hoàn thành trước đó.')

@@ -10,6 +10,7 @@ interface DetailModalProps {
   children: ReactNode
   footerActions?: ReactNode
   width?: string | number
+  height?: string | number
 }
 
 export default function DetailModal({
@@ -20,14 +21,22 @@ export default function DetailModal({
   children,
   footerActions,
   width = 800,
+  height= 'auto',
 }: DetailModalProps) {
   if (!isOpen) return null
+
+  const modalStyle: React.CSSProperties = {
+    width: width === 'auto' ? 'fit-content' : '100%',
+    maxWidth: width === 'auto' ? '95vw' : width,
+    height: height,
+    maxHeight: height === 'auto' ? 'calc(200vh - 48px)' : (height ? 'calc(200vh - 48px)' : '200vh')
+  }
 
   return (
     <div className="detail-modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
       <div 
         className="detail-modal-container" 
-        style={{ maxWidth: width }} 
+        style={modalStyle} 
         onClick={(e) => e.stopPropagation()}
       >
         <div className="detail-modal-header">
