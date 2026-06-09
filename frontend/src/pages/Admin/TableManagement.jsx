@@ -76,12 +76,12 @@ export default function TableManagement() {
   async function addZone(e) {
     e.preventDefault()
     const name = newZoneName.trim()
-    if (!name) return
-    const ok = await confirm({
-      title: 'Tạo khu vực',
-      message: `Xác nhận tạo khu vực "${name}"?`,
-    })
-    if (!ok) return
+    // if (!name) return
+    // const ok = await confirm({
+    //   title: 'Tạo khu vực',
+    //   message: `Xác nhận tạo khu vực "${name}"?`,
+    // })
+    // if (!ok) return
     setZoneLoading(true)
     try {
       await apiFetch('/zones', { method: 'POST', body: JSON.stringify({ name }) })
