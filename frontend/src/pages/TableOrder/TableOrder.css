@@ -113,7 +113,8 @@
 }
 
 .tableOrder__card--unavailable {
-  opacity: 0.85;
+  opacity: 0.55;
+  filter: grayscale(60%);
 }
 
 .tableOrder__eyebrow {
@@ -417,13 +418,33 @@
 
 .tableOrder__card:hover { box-shadow: 0 6px 24px rgba(28,23,19,0.1); transform: translateY(-2px); }
 
-.tableOrder__img {
+.tableOrder__imgWrap {
+  position: relative;
   width: 100%;
   height: 160px;
-  object-fit: cover;
-  background: linear-gradient(145deg, #F4ECE0, #EDE0CC);
   border-bottom: 1px solid var(--to-border);
+  background: linear-gradient(145deg, #F4ECE0, #EDE0CC);
+  overflow: hidden;
+}
+
+.tableOrder__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
+}
+
+.tableOrder__stockTag {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  background: rgba(28,23,19,0.82);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 999px;
 }
 
 .tableOrder__cardBody {

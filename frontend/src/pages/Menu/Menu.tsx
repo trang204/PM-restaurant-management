@@ -268,6 +268,11 @@ export default function Menu() {
                       src={resolveImageSrc(String(item.id), item.image_url || undefined)}
                       alt={item.name}
                       loading="lazy"
+                      onError={(e) => {
+                        if (e.currentTarget.src !== comtamUrl) {
+                          e.currentTarget.src = comtamUrl
+                        }
+                      }}
                     />
                     <span className="menuBadge" aria-label={`Danh mục ${item.category_name || ''}`}>
                       {item.category_name || 'Món'}

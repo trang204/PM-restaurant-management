@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { mediaUrl, publicApiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
+import fallbackImg from '../../assets/menu/comtam.svg?url'
 import { getStatusLabel } from '../../lib/statusMapper'
 import './TableOrder.css'
 
@@ -616,14 +617,19 @@ export default function TableOrder() {
                         key={String(m.id)}
                         className={`tableOrder__card${!isAvailable ? ' tableOrder__card--unavailable' : ''}`}
                       >
-                        <div
-                          className="tableOrder__img"
-                          style={
-                            m.image_url
-                              ? { backgroundImage: `url(${mediaUrl(m.image_url)})` }
-                              : undefined
-                          }
-                        />
+                        <div className="tableOrder__imgWrap">
+                          <img
+                            className="tableOrder__img"
+                            src={m.image_url ? mediaUrl(m.image_url) : fallbackImg}
+                            alt={m.name}
+                            onError={(e) => {
+                              if (e.currentTarget.src !== fallbackImg) {
+                                e.currentTarget.src = fallbackImg
+                              }
+                            }}
+                          />
+                          {!isAvailable && <span className="tableOrder__stockTag" aria-hidden>Hết món</span>}
+                        </div>
                         <div className="tableOrder__cardBody">
                           <div className="tableOrder__cardMeta">
                             <p className="tableOrder__catLabel">{m.category_name || 'Món'}</p>
