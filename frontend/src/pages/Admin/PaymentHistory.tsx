@@ -3,6 +3,7 @@ import { Search, SearchX, Receipt } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import AdminPagination from '../../components/AdminPagination'
 import { formatCurrency } from '../../lib/format'
+import DetailModal from '../../components/DetailModal/DetailModal'
 import './PaymentHistory.css'
 
 type InvoiceLine = {
@@ -37,7 +38,7 @@ export default function PaymentHistory() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   
-  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRow | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -123,82 +124,37 @@ export default function PaymentHistory() {
                 </thead>
                 <tbody>
                   {paged.map((row) => {
-                    const isExpanded = expandedId === row.paymentId
                     return (
-                      <React.Fragment key={row.paymentId}>
-                        <tr className={isExpanded ? 'payment-history__row--expanded' : ''}>
-                          <td><strong>#{row.paymentId}</strong></td>
-                          <td>#{row.orderId}</td>
-                          <td>
-                            {row.paidAt 
-                              ? new Date(row.paidAt).toLocaleString('vi-VN') 
-                              : '—'}
-                          </td>
-                          <td>
-                            <span className="payment-history__methodBadge">
-                              {methodLabel(row.method)}
-                            </span>
-                          </td>
-                          <td>{row.cashierName || 'Hệ thống'}</td>
-                          <td>{row.transactionCode || '—'}</td>
-                          <td style={{ textAlign: 'right' }}>
-                            <strong className="payment-history__money">
-                              {formatCurrency(Number(row.amount || 0))}
-                            </strong>
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <button 
-                              type="button"
-                              className="payment-history__toggleBtn"
-                              onClick={() => setExpandedId(isExpanded ? null : row.paymentId)}
-                            >
-                              {isExpanded ? 'Đóng' : 'Xem'}
-                            </button>
-                          </td>
-                        </tr>
-                        {isExpanded && (
-                          <tr className="payment-history__detailRow">
-                            <td colSpan={8}>
-                              <div className="payment-history__detailInner">
-                                <h4>Chi tiết món</h4>
-                                {Array.isArray(row.items) && row.items.length > 0 ? (
-                                  <table className="payment-history__itemsTable">
-                                    <thead>
-                                      <tr>
-                                        <th>Tên món</th>
-                                        <th>SL</th>
-                                        <th>Đơn giá</th>
-                                        <th style={{ textAlign: 'right' }}>Thành tiền</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {row.items.map((it, idx) => (
-                                        <tr key={idx}>
-                                          <td>{it.foodName}</td>
-                                          <td>{it.quantity}</td>
-                                          <td>{formatCurrency(Number(it.unitPrice || 0))}</td>
-                                          <td style={{ textAlign: 'right', fontWeight: 500 }}>
-                                            {formatCurrency(Number(it.lineTotal || 0))}
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                ) : (
-                                  <p>Không có chi tiết món.</p>
-                                )}
-                                
-                                <div className="payment-history__metaGrid">
-                                  <div><span>Thuế VAT:</span> <strong>{row.tax ? formatCurrency(Number(row.tax)) : '0 đ'}</strong></div>
-                                  <div><span>Giảm giá:</span> <strong>{row.discount ? `-${formatCurrency(Number(row.discount))}` : '0 đ'}</strong></div>
-                                  <div><span>Phụ thu:</span> <strong>{row.surcharge ? formatCurrency(Number(row.surcharge)) : '0 đ'}</strong></div>
-                                  <div><span>Ghi chú:</span> <strong>{row.note || 'Không có'}</strong></div>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
+                      <tr key={row.paymentId}>
+                        <td><strong>#{row.paymentId}</strong></td>
+                        <td>#{row.orderId}</td>
+                        <td>
+                          {row.paidAt 
+                            ? new Date(row.paidAt).toLocaleString('vi-VN') 
+                            : '—'}
+                        </td>
+                        <td>
+                          <span className="payment-history__methodBadge">
+                            {methodLabel(row.method)}
+                          </span>
+                        </td>
+                        <td>{row.cashierName || 'Hệ thống'}</td>
+                        <td>{row.transactionCode || '—'}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <strong className="payment-history__money">
+                            {formatCurrency(Number(row.amount || 0))}
+                          </strong>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button 
+                            type="button"
+                            className="payment-history__toggleBtn"
+                            onClick={() => setSelectedInvoice(row)}
+                          >
+                            Xem
+                          </button>
+                        </td>
+                      </tr>
                     )
                   })}
                 </tbody>
@@ -212,6 +168,56 @@ export default function PaymentHistory() {
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
             />
+
+            {selectedInvoice && (
+              <DetailModal
+                isOpen={!!selectedInvoice}
+                onClose={() => setSelectedInvoice(null)}
+                title={`Chi tiết thanh toán #${selectedInvoice.paymentId}`}
+                subtitle={`Đơn hàng #${selectedInvoice.orderId} - ${selectedInvoice.paidAt ? new Date(selectedInvoice.paidAt).toLocaleString('vi-VN') : '—'}`}
+                width={700}
+              >
+                <DetailModal.Card title="Chi tiết món">
+                  {Array.isArray(selectedInvoice.items) && selectedInvoice.items.length > 0 ? (
+                    <DetailModal.Table>
+                      <thead>
+                        <tr>
+                          <th>Tên món</th>
+                          <th>SL</th>
+                          <th>Đơn giá</th>
+                          <th style={{ textAlign: 'right' }}>Thành tiền</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedInvoice.items.map((it, idx) => (
+                          <tr key={idx}>
+                            <td>{it.foodName}</td>
+                            <td>{it.quantity}</td>
+                            <td>{formatCurrency(Number(it.unitPrice || 0))}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 500 }}>
+                              {formatCurrency(Number(it.lineTotal || 0))}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </DetailModal.Table>
+                  ) : (
+                    <p>Không có chi tiết món.</p>
+                  )}
+                </DetailModal.Card>
+
+                <DetailModal.Card title="Tổng quan">
+                  <DetailModal.Row label="Thuế VAT" value={selectedInvoice.tax ? formatCurrency(Number(selectedInvoice.tax)) : '0 đ'} />
+                  <DetailModal.Row label="Giảm giá" value={selectedInvoice.discount ? `-${formatCurrency(Number(selectedInvoice.discount))}` : '0 đ'} />
+                  <DetailModal.Row label="Phụ thu" value={selectedInvoice.surcharge ? formatCurrency(Number(selectedInvoice.surcharge)) : '0 đ'} />
+                  <DetailModal.Row label="Ghi chú" value={selectedInvoice.note || 'Không có'} />
+                  <div style={{ borderTop: '1px solid #eee', paddingTop: 12, marginTop: 12, display: 'flex', justifyContent: 'space-between', fontWeight: 600, fontSize: '1.1rem', color: 'var(--primary-color)' }}>
+                    <span>Tổng cộng</span>
+                    <span>{formatCurrency(Number(selectedInvoice.amount || 0))}</span>
+                  </div>
+                </DetailModal.Card>
+              </DetailModal>
+            )}
           </>
         )}
       </div>
