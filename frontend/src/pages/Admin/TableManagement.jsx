@@ -574,7 +574,7 @@ export default function TableManagement() {
       ) : null}
 
       {modalOpen ? (
-        <DetailModal title={editingId ? 'Sửa bàn' : 'Thêm bàn mới'} onClose={closeFormModal}>
+        <DetailModal isOpen={true} title={editingId ? 'Sửa bàn' : 'Thêm bàn mới'} onClose={closeFormModal}>
           <DetailModal.Card>
             <form className="table-mgmt__form" onSubmit={submitForm} noValidate>
               <label className="table-mgmt__field">
@@ -629,7 +629,7 @@ export default function TableManagement() {
       ) : null}
 
       {closeModal ? (
-        <DetailModal title="Bảo trì bàn" onClose={() => setCloseModal(null)} footerActions={
+        <DetailModal isOpen={true} title="Bảo trì bàn" onClose={() => setCloseModal(null)} footerActions={
           <>
             <button type="button" className="table-card__btn table-card__btn--secondary" onClick={() => setCloseModal(null)}>
               Hủy

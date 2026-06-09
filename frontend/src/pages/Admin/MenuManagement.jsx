@@ -697,7 +697,7 @@ export default function MenuManagement() {
       ) : null}
 
       {modalOpen ? (
-        <DetailModal title={editingId ? 'Sửa món' : 'Thêm món'} onClose={closeModal}>
+        <DetailModal isOpen={true} title={editingId ? 'Sửa món' : 'Thêm món'} onClose={closeModal}>
           <DetailModal.Card>
             <form className="menu-modal__form" onSubmit={saveItem} noValidate>
               <label className="menu-modal__field">
@@ -851,7 +851,7 @@ export default function MenuManagement() {
       ) : null}
 
       {detailItem ? (
-        <DetailModal title="Chi tiết món ăn" onClose={closeDetail} footerActions={
+        <DetailModal isOpen={true} title="Chi tiết món ăn" onClose={closeDetail} footerActions={
           <>
             <button type="button" className="menu-modal__cancel" onClick={closeDetail}>
               Đóng
