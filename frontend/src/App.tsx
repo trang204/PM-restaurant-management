@@ -22,6 +22,7 @@ import MenuManagement from './pages/Admin/MenuManagement.jsx'
 import UserManagement from './pages/Admin/UserManagement.jsx'
 import Settings from './pages/Admin/Settings.jsx'
 import RevenueReports from './pages/Admin/RevenueReports'
+import PaymentHistory from './pages/Admin/PaymentHistory'
 import IngredientManagement from './pages/Admin/IngredientManagement.jsx'
 import TableOrder from './pages/TableOrder/TableOrder'
 
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="users/:group" element={<UserManagement />} />
         <Route path="settings" element={<Settings />} />
         <Route path="reports" element={<RevenueReports />} />
+        <Route path="payments" element={<PaymentHistory />} />
         <Route path="kitchen" element={<KitchenOrders />} />
       </Route>
 

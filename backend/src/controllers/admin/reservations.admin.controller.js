@@ -630,7 +630,7 @@ export async function cashierPay(req, res, next) {
     if (!Number.isFinite(bookingId)) throw badRequest('id không hợp lệ')
 
     const { amount, transactionCode, note, tax, discount, surcharge } = req.body || {}
-    const cashierId = req.user?.id || null
+    const cashierId = req.user?.sub ? Number(req.user.sub) : null
 
     const pay = await withTransaction(async (client) => {
       // 1. Kiểm tra đơn đặt bàn

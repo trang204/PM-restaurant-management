@@ -145,7 +145,7 @@ export async function revenueByTable(req, res, next) {
 /** Danh sách thanh toán PAID trong khoảng ngày + từng dòng món (cho báo cáo chi tiết). */
 export async function revenueInvoices(req, res, next) {
   try {
-    const { from, to } = req.query || {}
+    const { from, to, tableId } = req.query || {}
     const fromDate = from ? String(from) : null
     const toDate = to ? String(to) : null
 
@@ -159,6 +159,10 @@ export async function revenueInvoices(req, res, next) {
     if (toDate) {
       params.push(toDate)
       where.push(`p.paid_at < ($${params.length}::date + INTERVAL '1 day')`)
+    }
+    if (tableId) {
+      params.push(tableId)
+      where.push(`o.table_id = $${params.length}`)
     }
 
     const result = await query(
@@ -176,6 +180,12 @@ export async function revenueInvoices(req, res, next) {
         p.tax::numeric AS tax,
         p.discount::numeric AS discount,
         p.surcharge::numeric AS surcharge,
+        (
+          SELECT string_agg(t.name, ', ')
+          FROM booking_tables bt
+          JOIN tables t ON t.id = bt.table_id
+          WHERE bt.booking_id = o.booking_id
+        ) AS "tableName",
         COALESCE(
           (
             SELECT json_agg(
@@ -193,6 +203,7 @@ export async function revenueInvoices(req, res, next) {
           '[]'::json
         ) AS items
       FROM payments p
+      LEFT JOIN orders o ON o.id = p.order_id
       LEFT JOIN users u ON u.id = p.cashier_id
       WHERE ${where.join(' AND ')}
       ORDER BY p.paid_at DESC, p.id DESC

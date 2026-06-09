@@ -125,7 +125,7 @@ function BankSelect({ value, onChange }) {
         ) : (
           <span className="bank-select__placeholder">— Chọn ngân hàng —</span>
         )}
-        <span className="bank-select__arrow">{open ? '▲' : '▼'}</span>
+        <span className="bank-select__arrow">{open}</span>
       </button>
 
       {open ? (

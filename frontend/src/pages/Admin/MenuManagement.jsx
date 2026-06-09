@@ -375,7 +375,7 @@ export default function MenuManagement() {
     for (const it of items) {
       const st = String(it.status || 'AVAILABLE').toUpperCase()
       const out = st === 'UNAVAILABLE'
-      if (filterStatus === 'in_stock' && out) continue
+      if (filterStatus === 'in_stock' && out ) continue
       if (filterStatus === 'out_of_stock' && !out) continue
       const name = String(it.name || '').toLowerCase()
       const categoryName = String(it.category_name || '').toLowerCase()

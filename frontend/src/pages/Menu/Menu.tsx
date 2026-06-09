@@ -58,15 +58,24 @@ export default function Menu() {
   const [myTable, setMyTable] = useState<null | { tableName: string; url: string }>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [publicInfo, setPublicInfo] = useState<{ openTime?: string | null; closeTime?: string | null } | null>(null)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    Promise.all([apiFetch<ApiMenuItem[]>('/menu'), apiFetch<CategoryRow[]>('/menu/categories')])
-      .then(([data, cats]) => {
+    Promise.all([
+      apiFetch<ApiMenuItem[]>('/menu'),
+      apiFetch<CategoryRow[]>('/menu/categories'),
+      import('../../lib/settings').then(m => m.fetchPublicSettings())
+    ])
+      .then(([data, cats, settings]) => {
         if (cancelled) return
         setItems(Array.isArray(data) ? data : [])
         setCategories(Array.isArray(cats) ? cats : [])
+        setPublicInfo({
+          openTime: settings.openTime,
+          closeTime: settings.closeTime,
+        })
       })
       .catch((e) => {
         if (!cancelled) setError((e as Error).message)
@@ -136,7 +145,9 @@ export default function Menu() {
         <div className="menuHero__meta" aria-label="Thông tin nhanh">
           <div className="menuPill">
             <span className="menuPill__label">Giờ mở cửa</span>
-            <span className="menuPill__value">08:00 – 22:00</span>
+            <span className="menuPill__value">
+              {publicInfo?.openTime && publicInfo?.closeTime ? `${publicInfo.openTime} – ${publicInfo.closeTime}` : 'Hàng ngày'}
+            </span>
           </div>
           {myTable ? (
             <div className="menuPill">

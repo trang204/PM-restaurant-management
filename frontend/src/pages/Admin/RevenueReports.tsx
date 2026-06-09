@@ -343,6 +343,13 @@ export default function RevenueReports() {
     const q = new URLSearchParams()
     if (from) q.set('from', from)
     if (to) q.set('to', to)
+    
+    let currentTable: TableRow | undefined = undefined
+    if (activeTab === 'table' && expandedTable) {
+      q.set('tableId', String(expandedTable))
+      currentTable = tableData.find(t => (t.tableId ?? t.tableName) === expandedTable)
+    }
+
     const rows = await apiFetch<InvoiceRow[]>(`/admin/reports/revenue/invoices?${q}`)
 
     const wb = new ExcelJS.Workbook()
@@ -364,30 +371,77 @@ export default function RevenueReports() {
     ws1.getRow(1).eachCell(c => { c.font = headerStyle.font; c.fill = headerStyle.fill; c.alignment = headerStyle.alignment })
     
     ws1.addRow({ metric: 'Khoảng thời gian', value: `${from || '—'} đến ${to || '—'}` })
-    ws1.addRow({ metric: 'Tổng doanh thu', value: total }).getCell('value').numFmt = currencyFormat
-    ws1.addRow({ metric: 'Số đơn', value: invoiceCount })
-    ws1.addRow({ metric: 'Giá trị trung bình', value: averageOrderValue }).getCell('value').numFmt = currencyFormat
-    ws1.addRow({ metric: 'Kỳ trước', value: previousTotal }).getCell('value').numFmt = currencyFormat
-    ws1.addRow({ metric: 'Tăng trưởng', value: formatPercent(total, previousTotal) })
+    
+    let exportTotal = total
+    let exportCount = invoiceCount
+    let exportAvg = averageOrderValue
+    let exportPrevTotal: number | null = previousTotal
+
+    if (activeTab === 'table') {
+      if (currentTable) {
+        ws1.addRow({ metric: 'Bàn báo cáo', value: currentTable.tableName })
+        exportTotal = Number(currentTable.total || 0)
+        exportCount = currentTable.invoiceCount || 0
+        exportAvg = exportCount > 0 ? exportTotal / exportCount : 0
+        exportPrevTotal = null // No previous total available for a specific table
+      } else {
+        exportTotal = tableTotal
+        exportCount = tableData.reduce((s, r) => s + r.invoiceCount, 0)
+        exportAvg = exportCount > 0 ? exportTotal / exportCount : 0
+        exportPrevTotal = null
+      }
+    }
+
+    ws1.addRow({ metric: 'Tổng doanh thu', value: exportTotal }).getCell('value').numFmt = currencyFormat
+    ws1.addRow({ metric: 'Số đơn', value: exportCount })
+    ws1.addRow({ metric: 'Giá trị trung bình', value: exportAvg }).getCell('value').numFmt = currencyFormat
+    
+    if (exportPrevTotal !== null) {
+      ws1.addRow({ metric: 'Kỳ trước', value: exportPrevTotal }).getCell('value').numFmt = currencyFormat
+      ws1.addRow({ metric: 'Tăng trưởng', value: formatPercent(exportTotal, exportPrevTotal) })
+    }
 
     // 2. BIỂU ĐỒ SHEET
-    const ws2 = wb.addWorksheet('Doanh_thu_theo_ky')
-    ws2.columns = [
-      { header: 'STT', key: 'stt', width: 10 },
-      { header: 'Kỳ báo cáo', key: 'ky', width: 20 },
-      { header: 'Ngày gốc', key: 'ngay', width: 15 },
-      { header: 'Doanh thu', key: 'doanhthu', width: 20 }
-    ]
-    ws2.getRow(1).eachCell(c => { c.font = headerStyle.font; c.fill = headerStyle.fill; c.alignment = headerStyle.alignment })
-    series.forEach((s, i) => {
-      const row = ws2.addRow({
-        stt: i + 1,
-        ky: formatAxisLabel(String(s.date), groupBy),
-        ngay: String(s.date).slice(0, 10),
-        doanhthu: Number(s.revenue)
+    if (activeTab === 'period') {
+      const ws2 = wb.addWorksheet('Doanh_thu_theo_ky')
+      ws2.columns = [
+        { header: 'STT', key: 'stt', width: 10 },
+        { header: 'Kỳ báo cáo', key: 'ky', width: 20 },
+        { header: 'Ngày gốc', key: 'ngay', width: 15 },
+        { header: 'Doanh thu', key: 'doanhthu', width: 20 }
+      ]
+      ws2.getRow(1).eachCell(c => { c.font = headerStyle.font; c.fill = headerStyle.fill; c.alignment = headerStyle.alignment })
+      series.forEach((s, i) => {
+        const row = ws2.addRow({
+          stt: i + 1,
+          ky: formatAxisLabel(String(s.date), groupBy),
+          ngay: String(s.date).slice(0, 10),
+          doanhthu: Number(s.revenue)
+        })
+        row.getCell('doanhthu').numFmt = currencyFormat
       })
-      row.getCell('doanhthu').numFmt = currencyFormat
-    })
+    } else {
+      const ws2 = wb.addWorksheet('Doanh_thu_theo_ban')
+      ws2.columns = [
+        { header: 'STT', key: 'stt', width: 10 },
+        { header: 'Tên bàn', key: 'tenban', width: 20 },
+        { header: 'Số hóa đơn', key: 'sohd', width: 15 },
+        { header: 'Doanh thu', key: 'doanhthu', width: 20 }
+      ]
+      ws2.getRow(1).eachCell(c => { c.font = headerStyle.font; c.fill = headerStyle.fill; c.alignment = headerStyle.alignment })
+      let displayTableData = tableData
+      if (currentTable) displayTableData = [currentTable]
+      
+      displayTableData.forEach((tr, i) => {
+        const row = ws2.addRow({
+          stt: i + 1,
+          tenban: tr.tableName,
+          sohd: tr.invoiceCount,
+          doanhthu: Number(tr.total)
+        })
+        row.getCell('doanhthu').numFmt = currencyFormat
+      })
+    }
 
     // 3. HÓA ĐƠN SHEET
     const ws3 = wb.addWorksheet('Hoa_don')
@@ -395,6 +449,7 @@ export default function RevenueReports() {
       { header: 'STT', key: 'stt', width: 10 },
       { header: 'Mã TT', key: 'matt', width: 15 },
       { header: 'Mã đơn', key: 'madon', width: 15 },
+      { header: 'Bàn', key: 'ban', width: 20 },
       { header: 'Phương thức', key: 'pt', width: 20 },
       { header: 'Thời gian TT', key: 'time', width: 20 },
       { header: 'Số tiền', key: 'tien', width: 20 }
@@ -405,6 +460,7 @@ export default function RevenueReports() {
         stt: i + 1,
         matt: r.paymentId,
         madon: r.orderId,
+        ban: r.tableName || '—',
         pt: methodLabel(r.method),
         time: formatDateTimeExport(r.paidAt),
         tien: Number(r.amount)
@@ -417,6 +473,7 @@ export default function RevenueReports() {
     ws4.columns = [
       { header: 'Mã TT', key: 'matt', width: 15 },
       { header: 'Mã đơn', key: 'madon', width: 15 },
+      { header: 'Bàn', key: 'ban', width: 20 },
       { header: 'Thời gian TT', key: 'time', width: 20 },
       { header: 'Phương thức', key: 'pt', width: 20 },
       { header: 'Món ăn', key: 'mon', width: 30 },
@@ -431,6 +488,7 @@ export default function RevenueReports() {
         const row = ws4.addRow({
           matt: idx === 0 ? r.paymentId : '',
           madon: idx === 0 ? r.orderId : '',
+          ban: idx === 0 ? (r.tableName || '—') : '',
           time: idx === 0 ? formatDateTimeExport(r.paidAt) : '',
           pt: idx === 0 ? methodLabel(r.method) : '',
           mon: item.foodName,
@@ -445,7 +503,30 @@ export default function RevenueReports() {
 
     const buffer = await wb.xlsx.writeBuffer()
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-    saveAs(blob, `bao-cao-doanh-thu-${from || 'all'}-${to || 'all'}.xlsx`)
+    
+    let filename = 'doanh-thu'
+    if (currentTable) {
+      filename += `-ban-${currentTable.tableName.replace(/\s+/g, '-').toLowerCase()}`
+    }
+    
+    if (from && to && from === to) {
+      filename += `-ngay-${from}`
+    } else if (from && to && from.substring(0, 7) === to.substring(0, 7)) {
+      // Same month
+      const [y, m, dFrom] = from.split('-')
+      const [y2, m2, dTo] = to.split('-')
+      if (dFrom === '01' && Number(dTo) >= 28) { // basic check for full month
+        filename += `-thang-${m}-${y}`
+      } else {
+        filename += `-${from}-den-${to}`
+      }
+    } else if (from && to && from.substring(0, 4) === to.substring(0, 4) && from.endsWith('-01-01') && to.endsWith('-12-31')) {
+      filename += `-nam-${from.substring(0, 4)}`
+    } else {
+      filename += `-${from || 'all'}-den-${to || 'all'}`
+    }
+    
+    saveAs(blob, `${filename}.xlsx`)
   }
 
   function openPeriodDetail(row: SeriesRow) {
@@ -499,7 +580,20 @@ export default function RevenueReports() {
                 <button
                   key={k} type="button"
                   className={`rev-report__tab${groupBy === k ? ' rev-report__tab--on' : ''}`}
-                  onClick={() => setGroupBy(k)}
+                  onClick={() => {
+                    setGroupBy(k)
+                    const now = new Date()
+                    const Y = now.getFullYear()
+                    const M = now.getMonth() + 1
+                    if (k === 'month') {
+                      const last = new Date(Y, M, 0).getDate()
+                      setFrom(ymd(Y, M, 1))
+                      setTo(ymd(Y, M, last))
+                    } else if (k === 'year') {
+                      setFrom(`${Y}-01-01`)
+                      setTo(`${Y}-12-31`)
+                    }
+                  }}
                 >
                   {k === 'day' ? 'Ngày' : k === 'month' ? 'Tháng' : 'Năm'}
                 </button>

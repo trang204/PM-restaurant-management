@@ -481,7 +481,9 @@ export default function TableManagement() {
                 </div>
               ) : null}
               <div className="table-card__top">
-                <h2 className="table-card__name">{t.name}</h2>
+                <h2 className="table-card__name">
+                  {t.name} {t.zone && t.zone !== 'Mặc định' ? `(${t.zone})` : ''}
+                </h2>
                 <span className={st.className}>{st.label}</span>
               </div>
               {t.zone ? (

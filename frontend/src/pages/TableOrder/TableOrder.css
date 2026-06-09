@@ -657,9 +657,9 @@
   color: var(--to-gold-d);
   font-weight: 600;
 }
-.tableOrder__btn--outline:hover:not(:disabled) {
+/* .tableOrder__btn--outline:hover:not(:disabled) {
   background: var(--to-gold-s);
-}
+} */
 
 .tableOrder__payRow {
   display: flex;

@@ -148,10 +148,10 @@
   color: var(--mn-text);
 }
 
-.menu-mgmt__filterBtn--active {
-  background: var(--mn-gold-s);
-  color: var(--mn-gold-d);
-  border-color: rgba(184,147,90,0.35);
+.menu-mgmt__filterBtn.menu-mgmt__filterBtn--active {
+  background: #fff3cd;
+  border-color: #f8d7da;
+  color: #856404;
 }
 
 /* ─── Category Manager ─── */

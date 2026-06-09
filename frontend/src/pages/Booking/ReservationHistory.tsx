@@ -3,7 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Calendar, MapPin, Pin, Users } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import { normalizeReservation, type ReservationRow } from '../../lib/reservation'
-import ReservationDetailView, { StatusBadge } from './ReservationDetailView'
+import ReservationDetailView from './ReservationDetailView'
+import StatusBadge from '../../components/StatusBadge/StatusBadge'
 
 function formatDateVi(isoDate: string) {
   const s = String(isoDate || '').trim()
@@ -128,7 +129,7 @@ export default function ReservationHistory() {
                   </div>
                   <div>
                     <MapPin size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
-                    {r.tables?.length ? `Bàn ${r.tables.join(', ')}` : r.assignedTableId ? `Bàn ${r.assignedTableId}` : 'Chưa gán bàn'}
+                    {r.tables?.length ? `${r.tables.join(', ')}`: r.assignedTableId ? ` ${r.assignedTableId}` : 'Chưa gán bàn'}
                   </div>
                   <div>
                     <Pin size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
