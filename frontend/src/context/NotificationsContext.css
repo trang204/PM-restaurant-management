@@ -3,14 +3,12 @@
 /* ─── Toast Region ─── */
 .notify-toastRegion {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  pointer-events: none;
-  width: min(380px, calc(100vw - 32px));
+    top: 70px; /* Cách mép trên màn hình 20px */
+    right:2%;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column; /* Xếp các toast theo hàng dọc */
+    gap: 10px;
 }
 
 /* ─── Toast ─── */
@@ -146,7 +144,7 @@
   border-radius: 16px;
   box-shadow: 0 24px 64px rgba(28,23,19,0.2);
   width: min(420px, 100%);
-  padding: 28px;
+  padding: 26px 28px 22px;
   animation: confirmIn 0.22s cubic-bezier(.2,.8,.3,1);
 }
 
@@ -162,16 +160,33 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 16px;
+  margin: 0 auto 16px;
 }
 
 .notify-confirm__icon--warning { background: #FEF9EC; color: #92600A; }
 .notify-confirm__icon--danger  { background: #FEF3F2; color: #C0392B; }
 .notify-confirm__icon--info    { background: #F4ECE0; color: #8B6E41; }
 
+.notify-confirm__header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.notify-confirm__textBlock {
+  width: 100%;
+}
+
+.notify-confirm__msg--lead {
+  margin: 0 0 8px;
+  color: #4c433d;
+  font-size: 0.95rem;
+}
+
 .notify-confirm__title {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 1.15rem;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 1.32rem;
   font-weight: 600;
   color: #1C1713;
   margin: 0 0 10px;
@@ -184,6 +199,46 @@
   line-height: 1.6;
   margin: 0 0 24px;
 }
+
+/* Detail box (profile-like) */
+.notify-confirm__detailBox {
+  border: 1px solid #F0E6DE;
+  background: #FFF9F5;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+.notify-confirm__detailRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dashed rgba(28,23,19,0.04);
+}
+.notify-confirm__detailRow:last-child { border-bottom: none; }
+.notify-confirm__detailLabel {
+  color: #6B5A50;
+  font-size: 0.78rem;
+}
+.notify-confirm__detailValue {
+  color: #1C1713;
+  font-weight: 700;
+}
+
+/* Warning paragraph */
+.notify-confirm__warning {
+  color: #B22222;
+  background: rgba(242,212,211,0.35);
+  border: 1px solid rgba(194,58,48,0.08);
+  padding: 12px 14px;
+  border-radius: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0 0 18px;
+  font-family: 'times new roman', times, serif;
+}
+.notify-confirm__warningIcon { color: #B22222; margin-top: 2px; display: inline-flex }
 
 .notify-confirm__actions {
   display: flex;
@@ -216,7 +271,13 @@
   box-shadow: 0 3px 12px rgba(184,147,90,0.3);
 }
 
-.notify-confirm__btn--confirm:hover { filter: brightness(1.06); border-color: transparent; }
+.notify-confirm__btn.notify-confirm__btn--confirm:hover {
+  background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 3px 12px rgba(184,147,90,0.3);
+  filter: brightness(1.06);
+}
 
 .notify-confirm__btn--danger {
   background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
@@ -225,7 +286,13 @@
   box-shadow: 0 3px 12px rgba(192,57,43,0.28);
 }
 
-.notify-confirm__btn--danger:hover { filter: brightness(1.06); border-color: transparent; }
+.notify-confirm__btn.notify-confirm__btn--danger:hover {
+  background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 3px 12px rgba(192,57,43,0.28);
+  filter: brightness(1.06);
+}
 
 /* ─── Responsive ─── */
 @media (max-width: 480px) {

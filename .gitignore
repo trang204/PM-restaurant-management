@@ -1,4 +1,6 @@
 backend/.env
 backend/*.log
 node_modules/
-
+hdmail
+sequence
+database

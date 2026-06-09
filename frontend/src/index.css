@@ -4,6 +4,14 @@
 /* ─── Reset & Base ─── */
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Tránh highlight mặc định (đặc biệt trên WebKit) khi nhấn nút */
+button,
+input[type='button'],
+input[type='reset'],
+input[type='submit'] {
+  -webkit-tap-highlight-color: transparent;
+}
+
 body { margin: 0; }
 
 html {
@@ -87,3 +95,7 @@ code {
   border: none;
   margin: 0;
 }
+
+.required-asterisk { color: red; margin-left: 4px; }
+.input-error { border-color: red !important; }
+

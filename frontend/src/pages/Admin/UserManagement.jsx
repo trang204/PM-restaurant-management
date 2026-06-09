@@ -3,7 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { apiFetch, mediaUrl, uploadUserAvatar } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import AdminPagination from '../../components/AdminPagination'
-import { requiredMessage } from '../../lib/validation'
+import { requiredMessage, validatePhone } from '../../lib/validation'
+import { getStatusLabel, USER_STATUS } from '../../lib/statusMapper'
+import DetailModal from '../../components/DetailModal/DetailModal'
 import './UserManagement.css'
 
 const roles = ['CUSTOMER', 'STAFF', 'ADMIN']
@@ -15,10 +17,7 @@ const ROLE_LABELS = {
   ADMIN: 'Quản trị viên',
 }
 
-const STATUS_LABELS = {
-  ACTIVE: 'Hoạt động',
-  LOCKED: 'Bị khóa',
-}
+
 
 function groupMeta(group) {
   const g = String(group || 'customers').toLowerCase()
@@ -108,6 +107,9 @@ export default function UserManagement() {
     if (!String(editModal.fullName || '').trim()) nextErrors.fullName = requiredMessage('Họ tên')
     if (!String(editModal.email || '').trim()) nextErrors.email = requiredMessage('Email')
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(editModal.email).trim())) nextErrors.email = 'Email không hợp lệ'
+    const phoneErr = validatePhone(editModal.phone)
+    if (phoneErr) nextErrors.phone = phoneErr
+
     if (Object.keys(nextErrors).length) {
       setEditErrors(nextErrors)
       return
@@ -134,6 +136,7 @@ export default function UserManagement() {
       setEditModal(null)
       setAvatarFile(null)
       setAvatarPreview('')
+      toast('Cập nhật người dùng thành công', { variant: 'success' })
       load()
     } catch (e) {
       toast(e.message, { variant: 'error' })
@@ -141,10 +144,19 @@ export default function UserManagement() {
   }
 
   async function deleteUser(id) {
-    const okDel = await confirm({ title: 'Xóa người dùng', message: 'Xóa người dùng này?' })
+    const okDel = await confirm({
+      title: 'Xóa người dùng',
+      message: 'Bạn có chắc chắn muốn xóa người dùng này?',
+      danger: true,
+      fields: [{ label: 'ID', value: String(id) }],
+      warningText: 'Hành động này không thể hoàn tác. Người dùng sẽ bị xóa khỏi hệ thống và các dữ liệu liên quan có thể bị ảnh hưởng.',
+      confirmLabel: 'Xóa',
+      cancelLabel: 'Hủy',
+    })
     if (!okDel) return
     try {
       await apiFetch(`/admin/users/${id}`, { method: 'DELETE' })
+      toast('Xóa người dùng thành công', { variant: 'success' })
       load()
     } catch (e) {
       toast(e.message, { variant: 'error' })
@@ -169,6 +181,9 @@ export default function UserManagement() {
     if (!email) nextErrors.email = requiredMessage('Email')
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) nextErrors.email = 'Email không hợp lệ'
     if (!password) nextErrors.password = requiredMessage('Mật khẩu')
+    const phoneErr = validatePhone(phone)
+    if (phoneErr) nextErrors.phone = phoneErr
+
     if (Object.keys(nextErrors).length) {
       setAddErrors(nextErrors)
       return
@@ -193,6 +208,7 @@ export default function UserManagement() {
       setAddForm({ email: '', password: '', fullName: '', phone: '', status: 'ACTIVE', role: meta.role })
       setAvatarFile(null)
       setAvatarPreview('')
+      toast('Tạo người dùng thành công', { variant: 'success' })
       load()
     } catch (e) {
       toast(e.message, { variant: 'error' })
@@ -241,7 +257,6 @@ export default function UserManagement() {
       <header className="user-mgmt__header">
         <div>
           <h1 className="user-mgmt__title">Người dùng · {meta.label}</h1>
-          <p className="user-mgmt__subtitle">Tìm theo họ tên, email hoặc số điện thoại.</p>
         </div>
         <div className="user-mgmt__headRight">
           <button type="button" className="user-mgmt__add" onClick={openAddModal}>
@@ -277,12 +292,12 @@ export default function UserManagement() {
           <option value="ALL">Tất cả trạng thái</option>
           {statuses.map((status) => (
             <option key={status} value={status}>
-              {STATUS_LABELS[status]}
+              {getStatusLabel(status, 'user')}
             </option>
           ))}
         </select>
         <input className="user-mgmt__date" type="date" value={createdFrom} onChange={(e) => setCreatedFrom(e.target.value)} />
-        <input className="user-mgmt__date" type="date" value={createdTo} onChange={(e) => setCreatedTo(e.target.value)} />
+        {/* <input className="user-mgmt__date" type="date" value={createdTo} onChange={(e) => setCreatedTo(e.target.value)} /> */}
       </div>
 
       {loading ? <p>Đang tải...</p> : null}
@@ -321,7 +336,7 @@ export default function UserManagement() {
                 <td data-label="Ngày tạo">{formatDate(u.created_at)}</td>
                 <td data-label="Trạng thái">
                   <span className="user-mgmt__status" data-status={u.status}>
-                    {STATUS_LABELS[u.status] || u.status || '—'}
+                    {getStatusLabel(u.status, 'user')}
                   </span>
                 </td>
                 <td data-label="Vai trò">
@@ -355,20 +370,12 @@ export default function UserManagement() {
       ) : null}
 
       {editModal ? (
-        <div
-          className="user-mgmt__backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="user-edit-title"
-          onClick={() => setEditModal(null)}
-        >
-          <div className="user-mgmt__dialog" onClick={(e) => e.stopPropagation()}>
-            <h2 id="user-edit-title" className="user-mgmt__dialogTitle">
-              Chỉnh sửa người dùng
-            </h2>
+        <DetailModal title="Chỉnh sửa người dùng" onClose={() => setEditModal(null)}>
+          <DetailModal.Card>
             <label className="user-mgmt__dialogField">
-              <span>Họ tên</span>
+              <span>Họ tên <span className="required-asterisk">*</span></span>
               <input
+                className={editErrors.fullName ? 'input-error' : ''}
                 value={editModal.fullName}
                 onChange={(e) => {
                   setEditErrors((prev) => ({ ...prev, fullName: '' }))
@@ -378,9 +385,10 @@ export default function UserManagement() {
               {editErrors.fullName ? <small className="user-mgmt__dialogError">{editErrors.fullName}</small> : null}
             </label>
             <label className="user-mgmt__dialogField">
-              <span>Email</span>
+              <span>Email <span className="required-asterisk">*</span></span>
               <input
                 type="email"
+                className={editErrors.email ? 'input-error' : ''}
                 value={editModal.email}
                 onChange={(e) => {
                   setEditErrors((prev) => ({ ...prev, email: '' }))
@@ -391,7 +399,15 @@ export default function UserManagement() {
             </label>
             <label className="user-mgmt__dialogField">
               <span>Số điện thoại</span>
-              <input value={editModal.phone} onChange={(e) => setEditModal((m) => (m ? { ...m, phone: e.target.value } : m))} />
+              <input
+                className={editErrors.phone ? 'input-error' : ''}
+                value={editModal.phone}
+                onChange={(e) => {
+                  setEditErrors((prev) => ({ ...prev, phone: '' }))
+                  setEditModal((m) => (m ? { ...m, phone: e.target.value } : m))
+                }}
+              />
+              {editErrors.phone ? <small className="user-mgmt__dialogError">{editErrors.phone}</small> : null}
             </label>
             <label className="user-mgmt__dialogField">
               <span>Vai trò</span>
@@ -414,7 +430,7 @@ export default function UserManagement() {
               >
                 {statuses.map((status) => (
                   <option key={status} value={status}>
-                    {STATUS_LABELS[status]}
+                    {getStatusLabel(status, 'user')}
                   </option>
                 ))}
               </select>
@@ -436,26 +452,18 @@ export default function UserManagement() {
                 Lưu
               </button>
             </div>
-          </div>
-        </div>
+          </DetailModal.Card>
+        </DetailModal>
       ) : null}
 
       {addModalOpen ? (
-        <div
-          className="user-mgmt__backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="user-add-title"
-          onClick={() => setAddModalOpen(false)}
-        >
-          <div className="user-mgmt__dialog" onClick={(e) => e.stopPropagation()}>
-            <h2 id="user-add-title" className="user-mgmt__dialogTitle">
-              Thêm {meta.label}
-            </h2>
+        <DetailModal title={`Thêm ${meta.label}`} onClose={() => setAddModalOpen(false)}>
+          <DetailModal.Card>
             <label className="user-mgmt__dialogField">
-              <span>Họ tên</span>
+              <span>Họ tên <span className="required-asterisk">*</span></span>
               <input
                 type="text"
+                className={addErrors.fullName ? 'input-error' : ''}
                 value={addForm.fullName}
                 onChange={(e) => {
                   setAddErrors((prev) => ({ ...prev, fullName: '' }))
@@ -465,10 +473,11 @@ export default function UserManagement() {
               {addErrors.fullName ? <small className="user-mgmt__dialogError">{addErrors.fullName}</small> : null}
             </label>
             <label className="user-mgmt__dialogField">
-              <span>Email</span>
+              <span>Email <span className="required-asterisk">*</span></span>
               <input
                 type="email"
                 autoComplete="off"
+                className={addErrors.email ? 'input-error' : ''}
                 value={addForm.email}
                 onChange={(e) => {
                   setAddErrors((prev) => ({ ...prev, email: '' }))
@@ -478,10 +487,11 @@ export default function UserManagement() {
               {addErrors.email ? <small className="user-mgmt__dialogError">{addErrors.email}</small> : null}
             </label>
             <label className="user-mgmt__dialogField">
-              <span>Mật khẩu</span>
+              <span>Mật khẩu <span className="required-asterisk">*</span></span>
               <input
                 type="password"
                 autoComplete="new-password"
+                className={addErrors.password ? 'input-error' : ''}
                 value={addForm.password}
                 onChange={(e) => {
                   setAddErrors((prev) => ({ ...prev, password: '' }))
@@ -494,9 +504,14 @@ export default function UserManagement() {
               <span>Số điện thoại</span>
               <input
                 type="text"
+                className={addErrors.phone ? 'input-error' : ''}
                 value={addForm.phone}
-                onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value }))}
+                onChange={(e) => {
+                  setAddErrors((prev) => ({ ...prev, phone: '' }))
+                  setAddForm((f) => ({ ...f, phone: e.target.value }))
+                }}
               />
+              {addErrors.phone ? <small className="user-mgmt__dialogError">{addErrors.phone}</small> : null}
             </label>
             <label className="user-mgmt__dialogField">
               <span>Vai trò</span>
@@ -513,7 +528,7 @@ export default function UserManagement() {
               <select value={addForm.status} onChange={(e) => setAddForm((f) => ({ ...f, status: e.target.value }))}>
                 {statuses.map((status) => (
                   <option key={status} value={status}>
-                    {STATUS_LABELS[status]}
+                    {getStatusLabel(status, 'user')}
                   </option>
                 ))}
               </select>
@@ -535,8 +550,8 @@ export default function UserManagement() {
                 Tạo
               </button>
             </div>
-          </div>
-        </div>
+          </DetailModal.Card>
+        </DetailModal>
       ) : null}
     </div>
   )

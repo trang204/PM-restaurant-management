@@ -38,6 +38,26 @@
   gap: 16px;
   flex-wrap: wrap;
 }
+.tableOrder__clearCart{
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: red;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  background-color: #fff;
+  border-radius: 10%;
+  border: none;
+}
+.tableOrder__clearCart:hover{
+  background-color: rgb(235, 165, 165);
+  transition: all 0.3s ease;
+}
+.tableOrder__clearCart:hover{
+  background-color: rgb(243, 223, 223);
+}
+
 
 .tableOrder__brand {
   display: flex;
@@ -93,7 +113,8 @@
 }
 
 .tableOrder__card--unavailable {
-  opacity: 0.85;
+  opacity: 0.55;
+  filter: grayscale(60%);
 }
 
 .tableOrder__eyebrow {
@@ -106,7 +127,7 @@
 }
 
 .tableOrder__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.05rem;
   font-weight: 600;
   color: #EDE6DC;
@@ -185,7 +206,14 @@
   box-shadow: 0 3px 12px rgba(184,147,90,0.35);
 }
 
-.tableOrder__btn--accent:hover { filter: brightness(1.06); color: #fff; text-decoration: none; }
+.tableOrder__btn.tableOrder__btn--accent:hover {
+  background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 3px 12px rgba(184,147,90,0.35);
+  filter: brightness(1.06);
+  text-decoration: none;
+}
 .tableOrder__btn--ghost { }
 .tableOrder__btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
@@ -351,7 +379,7 @@
 }
 
 .tableOrder__h2 {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.15rem;
   font-weight: 600;
   color: var(--to-text);
@@ -390,13 +418,33 @@
 
 .tableOrder__card:hover { box-shadow: 0 6px 24px rgba(28,23,19,0.1); transform: translateY(-2px); }
 
-.tableOrder__img {
+.tableOrder__imgWrap {
+  position: relative;
   width: 100%;
   height: 160px;
-  object-fit: cover;
-  background: linear-gradient(145deg, #F4ECE0, #EDE0CC);
   border-bottom: 1px solid var(--to-border);
+  background: linear-gradient(145deg, #F4ECE0, #EDE0CC);
+  overflow: hidden;
+}
+
+.tableOrder__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
+}
+
+.tableOrder__stockTag {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  background: rgba(28,23,19,0.82);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 999px;
 }
 
 .tableOrder__cardBody {
@@ -416,7 +464,7 @@
 }
 
 .tableOrder__name {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--to-text);
@@ -630,9 +678,9 @@
   color: var(--to-gold-d);
   font-weight: 600;
 }
-.tableOrder__btn--outline:hover:not(:disabled) {
+/* .tableOrder__btn--outline:hover:not(:disabled) {
   background: var(--to-gold-s);
-}
+} */
 
 .tableOrder__payRow {
   display: flex;

@@ -80,11 +80,11 @@ export default function ForgotPassword() {
         <form className="authForm" onSubmit={onSubmit} noValidate>
           <div className="authField">
             <label htmlFor="forgot-email" className="authField__label">
-              Email
+              Email <span className="required-asterisk">*</span>
             </label>
             <input
               id="forgot-email"
-              className={`authField__input${fieldErr?.email ? ' authField__input--error' : ''}`}
+              className={`authField__input${fieldErr?.email ? ' authField__input--error input-error' : ''}`}
               required
               type="email"
               autoComplete="email"

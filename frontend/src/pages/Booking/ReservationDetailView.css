@@ -1,0 +1,321 @@
+/* Modal chi tiết đặt bàn */
+.resDetail--modal {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  box-sizing: border-box;
+}
+
+.resDetail__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(28, 23, 19, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.resDetail__panel {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 100%);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 20px 0 0 20px;
+  box-shadow: -8px 0 40px rgba(28, 23, 19, 0.15);
+  border-left: 1px solid var(--border, #e2d9cc);
+  overflow: hidden;
+  animation: resDetailSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes resDetailSlideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.resDetail__toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border, #e2d9cc);
+  background: #fdfaf7;
+  flex-shrink: 0;
+}
+
+.resDetail__title {
+  margin: 0;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text, #1c1713);
+  line-height: 1.35;
+}
+
+.resDetail__title code {
+  font-size: 0.88em;
+  font-weight: 600;
+}
+
+.resDetail__close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(28, 23, 19, 0.06);
+  color: var(--text, #1c1713);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.resDetail__close:hover {
+  background: rgba(28, 23, 19, 0.1);
+}
+
+.resDetail__body {
+  padding: 18px 20px 22px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.resDetail__pageSection {
+  text-align: left;
+}
+
+.resDetail__muted {
+  margin: 0;
+  color: var(--muted, #7a7069);
+  font-size: 0.95rem;
+}
+
+.resDetail__error {
+  margin: 0 0 8px;
+  color: #b02a37;
+  font-size: 0.92rem;
+}
+
+.resDetail__card {
+  border: 1px solid var(--border, #e2d9cc);
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 560px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(28, 23, 19, 0.05);
+}
+
+/* Styling for new elements in ReservationDetailView */
+.resDetail__section {
+  border-bottom: 1px dashed var(--border, #e2d9cc);
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.resDetail__section:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.resDetail__secTitle {
+  display: flex;
+  align-items: center;
+  margin: 0 0 12px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text, #1c1713);
+}
+
+.resDetail__infoGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 16px;
+}
+
+.resDetail__infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.resDetail__infoItem--full {
+  grid-column: span 2;
+}
+
+.resDetail__infoLabel {
+  font-size: 0.78rem;
+  color: var(--muted, #7a7069);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 500;
+}
+
+.resDetail__infoValue {
+  font-size: 0.92rem;
+  color: var(--text, #1c1713);
+  font-weight: 600;
+}
+
+.resDetail__infoValue--note {
+  font-weight: 400;
+  font-style: italic;
+  background: #fdfaf7;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #e2d9cc);
+}
+
+/* Assigned Table Cards */
+.resDetail__tableGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.resDetail__tableCard {
+  border: 1px solid var(--border, #e2d9cc);
+  border-radius: 8px;
+  background: #fdfaf7;
+  padding: 10px 12px;
+}
+
+.resDetail__tableHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border, #e2d9cc);
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+}
+
+.resDetail__tableName {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text, #1c1713);
+}
+
+.resDetail__tableStatus {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.resDetail__tableStatus--available {
+  background: #d1e7dd;
+  color: #0f5132;
+}
+
+.resDetail__tableStatus--occupied {
+  background: #f8d7da;
+  color: #842029;
+}
+
+.resDetail__tableStatus--reserved {
+  background: #fff3cd;
+  color: #664d03;
+}
+
+.resDetail__tableStatus--closed {
+  background: #e2e3e5;
+  color: #383d41;
+}
+
+.resDetail__tableBody p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted, #7a7069);
+}
+
+.resDetail__simpleTables {
+  font-size: 0.9rem;
+  color: var(--text, #1c1713);
+  padding: 4px 0;
+}
+
+.resDetail__empty {
+  font-size: 0.88rem;
+  color: var(--muted, #7a7069);
+  font-style: italic;
+  padding: 6px 0;
+}
+
+/* Order items list */
+.resDetail__orderWrap {
+  border: 1px solid var(--border, #e2d9cc);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.resDetail__orderTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.resDetail__orderTable th,
+.resDetail__orderTable td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border, #e2d9cc);
+}
+
+.resDetail__orderTable th {
+  background: #fdfaf7;
+  font-weight: 700;
+  color: var(--text, #1c1713);
+}
+
+.resDetail__foodName {
+  font-weight: 600;
+  color: var(--text, #1c1713);
+}
+
+.resDetail__foodNote {
+  font-size: 0.78rem;
+  color: #b02a37;
+  margin-top: 2px;
+  font-style: italic;
+}
+
+.resDetail__orderTotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #fdfaf7;
+  font-size: 0.92rem;
+}
+
+.resDetail__orderTotal strong {
+  font-size: 1.05rem;
+  color: #8f5c38;
+}
+
+.resDetail__orderLink {
+  display: inline-block;
+  font-weight: 600;
+  color: #8f5c38;
+  text-decoration: underline;
+  transition: color 0.15s ease;
+}
+
+.resDetail__orderLink:hover {
+  color: #1c1713;
+}

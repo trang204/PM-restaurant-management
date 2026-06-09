@@ -41,63 +41,64 @@ export async function ensureTableSessionForBooking(bookingId) {
 
   const tableId = bt.rows[0].table_id
 
+  let sessionId, token;
+
   const existingSess = await query(
-    `SELECT id, qr_token FROM table_sessions
-     WHERE booking_id = $1 AND status = 'ACTIVE' LIMIT 1`,
+    `SELECT id, qr_token FROM table_sessions WHERE booking_id = $1 AND status = 'ACTIVE' LIMIT 1`,
     [bookingId],
   )
+
   if (existingSess.rows.length) {
-    const sid = existingSess.rows[0].id
-    const token = existingSess.rows[0].qr_token
-    let order = await query(
-      `SELECT id FROM orders WHERE booking_id = $1 AND table_session_id = $2
-       ORDER BY id DESC LIMIT 1`,
-      [bookingId, sid],
+    sessionId = existingSess.rows[0].id
+    token = existingSess.rows[0].qr_token
+  } else {
+    await closeActiveSessionsForTable(tableId)
+    token = generateQrToken()
+    const ins = await query(
+      `INSERT INTO table_sessions (table_id, booking_id, qr_token, status)
+       VALUES ($1, $2, $3, 'ACTIVE') RETURNING id`,
+      [tableId, bookingId, token],
     )
-    if (!order.rows.length) {
-      const open = await query(
-        `SELECT id FROM orders WHERE booking_id = $1 AND status IN ('PENDING', 'SERVING')
-         ORDER BY id DESC LIMIT 1`,
-        [bookingId],
-      )
-      if (open.rows.length) {
-        await query(`UPDATE orders SET table_session_id = $1 WHERE id = $2`, [sid, open.rows[0].id])
-        order = open
-      } else {
-        order = await query(
-          `INSERT INTO orders (booking_id, status, table_session_id) VALUES ($1, 'PENDING', $2) RETURNING id`,
-          [bookingId, sid],
-        )
-      }
-    }
-    return {
-      sessionId: sid,
-      qrToken: token,
-      orderId: order.rows[0].id,
-      tableId,
-      orderUrl: publicOrderUrl(token),
-    }
+    sessionId = ins.rows[0].id
   }
 
-  await closeActiveSessionsForTable(tableId)
-
-  const token = generateQrToken()
-  const ins = await query(
-    `INSERT INTO table_sessions (table_id, booking_id, qr_token, status)
-     VALUES ($1, $2, $3, 'ACTIVE') RETURNING id`,
-    [tableId, bookingId, token],
+  let orderId;
+  
+  // Find an unlinked pre-order for this booking
+  const unlinkedOrder = await query(
+    `SELECT id FROM orders WHERE booking_id = $1 AND status IN ('PENDING', 'SERVING') AND table_session_id IS NULL ORDER BY id ASC LIMIT 1`,
+    [bookingId]
   )
-  const sessionId = ins.rows[0].id
 
-  const orderIns = await query(
-    `INSERT INTO orders (booking_id, status, table_session_id) VALUES ($1, 'PENDING', $2) RETURNING id`,
-    [bookingId, sessionId],
-  )
+  if (unlinkedOrder.rows.length) {
+    // Push the pre-order to the kitchen (SERVING) if it has items
+    const items = await query(`SELECT COUNT(*) FROM order_items WHERE order_id = $1`, [unlinkedOrder.rows[0].id])
+    const nextStatus = Number(items.rows[0].count) > 0 ? 'SERVING' : 'PENDING'
+    await query(
+      `UPDATE orders SET table_session_id = $1, status = $2 WHERE id = $3`,
+      [sessionId, nextStatus, unlinkedOrder.rows[0].id]
+    )
+    orderId = unlinkedOrder.rows[0].id
+  } else {
+    const sessionOrder = await query(
+      `SELECT id FROM orders WHERE booking_id = $1 AND table_session_id = $2 ORDER BY id DESC LIMIT 1`,
+      [bookingId, sessionId]
+    )
+    if (sessionOrder.rows.length) {
+      orderId = sessionOrder.rows[0].id
+    } else {
+      const newOrder = await query(
+        `INSERT INTO orders (booking_id, status, table_session_id) VALUES ($1, 'PENDING', $2) RETURNING id`,
+        [bookingId, sessionId]
+      )
+      orderId = newOrder.rows[0].id
+    }
+  }
 
   return {
     sessionId,
     qrToken: token,
-    orderId: orderIns.rows[0].id,
+    orderId,
     tableId,
     orderUrl: publicOrderUrl(token),
   }
@@ -121,7 +122,7 @@ export async function loadActiveSessionByToken(token) {
       ts.qr_token,
       ts.table_id,
       ts.booking_id,
-      t.name AS table_name,
+      (COALESCE(t.name, 'Bàn ' || t.id) || CASE WHEN t.zone IS NOT NULL AND t.zone != '' THEN ' (' || t.zone || ')' ELSE '' END) AS table_name,
       b.status AS booking_status
     FROM table_sessions ts
     JOIN tables t ON t.id = ts.table_id

@@ -39,6 +39,23 @@ export async function getPublicSettings(req, res, next) {
       email: s.email ?? null,
       openTime: s.open_time != null ? String(s.open_time).slice(0, 5) : null,
       closeTime: s.close_time != null ? String(s.close_time).slice(0, 5) : null,
+      reservationHoldDuration: s.reservation_hold_duration ?? 15,
+      // socialLinks: object dạng {facebook, instagram, zalo} để FE dùng trực tiếp
+      socialLinks: (() => {
+        const sl = s.social_links
+        if (!sl) return null
+        // Nếu DB lưu array cũ [{label, url}], convert về object
+        if (Array.isArray(sl)) {
+          const obj = {}
+          for (const item of sl) {
+            if (item?.label && item?.url) obj[String(item.label).toLowerCase()] = String(item.url)
+          }
+          return Object.keys(obj).length ? obj : null
+        }
+        // Nếu DB lưu object trực tiếp
+        if (typeof sl === 'object') return sl
+        return null
+      })(),
       home: {
         heroEyebrow: s.hero_eyebrow ?? null,
         heroLead: s.hero_lead ?? null,

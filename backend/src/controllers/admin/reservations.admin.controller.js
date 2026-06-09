@@ -222,7 +222,59 @@ export async function detail(req, res, next) {
       [id],
     )
     if (!r.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
-    return ok(res, mapBookingForAdmin(r.rows[0]))
+    const booking = r.rows[0]
+    const mapped = mapBookingForAdmin(booking)
+    mapped.createdAt = booking.created_at
+
+    // Fetch assigned tables detailed info
+    const tablesRes = await query(
+      `
+      SELECT t.id, t.name, t.zone, t.capacity, t.status
+      FROM booking_tables bt
+      JOIN tables t ON t.id = bt.table_id
+      WHERE bt.booking_id = $1
+      `,
+      [id]
+    )
+    mapped.assignedTables = tablesRes.rows.map(t => ({
+      id: t.id,
+      name: t.name,
+      zone: t.zone,
+      capacity: Number(t.capacity) || 0,
+      status: t.status
+    }))
+
+    // Fetch ordered items
+    const ordersRes = await query(
+      `SELECT id FROM orders WHERE booking_id = $1 ORDER BY id DESC LIMIT 1`,
+      [id]
+    )
+    if (ordersRes.rows.length) {
+      const orderId = ordersRes.rows[0].id
+      const itemsRes = await query(
+        `
+        SELECT
+          oi.id, oi.quantity, oi.price,
+          f.name AS food_name, oi.note
+        FROM order_items oi
+        LEFT JOIN foods f ON f.id = oi.food_id
+        WHERE oi.order_id = $1
+        ORDER BY oi.id ASC
+        `,
+        [orderId]
+      )
+      mapped.orderItems = itemsRes.rows.map(item => ({
+        id: item.id,
+        foodName: item.food_name,
+        quantity: Number(item.quantity) || 0,
+        price: Number(item.price) || 0,
+        note: item.note ?? null
+      }))
+    } else {
+      mapped.orderItems = []
+    }
+
+    return ok(res, mapped)
   } catch (e) {
     return next(e)
   }
@@ -239,9 +291,19 @@ export async function cancelReservation(req, res, next) {
       throw badRequest('Không thể hủy đơn ở trạng thái này')
     }
 
-    await closeSessionsForBooking(id)
-    const updated = await query(`UPDATE bookings SET status = 'CANCELLED' WHERE id = $1 RETURNING *`, [id])
-    return ok(res, updated.rows[0])
+    const updated = await withTransaction(async (client) => {
+      await client.query(`UPDATE table_sessions SET status = 'CLOSED', closed_at = NOW() WHERE booking_id = $1 AND status = 'ACTIVE'`, [id])
+      const bt = await client.query('SELECT table_id FROM booking_tables WHERE booking_id = $1', [id])
+      if (bt.rows.length) {
+        for (const row of bt.rows) {
+          await client.query(`UPDATE tables SET status = 'AVAILABLE' WHERE id = $1`, [row.table_id])
+        }
+      }
+      const b = await client.query(`UPDATE bookings SET status = 'CANCELLED' WHERE id = $1 RETURNING *`, [id])
+      return b.rows[0]
+    })
+
+    return ok(res, updated)
   } catch (e) {
     return next(e)
   }
@@ -258,6 +320,10 @@ export async function assignTable(req, res, next) {
 
     const cur = await query('SELECT id, booking_date, booking_time, status FROM bookings WHERE id = $1', [bookingId])
     if (!cur.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
+
+    const curStatus = String(cur.rows[0].status || '').toUpperCase()
+    if (curStatus === 'COMPLETED') throw badRequest('Đơn đặt bàn đã thanh toán hoàn tất, không thể gán bàn.')
+    if (curStatus === 'CANCELLED') throw badRequest('Đơn đặt bàn đã bị hủy, không thể gán bàn.')
 
     const tblSt = await query('SELECT status FROM tables WHERE id = $1', [tId])
     if (!tblSt.rows.length) throw notFound('Bàn không tồn tại')
@@ -308,6 +374,10 @@ export async function transferTable(req, res, next) {
 
     const cur = await query('SELECT id, booking_date, booking_time, status FROM bookings WHERE id = $1', [bookingId])
     if (!cur.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
+
+    const curStatus = String(cur.rows[0].status || '').toUpperCase()
+    if (curStatus === 'COMPLETED') throw badRequest('Đơn đặt bàn đã thanh toán hoàn tất, không thể chuyển bàn.')
+    if (curStatus === 'CANCELLED') throw badRequest('Đơn đặt bàn đã bị hủy, không thể chuyển bàn.')
 
     const newT = await query('SELECT id, status FROM tables WHERE id = $1', [tId])
     if (!newT.rows.length) throw notFound('Bàn không tồn tại')
@@ -392,7 +462,7 @@ export async function confirm(req, res, next) {
       reservationId: id,
       status: r.rows[0].status,
       tableSession: null,
-      tableSessionNote: 'Đã xác nhận đơn. Khi khách tới quán, bấm Vào bàn để tạo QR gọi món.',
+      tableSessionNote: 'Đã xác nhận đơn.',
     })
   } catch (e) {
     return next(e)
@@ -510,12 +580,75 @@ export async function getOrderTotal(req, res, next) {
   }
 }
 
+/** Lấy chi tiết order (các món) và thanh toán cho booking. */
+export async function getOrderItems(req, res, next) {
+  try {
+    const bookingId = Number(req.params.id)
+    if (!Number.isFinite(bookingId)) throw badRequest('id không hợp lệ')
+
+    const o = await query(
+      `SELECT id, status, created_at FROM orders WHERE booking_id = $1 ORDER BY id DESC LIMIT 1`,
+      [bookingId]
+    )
+
+    if (!o.rows.length) {
+      return ok(res, { order: null, items: [], payment: null })
+    }
+
+    const orderId = o.rows[0].id
+    const items = await query(
+      `
+      SELECT
+        oi.id, oi.quantity, oi.price, oi.kitchen_status, oi.kitchen_ack_at,
+        f.name AS food_name
+      FROM order_items oi
+      LEFT JOIN foods f ON f.id = oi.food_id
+      WHERE oi.order_id = $1
+      ORDER BY oi.id ASC
+      `,
+      [orderId]
+    )
+
+    const pay = await query(
+      `SELECT id, amount, method, status, paid_at FROM payments WHERE order_id = $1 ORDER BY id DESC LIMIT 1`,
+      [orderId]
+    )
+
+    return ok(res, {
+      order: o.rows[0],
+      items: items.rows,
+      payment: pay.rows[0] || null
+    })
+  } catch (e) {
+    return next(e)
+  }
+}
+
 export async function cashierPay(req, res, next) {
   try {
     const bookingId = Number(req.params.id)
     if (!Number.isFinite(bookingId)) throw badRequest('id không hợp lệ')
 
+    const { amount, transactionCode, note, tax, discount, surcharge } = req.body || {}
+    const cashierId = req.user?.sub ? Number(req.user.sub) : null
+
     const pay = await withTransaction(async (client) => {
+      // 1. Kiểm tra đơn đặt bàn
+      const cur = await client.query('SELECT status FROM bookings WHERE id = $1 FOR UPDATE', [bookingId])
+      if (!cur.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
+      
+      const curStatus = String(cur.rows[0].status || '').toUpperCase()
+      if (curStatus === 'COMPLETED') {
+        throw badRequest('Đơn đặt bàn này đã được thanh toán hoàn thành trước đó.')
+      }
+      if (curStatus === 'CANCELLED') {
+        throw badRequest('Đơn đặt bàn này đã bị hủy, không thể thực hiện thanh toán.')
+      }
+      if (curStatus !== 'CHECKED_IN') {
+        throw badRequest(`Chỉ cho phép thanh toán đơn ở trạng thái "Đã tiếp khách" (Trạng thái hiện tại: ${curStatus}).`)
+      }
+
+      // 2. Tìm hoặc tạo order cho booking
       let order = await client.query('SELECT * FROM orders WHERE booking_id = $1 ORDER BY id DESC LIMIT 1', [
         bookingId,
       ])
@@ -528,25 +661,64 @@ export async function cashierPay(req, res, next) {
         order = await client.query(`UPDATE orders SET status = 'DONE' WHERE id = $1 RETURNING *`, [order.rows[0].id])
       }
       const orderId = order.rows[0].id
-      const amountTotal = await orderItemsTotal(client, orderId)
 
-      const payRow = await client.query(
-        `INSERT INTO payments (order_id, amount, method, status, paid_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
-        [orderId, amountTotal, 'cash', 'PAID'],
-      )
+      // 3. Tính toán số tiền món ăn & tổng tiền thanh toán cuối cùng
+      const foodTotal = await orderItemsTotal(client, orderId)
+      const computedTotal = foodTotal + Number(surcharge || 0) + Number(tax || 0) - Number(discount || 0)
+      const finalTotal = Math.max(0, computedTotal)
 
+      // Validate số tiền thanh toán nếu có truyền lên
+      if (amount !== undefined && Math.abs(Number(amount) - finalTotal) > 0.01) {
+        throw badRequest(`Số tiền thanh toán không khớp với tổng hóa đơn cần thanh toán (${finalTotal.toLocaleString('vi-VN')} ₫).`)
+      }
+
+      // 4. Lưu lịch sử thanh toán (Payments)
+      let payRow = await client.query('SELECT * FROM payments WHERE order_id = $1 ORDER BY id DESC LIMIT 1', [
+        orderId,
+      ])
+      if (payRow.rows.length && payRow.rows[0].status === 'PAID') {
+        throw badRequest('Đơn hàng này đã có bản ghi thanh toán thành công trước đó.')
+      }
+
+      if (!payRow.rows.length) {
+        payRow = await client.query(
+          `INSERT INTO payments (order_id, amount, method, status, paid_at, transaction_code, cashier_id, note, tax, discount, surcharge) 
+           VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7, $8, $9, $10) RETURNING *`,
+          [orderId, finalTotal, 'cash', 'PAID', transactionCode || null, cashierId, note || null, Number(tax || 0), Number(discount || 0), Number(surcharge || 0)],
+        )
+      } else {
+        payRow = await client.query(
+          `UPDATE payments 
+           SET status = 'PAID', amount = $2, method = 'cash', paid_at = NOW(), transaction_code = $3, cashier_id = $4, note = $5, tax = $6, discount = $7, surcharge = $8
+           WHERE id = $1 RETURNING *`,
+          [payRow.rows[0].id, finalTotal, transactionCode || null, cashierId, note || null, Number(tax || 0), Number(discount || 0), Number(surcharge || 0)],
+        )
+      }
+
+      // 5. Cập nhật trạng thái đơn thành COMPLETED
       const b = await client.query(`UPDATE bookings SET status = 'COMPLETED' WHERE id = $1 RETURNING *`, [bookingId])
       if (!b.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
 
+      // 6. Tự động chuyển các bàn gán sang trạng thái AVAILABLE (Trống)
       const bt = await client.query('SELECT table_id FROM booking_tables WHERE booking_id = $1', [bookingId])
       if (bt.rows.length) {
-        await client.query(`UPDATE tables SET status = 'AVAILABLE' WHERE id = $1`, [bt.rows[0].table_id])
+        for (const row of bt.rows) {
+          // Case 4: Kiểm tra bàn có tồn tại không
+          const tableCheck = await client.query('SELECT id FROM tables WHERE id = $1', [row.table_id])
+          if (!tableCheck.rows.length) {
+            throw new Error(`Bàn gán với mã ${row.table_id} không tồn tại trên hệ thống.`)
+          }
+          await client.query(`UPDATE tables SET status = 'AVAILABLE' WHERE id = $1`, [row.table_id])
+        }
       }
+
+      // 7. Giải phóng phiên bàn (table_sessions)
+      await client.query(`UPDATE table_sessions SET status = 'CLOSED', closed_at = NOW() WHERE booking_id = $1 AND status = 'ACTIVE'`, [bookingId])
 
       return payRow.rows[0]
     })
 
-    return ok(res, { reservationId: bookingId, status: 'COMPLETED', paymentId: pay.id })
+    return ok(res, { reservationId: bookingId, status: 'COMPLETED', paymentId: pay.id, amount: pay.amount })
   } catch (e) {
     return next(e)
   }

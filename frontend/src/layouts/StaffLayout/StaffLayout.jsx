@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { LayoutGrid, ChefHat, BarChart3, LogOut, Menu as MenuIcon, X } from 'lucide-react'
 import { apiFetch, setToken } from '../../lib/api'
+import { useNotifications } from '../../context/NotificationsContext'
 import { fetchPublicSettings } from '../../lib/settings'
 import NotificationBell from '../../components/NotificationBell.jsx'
 import './StaffLayout.css'
@@ -9,6 +10,7 @@ import './StaffLayout.css'
 export default function StaffLayout() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const { confirm } = useNotifications()
   const [me, setMe] = useState(null)
   const [navOpen, setNavOpen] = useState(false)
   const [brandName, setBrandName] = useState('Nhà hàng')
@@ -41,7 +43,16 @@ export default function StaffLayout() {
       .catch(() => navigate('/login', { replace: true }))
   }, [navigate])
 
-  function handleLogout() {
+  async function handleLogout() {
+    const ok = await confirm({
+      title: 'Đăng xuất',
+      message: 'Bạn có muốn đăng xuất không?',
+      danger: true,
+      confirmLabel: 'Đăng xuất',
+      cancelLabel: 'Hủy',
+      warningText: 'Bạn sẽ cần đăng nhập lại để tiếp tục sử dụng hệ thống.',
+    })
+    if (!ok) return
     setToken(null)
     setMe(null)
     navigate('/login', { replace: true })

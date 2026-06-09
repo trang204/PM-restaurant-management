@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import AdminPagination from '../../components/AdminPagination'
+import { getStatusLabel } from '../../lib/statusMapper'
+import ReservationDetailView from '../Booking/ReservationDetailView'
 import './BookingManagement.css'
 
 function badgeClass(status) {
@@ -15,19 +18,8 @@ function badgeClass(status) {
   return 'book-badge'
 }
 
-const STATUS_LABELS = {
-  PENDING: 'Chờ xác nhận',
-  HOLD: 'Đang giữ bàn',
-  CONFIRMED: 'Đã xác nhận',
-  CHECKED_IN: 'Đã vào bàn',
-  COMPLETED: 'Hoàn thành',
-  CANCELLED: 'Đã hủy',
-  PAID: 'Đã thanh toán',
-}
-
 function statusLabel(status) {
-  const key = String(status || '').trim().toUpperCase()
-  return STATUS_LABELS[key] || key || '—'
+  return getStatusLabel(status, 'reservation')
 }
 
 function normDate(d) {
@@ -163,14 +155,26 @@ export default function BookingManagement({ staffMode = false }) {
   const [walkInTableId, setWalkInTableId] = useState('')
   const [walkInName, setWalkInName] = useState('')
   const [walkInPhone, setWalkInPhone] = useState('')
-  const [walkInGuests, setWalkInGuests] = useState('2')
+  const [walkInGuests, setWalkInGuests] = useState('')
   const [walkInBusy, setWalkInBusy] = useState(false)
   const [paymentSettings, setPaymentSettings] = useState(null)
   const [paymentModal, setPaymentModal] = useState(null)
   const [paymentBusy, setPaymentBusy] = useState(false)
   const [qrBusy, setQrBusy] = useState(false)
-  const [search, setSearch] = useState('')
+  const [cashPaymentModal, setCashPaymentModal] = useState(null)
+  const [cashTaxPercent, setCashTaxPercent] = useState(10)
+  const [cashDiscount, setCashDiscount] = useState(0)
+  const [cashSurcharge, setCashSurcharge] = useState(0)
+  const [cashNote, setCashNote] = useState('')
+  const [cashTxCode, setCashTxCode] = useState('')
+  const [cashReceived, setCashReceived] = useState('')
+  const [searchParams] = useSearchParams()
+  const initialDate = searchParams.get('date')
+  const initialSearch = searchParams.get('q')
+
+  const [search, setSearch] = useState(initialSearch || '')
   const [statusFilter, setStatusFilter] = useState('ALL') // ALL | PENDING | CONFIRMED | COMPLETED
+  const [detailBookingId, setDetailBookingId] = useState(null)
 
   function load() {
     setLoading(true)
@@ -245,10 +249,11 @@ export default function BookingManagement({ staffMode = false }) {
 
   useEffect(() => {
     if (!sortedDateKeys.length || dayPageInitRef.current) return
-    const idx = sortedDateKeys.indexOf(todayYmd)
+    const targetDate = (initialDate && sortedDateKeys.includes(initialDate)) ? initialDate : todayYmd
+    const idx = sortedDateKeys.indexOf(targetDate)
     setDayPage(idx >= 0 ? idx : 0)
     dayPageInitRef.current = true
-  }, [sortedDateKeys, todayYmd])
+  }, [sortedDateKeys, todayYmd, initialDate])
 
   const totalDayPages = sortedDateKeys.length
   const activeDateKey = totalDayPages ? sortedDateKeys[dayPage] : null
@@ -527,6 +532,68 @@ export default function BookingManagement({ staffMode = false }) {
     }
   }
 
+  async function openCashPayment(r) {
+    setPaymentBusy(true)
+    try {
+      const data = await apiFetch(`/admin/reservations/${r.id}/order-items`)
+      const items = Array.isArray(data?.items) ? data.items : []
+      const subtotal = items.reduce((acc, it) => acc + Number(it.price) * Number(it.quantity), 0)
+      
+      setCashPaymentModal({
+        bookingId: r.id,
+        guestName: r.fullName || `Đơn #${r.id}`,
+        items,
+        subtotal
+      })
+      setCashTaxPercent(10)
+      setCashDiscount(0)
+      setCashSurcharge(0)
+      setCashNote('')
+      setCashTxCode('')
+      setCashReceived('')
+    } catch (e) {
+      toast(e.message, { variant: 'error' })
+    } finally {
+      setPaymentBusy(false)
+    }
+  }
+
+  async function submitCashPayment() {
+    if (!cashPaymentModal) return
+    
+    const subtotal = cashPaymentModal.subtotal
+    const taxAmt = Math.round(subtotal * (Number(cashTaxPercent || 0) / 100))
+    const finalTotal = Math.max(0, subtotal + taxAmt + Number(cashSurcharge || 0) - Number(cashDiscount || 0))
+    
+    if (cashReceived && Number(cashReceived) < finalTotal) {
+      toast(`Khách đưa không đủ tiền (Cần ${finalTotal.toLocaleString('vi-VN')} ₫).`, { variant: 'error' })
+      return
+    }
+    
+    setOpsBusy(true)
+    try {
+      await apiFetch(`/admin/reservations/${cashPaymentModal.bookingId}/cashier-pay`, {
+        method: 'POST',
+        body: JSON.stringify({
+          amount: finalTotal,
+          transactionCode: cashTxCode.trim() ? cashTxCode.trim() : undefined,
+          note: cashNote.trim() ? cashNote.trim() : undefined,
+          tax: taxAmt,
+          discount: Number(cashDiscount || 0),
+          surcharge: Number(cashSurcharge || 0)
+        })
+      })
+      setCashPaymentModal(null)
+      toast('Thanh toán tiền mặt thành công! Đơn hàng đã hoàn thành.', { variant: 'success' })
+      load()
+      refreshTables()
+    } catch (e) {
+      toast(e.message, { variant: 'error' })
+    } finally {
+      setOpsBusy(false)
+    }
+  }
+
   return (
     <div className="booking-mgmt">
       <header className="booking-mgmt__header">
@@ -534,11 +601,6 @@ export default function BookingManagement({ staffMode = false }) {
           <h1 className="booking-mgmt__title">
             {staffMode ? 'Tiếp đón & quản lý bàn' : 'Đặt bàn'}
           </h1>
-          <p className="booking-mgmt__subtitle">
-            {staffMode
-              ? 'Khách vãng lai: mở bàn nhanh (form bên dưới). Đặt trước: gán bàn → Xác nhận → Vào bàn → QR gọi món. Danh sách theo ngày.'
-              : 'Khách vãng lai: mở bàn nhanh. Đặt trước: gán bàn → Xác nhận → Vào bàn → QR gọi món. Danh sách theo ngày.'}
-          </p>
         </div>
       </header>
 
@@ -550,54 +612,56 @@ export default function BookingManagement({ staffMode = false }) {
           <h2 id="walkin-heading" className="booking-mgmt__walkInTitle">
             Mở bàn — khách vãng lai
           </h2>
-          <p className="booking-mgmt__walkInHint">
-            Tạo đơn không cần tài khoản, vào bàn ngay, bàn chuyển sang đang có khách và hiển thị QR/link gọi món.
-          </p>
           <div className="booking-mgmt__walkInGrid">
             <label className="booking-mgmt__field">
-              <span>Bàn trống</span>
+              <span>Bàn trống <span style={{ color: 'red' }}>*</span></span>
               <select
                 value={walkInTableId}
                 onChange={(e) => setWalkInTableId(e.target.value)}
                 aria-label="Chọn bàn cho khách vãng lai"
+                required
+                aria-required="true"
               >
                 <option value="">— Chọn bàn —</option>
                 {tables.filter(tableAvailableForWalkIn).map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.name || `Bàn ${t.id}`}
+                    {(t.name || `Bàn ${t.id}`) + (t.zone ? ` (${t.zone})` : '')}
                   </option>
                 ))}
               </select>
             </label>
             <label className="booking-mgmt__field">
-              <span>Tên khách (tuỳ chọn)</span>
+              <span>Tên khách</span>
               <input
                 type="text"
                 value={walkInName}
                 onChange={(e) => setWalkInName(e.target.value)}
-                placeholder="Khách vãng lai"
+                placeholder="Nhập tên khách"
                 maxLength={100}
               />
             </label>
             <label className="booking-mgmt__field">
-              <span>Số điện thoại (tuỳ chọn)</span>
+              <span>Số điện thoại</span>
               <input
                 type="tel"
                 value={walkInPhone}
                 onChange={(e) => setWalkInPhone(e.target.value)}
-                placeholder="09…"
+                placeholder="Nhập số điện thoại"
                 maxLength={20}
               />
             </label>
             <label className="booking-mgmt__field">
               <span>Số khách</span>
-              <input
-                type="number"
-                min={1}
-                max={99}
-                value={walkInGuests}
-                onChange={(e) => setWalkInGuests(e.target.value)}
-              />
+                <input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={walkInGuests}
+                  onChange={(e) => setWalkInGuests(e.target.value)}
+                  required
+                  aria-required="true"
+                  placeholder="Nhập số khách"
+                />
             </label>
           </div>
           <div className="booking-mgmt__walkInActions">
@@ -611,6 +675,11 @@ export default function BookingManagement({ staffMode = false }) {
                   toast('Chọn bàn trống.', { variant: 'info' })
                   return
                 }
+                const guests = Number(walkInGuests)
+                if (!Number.isFinite(guests) || guests <= 0) {
+                  toast('Nhập số khách.', { variant: 'info' })
+                  return
+                }
                 setWalkInBusy(true)
                 try {
                   const res = await apiFetch('/admin/reservations/walk-in', {
@@ -619,7 +688,7 @@ export default function BookingManagement({ staffMode = false }) {
                       tableId: tid,
                       guestName: walkInName.trim() || undefined,
                       guestPhone: walkInPhone.trim() || undefined,
-                      guests: Number(walkInGuests) || 2,
+                      guests: guests,
                       bookingDate: todayYmdLocal(),
                       bookingTime: nowHmLocal(),
                     }),
@@ -627,7 +696,7 @@ export default function BookingManagement({ staffMode = false }) {
                   setWalkInTableId('')
                   setWalkInName('')
                   setWalkInPhone('')
-                  setWalkInGuests('2')
+                  setWalkInGuests('')
                   load()
                   refreshTables()
                   if (res?.tableSession?.qrSvg && res?.tableSession?.orderUrl) {
@@ -712,7 +781,7 @@ export default function BookingManagement({ staffMode = false }) {
                       <option value="">— Chọn —</option>
                       {options.map((t) => (
                         <option key={t.id} value={t.id}>
-                          {t.name || `Bàn ${t.id}`}
+                          {(t.name || `Bàn ${t.id}`) + (t.zone ? ` (${t.zone})` : '')}
                         </option>
                       ))}
                     </select>
@@ -866,6 +935,162 @@ export default function BookingManagement({ staffMode = false }) {
         </div>
       ) : null}
 
+      {cashPaymentModal ? (
+        <div className="booking-mgmt__modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="cash-payment-title">
+          <div className="booking-mgmt__modal booking-mgmt__modal--wide">
+            <h2 id="cash-payment-title" className="booking-mgmt__modal-title">
+              Thu tiền mặt tại quầy
+            </h2>
+            <div className="booking-mgmt__payment-info">
+              <p>
+                <span className="booking-mgmt__payment-label">Khách hàng:</span> <strong>{cashPaymentModal.guestName}</strong> &nbsp;|&nbsp;
+                <span className="booking-mgmt__payment-label">Mã đặt bàn:</span> <strong>#{cashPaymentModal.bookingId}</strong>
+              </p>
+            </div>
+
+            <div style={{ marginBottom: 18 }}>
+              <h3 style={{ fontSize: '0.9rem', marginBottom: 8, textTransform: 'uppercase', color: 'var(--bk-muted)', letterSpacing: '0.05em' }}>Danh sách món ăn đã gọi</h3>
+              {cashPaymentModal.items.length === 0 ? (
+                <p style={{ fontStyle: 'italic', fontSize: '0.9rem', color: 'var(--bk-muted)' }}>Không có món ăn nào.</p>
+              ) : (
+                <div style={{ maxHeight: 150, overflowY: 'auto', border: '1px solid var(--bk-border)', borderRadius: 8, padding: '8px 12px', background: '#fdfaf7' }}>
+                  {cashPaymentModal.items.map((it) => (
+                    <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem', padding: '4px 0', borderBottom: '1px solid rgba(226,217,204,0.3)' }}>
+                      <span>{it.food_name} <strong style={{ color: 'var(--bk-muted)' }}>x{it.quantity}</strong></span>
+                      <strong>{(Number(it.price) * it.quantity).toLocaleString('vi-VN')} ₫</strong>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <label className="booking-mgmt__field">
+                <span>Phụ thu (₫)</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={cashSurcharge}
+                  onChange={(e) => setCashSurcharge(Math.max(0, Number(e.target.value)))}
+                />
+              </label>
+              <label className="booking-mgmt__field">
+                <span>Giảm giá (₫)</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={cashDiscount}
+                  onChange={(e) => setCashDiscount(Math.max(0, Number(e.target.value)))}
+                />
+              </label>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <label className="booking-mgmt__field">
+                <span>Thuế VAT (%)</span>
+                <select
+                  value={cashTaxPercent}
+                  onChange={(e) => setCashTaxPercent(Number(e.target.value))}
+                >
+                  <option value="0">0%</option>
+                  <option value="5">5%</option>
+                  <option value="8">8%</option>
+                  <option value="10">10%</option>
+                </select>
+              </label>
+              <label className="booking-mgmt__field">
+                <span>Mã giao dịch (Nếu có)</span>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: CASH123"
+                  value={cashTxCode}
+                  onChange={(e) => setCashTxCode(e.target.value)}
+                />
+              </label>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <label className="booking-mgmt__field">
+                <span>Số tiền khách đưa (₫)</span>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Nhập số tiền nhận..."
+                  value={cashReceived}
+                  onChange={(e) => setCashReceived(e.target.value ? Math.max(0, Number(e.target.value)) : '')}
+                />
+              </label>
+              <label className="booking-mgmt__field">
+                <span>Ghi chú thanh toán</span>
+                <input
+                  type="text"
+                  placeholder="Nhập ghi chú..."
+                  value={cashNote}
+                  onChange={(e) => setCashNote(e.target.value)}
+                />
+              </label>
+            </div>
+
+            {(() => {
+              const subtotal = cashPaymentModal.subtotal
+              const taxAmt = Math.round(subtotal * (Number(cashTaxPercent || 0) / 100))
+              const finalTotal = Math.max(0, subtotal + taxAmt + Number(cashSurcharge || 0) - Number(cashDiscount || 0))
+              const change = cashReceived ? Math.max(0, Number(cashReceived) - finalTotal) : 0
+              return (
+                <div style={{ background: '#fdfaf7', border: '1px solid var(--bk-border)', borderRadius: 10, padding: 14, marginTop: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: 6 }}>
+                    <span>Tạm tính (Món ăn):</span>
+                    <span>{subtotal.toLocaleString('vi-VN')} ₫</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: 6 }}>
+                    <span>Thuế VAT ({cashTaxPercent}%):</span>
+                    <span>{taxAmt.toLocaleString('vi-VN')} ₫</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: 6 }}>
+                    <span>Phụ thu:</span>
+                    <span>{Number(cashSurcharge || 0).toLocaleString('vi-VN')} ₫</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: 6, color: '#C0392B' }}>
+                    <span>Giảm giá:</span>
+                    <span>- {Number(cashDiscount || 0).toLocaleString('vi-VN')} ₫</span>
+                  </div>
+                  <hr style={{ border: 'none', borderTop: '1px solid var(--bk-border)', margin: '8px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.1rem', fontWeight: 700 }}>
+                    <span>Tổng thanh toán:</span>
+                    <span style={{ color: '#1a6e3c' }}>{finalTotal.toLocaleString('vi-VN')} ₫</span>
+                  </div>
+                  {cashReceived ? (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', fontWeight: 600, marginTop: 6, color: '#a05a0b' }}>
+                      <span>Tiền thừa trả khách:</span>
+                      <span>{change.toLocaleString('vi-VN')} ₫</span>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })()}
+
+            <div className="booking-mgmt__modal-actions">
+              <button
+                type="button"
+                className="booking-mgmt__btn booking-mgmt__btn--primary"
+                disabled={opsBusy}
+                onClick={submitCashPayment}
+              >
+                {opsBusy ? 'Đang xử lý...' : 'Xác nhận đã thu tiền'}
+              </button>
+              <button
+                type="button"
+                className="booking-mgmt__btn booking-mgmt__btn--ghost"
+                onClick={() => setCashPaymentModal(null)}
+                disabled={opsBusy}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {!loading && !err ? (
         <div className="booking-mgmt__today">
           <p className="booking-mgmt__todayEyebrow">Hôm nay</p>
@@ -912,7 +1137,7 @@ export default function BookingManagement({ staffMode = false }) {
                 outline: 'none',
               }}
             />
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {/* <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {[
                 ['ALL', 'Tất cả'],
                 ['PENDING', 'Chờ'],
@@ -938,6 +1163,23 @@ export default function BookingManagement({ staffMode = false }) {
               >
                 Làm mới
               </button>
+            </div> */}
+            <div className="dash__filter" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <label className="dash__filterLabel" htmlFor="dash-status">Lọc theo trạng thái</label>
+              <select
+                id="dash-status"
+                className="dash__select"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="ALL">Tất cả</option>
+                <option value="PENDING">Chờ xác nhận</option>
+                <option value="HOLD">Đang giữ bàn</option>
+                <option value="CONFIRMED">Đã xác nhận</option>
+                <option value="CHECKED_IN">Đã vào bàn</option>
+                <option value="COMPLETED">Hoàn thành</option>
+                <option value="CANCELLED">Đã hủy</option>
+              </select>
             </div>
           </div>
           <div className="booking-mgmt__table-wrap">
@@ -981,6 +1223,7 @@ export default function BookingManagement({ staffMode = false }) {
                           <select
                             value={assignPick[r.id] ?? ''}
                             onChange={(e) => setAssignPick((p) => ({ ...p, [r.id]: e.target.value }))}
+                            disabled={actionType !== 'PENDING' || tableClosed}
                             aria-label="Chọn bàn"
                           >
                             <option value="">— Chọn —</option>
@@ -989,7 +1232,7 @@ export default function BookingManagement({ staffMode = false }) {
                               const st = String(t.status || '').toUpperCase()
                               const isKeep = id === String(r.assignedTableId || '') || id === String(assignPick[r.id] || '')
                               const disabled = !isKeep && (st !== 'AVAILABLE' || takenByOthers.has(id))
-                              const name = t.name || `Bàn ${t.id}`
+                              const name = (t.name || `Bàn ${t.id}`) + (t.zone ? ` (${t.zone})` : '')
                               const cap = Number(t.capacity) || 0
                               return (
                                 <option key={t.id} value={t.id} disabled={disabled}>
@@ -1013,6 +1256,13 @@ export default function BookingManagement({ staffMode = false }) {
                       </td>
                       <td data-label="Thao tác">
                         <div className="booking-mgmt__actions">
+                          <button
+                            type="button"
+                            className="booking-mgmt__btn booking-mgmt__btn--secondary"
+                            onClick={() => setDetailBookingId(r.id)}
+                          >
+                            Xem
+                          </button>
                           {actionType === 'PENDING' ? (
                             <>
                               <button
@@ -1083,6 +1333,15 @@ export default function BookingManagement({ staffMode = false }) {
                               >
                                 QR thanh toán
                               </button>
+                              <button
+                                type="button"
+                                className="booking-mgmt__btn booking-mgmt__btn--cash"
+                                disabled={paymentBusy}
+                                title="Thu tiền mặt tại quầy"
+                                onClick={() => openCashPayment(r)}
+                              >
+                                Thu tiền mặt
+                              </button>
                             </>
                           ) : null}
                           </div>
@@ -1096,11 +1355,11 @@ export default function BookingManagement({ staffMode = false }) {
           {!loading && !err && totalDayPages > 0 ? (
             <div className="booking-mgmt__paginationWrap">
               <div className="booking-mgmt__pagerPick">
-                <div>
+                {/* <div>
                   <p className="booking-mgmt__pagerSelectLabel">Theo ngày</p>
                   <p className="booking-mgmt__pagerSub">{activeDateKey ? formatDateHeader(activeDateKey) : '—'}</p>
-                </div>
-                <button
+                </div> */}
+                {/* <button
                   type="button"
                   className="booking-mgmt__btn booking-mgmt__btn--secondary booking-mgmt__btn--sm"
                   onClick={goToday}
@@ -1108,7 +1367,7 @@ export default function BookingManagement({ staffMode = false }) {
                   title={sortedDateKeys.indexOf(todayYmd) < 0 ? 'Không có đơn hôm nay' : 'Chuyển tới ngày hôm nay'}
                 >
                   Hôm nay
-                </button>
+                </button> */}
               </div>
               <AdminPagination
                 className="booking-mgmt__pagination"
@@ -1126,6 +1385,15 @@ export default function BookingManagement({ staffMode = false }) {
         <div className="booking-mgmt__table-wrap">
           <p className="booking-mgmt__empty">Chưa có đơn đặt bàn nào.</p>
         </div>
+      ) : null}
+
+      {detailBookingId ? (
+        <ReservationDetailView
+          bookingId={String(detailBookingId)}
+          variant="modal"
+          onClose={() => setDetailBookingId(null)}
+          onCancelled={load}
+        />
       ) : null}
     </div>
   )

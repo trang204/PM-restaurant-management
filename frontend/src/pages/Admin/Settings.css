@@ -23,7 +23,7 @@
 }
 
 .settings-page__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.55rem;
   font-weight: 600;
   color: var(--st-text);
@@ -322,7 +322,11 @@
   transition: filter var(--st-ease), box-shadow var(--st-ease);
 }
 
-.settings-save:hover:not(:disabled) { filter: brightness(1.06); box-shadow: 0 5px 20px rgba(184,147,90,0.45); }
+.settings-save:hover:not(:disabled) { 
+  filter: brightness(1.06); 
+  box-shadow: 0 5px 20px rgba(184,147,90,0.45); 
+  transform: translateY(-2px); 
+}
 .settings-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ─── Payment section ─── */
@@ -593,3 +597,38 @@
   .settings-featureCard { grid-template-columns: 1fr; }
   .bank-select__dropdown { position: fixed; left: 12px; right: 12px; top: auto; }
 }
+
+/* ─── Social Section ─── */
+.settings-social-section {
+  background: #F9F6F1;
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius);
+  padding: 16px 18px;
+}
+
+.settings-social-section__label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.93rem;
+  color: var(--st-text);
+  margin-bottom: 4px;
+}
+
+.settings-social-section__hint {
+  font-size: 0.82rem;
+  color: var(--st-muted);
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+.settings-social-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+  font-size: 0.84rem;
+}
+
+.settings-social-label--fb  { color: #1877F2; }
+.settings-social-label--ig  { color: #E1306C; }
+.settings-social-label--zalo { color: #0068FF; }

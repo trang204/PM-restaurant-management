@@ -4,12 +4,12 @@ import { query } from '../../config/db.js'
 function toDateStart(raw) {
   const s = String(raw || '').slice(0, 10)
   if (!s) return null
-  const dt = new Date(`${s}T00:00:00`)
+  const dt = new Date(`${s}T00:00:00Z`)
   return Number.isNaN(dt.getTime()) ? null : dt
 }
 
 function ymd(dt) {
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`
 }
 
 function previousRange(fromDate, toDate) {
@@ -18,9 +18,9 @@ function previousRange(fromDate, toDate) {
   if (!fromDt || !toDt) return { previousFrom: null, previousTo: null }
   const days = Math.max(1, Math.round((toDt.getTime() - fromDt.getTime()) / 86400000) + 1)
   const prevTo = new Date(fromDt)
-  prevTo.setDate(prevTo.getDate() - 1)
+  prevTo.setUTCDate(prevTo.getUTCDate() - 1)
   const prevFrom = new Date(prevTo)
-  prevFrom.setDate(prevFrom.getDate() - (days - 1))
+  prevFrom.setUTCDate(prevFrom.getUTCDate() - (days - 1))
   return { previousFrom: ymd(prevFrom), previousTo: ymd(prevTo) }
 }
 
@@ -69,6 +69,13 @@ export async function revenueByTable(req, res, next) {
         p.amount::numeric AS amount,
         p.method,
         p.paid_at         AS "paidAt",
+        p.transaction_code AS "transactionCode",
+        p.cashier_id      AS "cashierId",
+        u.name            AS "cashierName",
+        p.note,
+        p.tax::numeric    AS tax,
+        p.discount::numeric AS discount,
+        p.surcharge::numeric AS surcharge,
         COALESCE(ts_t.id, bt_t.id)                         AS table_id,
         COALESCE(
           (
@@ -87,6 +94,7 @@ export async function revenueByTable(req, res, next) {
           '[]'::json
         ) AS items
       FROM payments p
+      LEFT JOIN users u ON u.id = p.cashier_id
       LEFT JOIN orders o ON o.id = p.order_id
       LEFT JOIN table_sessions ts ON ts.id = o.table_session_id
       LEFT JOIN tables ts_t      ON ts_t.id = ts.table_id
@@ -109,6 +117,13 @@ export async function revenueByTable(req, res, next) {
         amount:    row.amount,
         method:    row.method,
         paidAt:    row.paidAt,
+        transactionCode: row.transactionCode,
+        cashierId:   row.cashierId,
+        cashierName: row.cashierName,
+        note:        row.note,
+        tax:         row.tax,
+        discount:    row.discount,
+        surcharge:   row.surcharge,
         items:     row.items || [],
       })
     }
@@ -130,7 +145,7 @@ export async function revenueByTable(req, res, next) {
 /** Danh sách thanh toán PAID trong khoảng ngày + từng dòng món (cho báo cáo chi tiết). */
 export async function revenueInvoices(req, res, next) {
   try {
-    const { from, to } = req.query || {}
+    const { from, to, tableId } = req.query || {}
     const fromDate = from ? String(from) : null
     const toDate = to ? String(to) : null
 
@@ -145,6 +160,10 @@ export async function revenueInvoices(req, res, next) {
       params.push(toDate)
       where.push(`p.paid_at < ($${params.length}::date + INTERVAL '1 day')`)
     }
+    if (tableId) {
+      params.push(tableId)
+      where.push(`o.table_id = $${params.length}`)
+    }
 
     const result = await query(
       `
@@ -154,6 +173,19 @@ export async function revenueInvoices(req, res, next) {
         p.amount::numeric AS amount,
         p.method,
         p.paid_at AS "paidAt",
+        p.transaction_code AS "transactionCode",
+        p.cashier_id AS "cashierId",
+        u.name AS "cashierName",
+        p.note,
+        p.tax::numeric AS tax,
+        p.discount::numeric AS discount,
+        p.surcharge::numeric AS surcharge,
+        (
+          SELECT string_agg(t.name, ', ')
+          FROM booking_tables bt
+          JOIN tables t ON t.id = bt.table_id
+          WHERE bt.booking_id = o.booking_id
+        ) AS "tableName",
         COALESCE(
           (
             SELECT json_agg(
@@ -171,6 +203,8 @@ export async function revenueInvoices(req, res, next) {
           '[]'::json
         ) AS items
       FROM payments p
+      LEFT JOIN orders o ON o.id = p.order_id
+      LEFT JOIN users u ON u.id = p.cashier_id
       WHERE ${where.join(' AND ')}
       ORDER BY p.paid_at DESC, p.id DESC
     `,

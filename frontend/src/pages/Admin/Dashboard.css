@@ -10,7 +10,7 @@
 }
 
 .dash__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.6rem;
   font-weight: 600;
   color: var(--dash-text);
@@ -73,7 +73,7 @@
 .dash__stat-label svg { color: var(--dash-gold); }
 
 .dash__stat-value {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 2rem;
   font-weight: 700;
   color: var(--dash-text);
@@ -98,7 +98,7 @@
 }
 
 .dash__section-title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--dash-text);
@@ -192,7 +192,8 @@
 .dash__btn:hover {
   background: linear-gradient(135deg, rgba(184,147,90,0.16) 0%, rgba(244,236,224,0.92) 100%);
   border-color: rgba(184,147,90,0.38);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(184,147,90,0.12);
   text-decoration: none;
   color: var(--dash-text);
 }
@@ -214,9 +215,13 @@
   box-shadow: 0 4px 14px rgba(184,147,90,0.25);
 }
 
-.dash__btn--primary:hover {
-  filter: brightness(1.05);
+.dash__btn.dash__btn--primary:hover {
+  background: linear-gradient(135deg, #B8935A 0%, #8B6E41 100%);
   color: #fff;
+  border-color: transparent;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(184,147,90,0.25);
+  filter: brightness(1.05);
 }
 
 .dash__btn--danger {
@@ -228,6 +233,8 @@
 .dash__btn--danger:hover {
   border-color: #F5C4C0;
   background: #FEECEC;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239,68,68,0.12);
 }
 
 .dash__btn--sm {
@@ -285,7 +292,7 @@
   font-weight: 600;
   letter-spacing: 0.03em;
 }
-
+.dash__badge--hold { background: #FEF9EC; color: #92600A; border: 1px solid #F5E0A0; }  
 .dash__badge--pending { background: #FEF9EC; color: #92600A; border: 1px solid #F5E0A0; }
 .dash__badge--confirmed { background: #EFF6EF; color: #2D6A2D; border: 1px solid #C3E6C3; }
 .dash__badge--cancelled { background: #FEF2F2; color: #B91C1C; border: 1px solid #FCA5A5; }
@@ -342,4 +349,113 @@
 
 @media (max-width: 480px) {
   .dash__stats { grid-template-columns: 1fr; }
+}
+
+/* Modal Styles */
+.dash__modal-backdrop {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.dash__modal {
+  background: #fff;
+  border-radius: var(--dash-radius);
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.dash__modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--dash-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dash__modal-title {
+  margin: 0;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--dash-text);
+}
+
+.dash__modal-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--dash-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background 0.2s, color 0.2s;
+}
+.dash__modal-close:hover {
+  background: #f1f1f1;
+  color: #111;
+}
+
+.dash__modal-body {
+  padding: 20px 24px;
+  font-size: 0.92rem;
+  color: var(--dash-text);
+}
+
+.dash__modal-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed rgba(226,217,204,0.6);
+}
+.dash__modal-item:last-child {
+  border-bottom: none;
+}
+
+.dash__modal-label {
+  color: var(--dash-muted);
+  font-weight: 500;
+}
+
+.dash__modal-value {
+  font-weight: 600;
+  text-align: right;
+}
+
+.dash__order-list {
+  margin-top: 10px;
+  background: #FDFAF7;
+  border: 1px solid var(--dash-border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.dash__order-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 0.88rem;
+}
+.dash__order-item:last-child {
+  margin-bottom: 0;
+}
+
+.dash__modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--dash-border);
+  display: flex;
+  justify-content: flex-end;
 }

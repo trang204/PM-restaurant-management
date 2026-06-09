@@ -9,7 +9,7 @@ import ResetPassword from './pages/Auth/ResetPassword'
 import Profile from './pages/Profile/Profile'
 import BookTable from './pages/Booking/BookTable'
 import ReservationHistory from './pages/Booking/ReservationHistory'
-import ReservationDetail from './pages/Booking/ReservationDetail'
+import ReservationsIdRedirect from './pages/Booking/ReservationsIdRedirect'
 import AdminLayout from './layouts/AdminLayout/AdminLayout.jsx'
 import StaffLayout from './layouts/StaffLayout/StaffLayout.jsx'
 import StaffDesk from './pages/Staff/StaffDesk.jsx'
@@ -22,6 +22,8 @@ import MenuManagement from './pages/Admin/MenuManagement.jsx'
 import UserManagement from './pages/Admin/UserManagement.jsx'
 import Settings from './pages/Admin/Settings.jsx'
 import RevenueReports from './pages/Admin/RevenueReports'
+import PaymentHistory from './pages/Admin/PaymentHistory'
+import IngredientManagement from './pages/Admin/IngredientManagement.jsx'
 import TableOrder from './pages/TableOrder/TableOrder'
 
 export default function App() {
@@ -37,7 +39,7 @@ export default function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/book" element={<BookTable />} />
         <Route path="/reservations" element={<ReservationHistory />} />
-        <Route path="/reservations/:id" element={<ReservationDetail />} />
+        <Route path="/reservations/:id" element={<ReservationsIdRedirect />} />
         <Route path="/order/table/:token" element={<TableOrder />} />
       </Route>
 
@@ -47,10 +49,12 @@ export default function App() {
         <Route path="tables" element={<TableManagement />} />
         <Route path="tables/layout" element={<TableLayoutEditor />} />
         <Route path="menu" element={<MenuManagement />} />
+        <Route path="ingredients" element={<IngredientManagement />} />
         <Route path="users" element={<Navigate to="/admin/users/customers" replace />} />
         <Route path="users/:group" element={<UserManagement />} />
         <Route path="settings" element={<Settings />} />
         <Route path="reports" element={<RevenueReports />} />
+        <Route path="payments" element={<PaymentHistory />} />
         <Route path="kitchen" element={<KitchenOrders />} />
       </Route>
 

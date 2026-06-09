@@ -69,7 +69,7 @@ export default function ResetPassword() {
       <div className="authCard">
         <div className="authCard__head">
           <h2 className="authCard__title">Mật khẩu mới</h2>
-          <p className="authCard__subtitle">Liên kết đặt lại mật khẩu có hiệu lực trong 30 phút.</p>
+          <p className="authCard__subtitle">Liên kết đặt lại mật khẩu có hiệu lực trong 10 phút.</p>
         </div>
 
         <form className="authForm" onSubmit={onSubmit} noValidate>

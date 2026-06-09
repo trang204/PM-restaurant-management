@@ -51,11 +51,12 @@ export default function PasswordField({
     <div className={`authField ${className}`.trim()}>
       <label htmlFor={inputId} className="authField__label">
         {label}
+        {required ? <span className="required-asterisk">*</span> : null}
       </label>
       <div className="authField__passwordWrap">
         <input
           id={inputId}
-          className={`authField__input authField__input--withToggle${error ? ' authField__input--error' : ''}`}
+          className={`authField__input authField__input--withToggle${error ? ' authField__input--error input-error' : ''}`}
           type={visible ? 'text' : 'password'}
           value={value}
           onChange={(e) => onChange(e.target.value)}

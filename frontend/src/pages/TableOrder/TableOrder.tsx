@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { mediaUrl, publicApiFetch } from '../../lib/api'
+import { useNotifications } from '../../context/NotificationsContext'
+import fallbackImg from '../../assets/menu/comtam.svg?url'
+import { getStatusLabel } from '../../lib/statusMapper'
 import './TableOrder.css'
+
 
 type MenuItem = {
   id: string | number
@@ -53,13 +57,6 @@ type PaymentCtx = {
   transferContent?: string | null
 }
 
-const STATUS_VI: Record<string, string> = {
-  PENDING: 'Đang chờ bếp',
-  SERVING: 'Đang phục vụ',
-  DONE: 'Đã xong',
-  CANCELLED: 'Đã hủy',
-}
-
 function formatPrice(n: number) {
   return `${n.toLocaleString('vi-VN')} ₫`
 }
@@ -74,24 +71,40 @@ export default function TableOrder() {
   const [search, setSearch] = useState('')
   const [cat, setCat] = useState<string>('all')
   const [cartOpen, setCartOpen] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [paying, setPaying] = useState(false)
   const [payMethod, setPayMethod] = useState<'cash' | 'bank_transfer'>('cash')
   const [paymentCtx, setPaymentCtx] = useState<PaymentCtx | null>(null)
+  const { confirm, toast } = useNotifications()
 
-  const load = useCallback(() => {
+  const load = useCallback((silent = false) => {
     if (!token) return
-    setLoading(true)
+    if (!silent) setLoading(true)
     publicApiFetch<Ctx>(`/table-session/${encodeURIComponent(token)}`)
       .then(setCtx)
-      .catch((e) => setErr((e as Error).message))
-      .finally(() => setLoading(false))
+      .catch((e) => { if (!silent) setErr((e as Error).message) })
+      .finally(() => { if (!silent) setLoading(false) })
+  }, [token])
+
+  const loadPayment = useCallback(async () => {
+    if (!token) return
+    try {
+      const d = await publicApiFetch<PaymentCtx>(`/table-session/${encodeURIComponent(token)}/payment`)
+      setPaymentCtx(d)
+    } catch {
+      setPaymentCtx(null)
+    }
   }, [token])
 
   useEffect(() => {
     load()
-  }, [load])
+    // Realtime polling (3 seconds)
+    const t = window.setInterval(() => {
+      load(true) // silent load
+      loadPayment() // also silent
+    }, 3000)
+    return () => window.clearInterval(t)
+  }, [load, loadPayment])
 
   useEffect(() => {
     document.body.style.overflow = cartOpen ? 'hidden' : ''
@@ -100,10 +113,51 @@ export default function TableOrder() {
     }
   }, [cartOpen])
 
-  function showToast(msg: string) {
-    setToast(msg)
-    window.setTimeout(() => setToast(null), 2200)
+
+  const handleClearAllCart = async () => {
+    if (!ctx || !token) return
+    const editableItems = ctx.items.filter(i => 
+      String(i.order_status || 'PENDING').toUpperCase() === 'PENDING' ||
+      String(i.kitchen_status || 'PENDING').toUpperCase() === 'PENDING'
+    )
+    
+    if (editableItems.length === 0) {
+      toast('Chỉ có thể xóa các món chưa được bếp chế biến.')
+      return
+    }
+
+    const ok = await confirm({
+      title: 'Xóa tất cả món chưa chế biến',
+      message: 'Bạn có chắc chắn muốn xóa tất cả các món chưa được chế biến trong đơn này không?',
+      confirmLabel: 'Xóa tất cả',
+    })
+    if (!ok) return
+
+    setErr(null)
+    setLoading(true)
+    try {
+      await Promise.all(
+        editableItems.map(i =>
+          publicApiFetch(`/table-session/${encodeURIComponent(token)}/items/${i.id}`, {
+            method: 'DELETE',
+          })
+        )
+      )
+      await load()
+      await loadPayment()
+      toast('Đã xóa các món chưa chế biến.')
+      setCartOpen(false)
+    } catch (e) {
+      setErr((e as Error).message)
+    } finally {
+      setLoading(false)
+    }
   }
+
+  // function toast(msg: string) {
+  //   toast(msg)
+  //   window.setTimeout(() => toast({message: null}), 2200)
+  // }
 
   // Luôn cho phép gọi thêm khi session còn active
   const canOrder = ctx !== null
@@ -145,15 +199,7 @@ export default function TableOrder() {
 
   const totalQty = useMemo(() => ctx?.items.reduce((s, i) => s + Number(i.quantity), 0) ?? 0, [ctx?.items])
 
-  const loadPayment = useCallback(async () => {
-    if (!token) return
-    try {
-      const d = await publicApiFetch<PaymentCtx>(`/table-session/${encodeURIComponent(token)}/payment`)
-      setPaymentCtx(d)
-    } catch {
-      setPaymentCtx(null)
-    }
-  }, [token])
+
 
   useEffect(() => {
     if (!ctx) return
@@ -171,7 +217,7 @@ export default function TableOrder() {
       })
       await load()
       await loadPayment()
-      showToast('Đã thêm vào đơn')
+      toast('Đã thêm vào đơn')
     } catch (e) {
       setErr((e as Error).message)
     } finally {
@@ -208,7 +254,7 @@ export default function TableOrder() {
       })
       await load()
       await loadPayment()
-      showToast('Đã xóa món')
+      toast('Đã xóa món')
     } catch (e) {
       setErr((e as Error).message)
     } finally {
@@ -222,16 +268,16 @@ export default function TableOrder() {
       window.location.href = `tel:${phone}`
       return
     }
-    showToast('Nhà hàng chưa cập nhật số điện thoại')
+    toast('Nhà hàng chưa cập nhật số điện thoại')
   }
 
   const statusKey = ctx ? String(ctx.order.status || '').toUpperCase() : ''
-  const statusLabel = STATUS_VI[statusKey] || ctx?.order.status || '—'
+  const statusLabel = getStatusLabel(statusKey, 'kitchen')
 
   async function submit() {
     if (!token || !ctx) return
     if (!ctx.items.length) {
-      showToast('Bạn chưa chọn món')
+      toast('Bạn chưa chọn món')
       return
     }
     setSubmitting(true)
@@ -240,7 +286,7 @@ export default function TableOrder() {
       await publicApiFetch(`/table-session/${encodeURIComponent(token)}/submit`, { method: 'POST', body: '{}' })
       await load()
       await loadPayment()
-      showToast('Đã xác nhận đặt món — nhân viên đã nhận đơn')
+      toast('Đã xác nhận đặt món — nhân viên đã nhận đơn')
     } catch (e) {
       setErr((e as Error).message)
     } finally {
@@ -251,7 +297,7 @@ export default function TableOrder() {
   async function createPay() {
     if (!token || !ctx) return
     if (!ctx.items.length) {
-      showToast('Bạn chưa chọn món')
+      toast('Bạn chưa chọn món')
       return
     }
     setPaying(true)
@@ -262,7 +308,7 @@ export default function TableOrder() {
         body: JSON.stringify({ method: payMethod }),
       })
       setPaymentCtx(d)
-      showToast('Đã tạo yêu cầu thanh toán')
+      toast('Đã tạo yêu cầu thanh toán')
     } catch (e) {
       setErr((e as Error).message)
     } finally {
@@ -384,7 +430,7 @@ export default function TableOrder() {
                       <button
                         type="button"
                         className="tableOrder__qrCopy"
-                        onClick={() => navigator.clipboard.writeText(paymentCtx.bankAccount!).then(() => showToast('Đã sao chép STK'))}
+                        onClick={() => navigator.clipboard.writeText(paymentCtx.bankAccount!).then(() => toast('Đã sao chép STK'))}
                         title="Sao chép"
                       >⎘</button>
                     </div>
@@ -402,7 +448,7 @@ export default function TableOrder() {
                       <button
                         type="button"
                         className="tableOrder__qrCopy"
-                        onClick={() => navigator.clipboard.writeText(paymentCtx.transferContent!).then(() => showToast('Đã sao chép nội dung'))}
+                        onClick={() => navigator.clipboard.writeText(paymentCtx.transferContent!).then(() => toast('Đã sao chép nội dung'))}
                         title="Sao chép"
                       >⎘</button>
                     </div>
@@ -429,10 +475,6 @@ export default function TableOrder() {
 
   return (
     <div className="tableOrder">
-      <div className={`tableOrder__toast${toast ? ' tableOrder__toast--on' : ''}`} role="status">
-        {toast}
-      </div>
-
       <header className="tableOrder__hero">
         <div className="tableOrder__heroInner">
           <div className="tableOrder__brand">
@@ -575,14 +617,19 @@ export default function TableOrder() {
                         key={String(m.id)}
                         className={`tableOrder__card${!isAvailable ? ' tableOrder__card--unavailable' : ''}`}
                       >
-                        <div
-                          className="tableOrder__img"
-                          style={
-                            m.image_url
-                              ? { backgroundImage: `url(${mediaUrl(m.image_url)})` }
-                              : undefined
-                          }
-                        />
+                        <div className="tableOrder__imgWrap">
+                          <img
+                            className="tableOrder__img"
+                            src={m.image_url ? mediaUrl(m.image_url) : fallbackImg}
+                            alt={m.name}
+                            onError={(e) => {
+                              if (e.currentTarget.src !== fallbackImg) {
+                                e.currentTarget.src = fallbackImg
+                              }
+                            }}
+                          />
+                          {!isAvailable && <span className="tableOrder__stockTag" aria-hidden>Hết món</span>}
+                        </div>
                         <div className="tableOrder__cardBody">
                           <div className="tableOrder__cardMeta">
                             <p className="tableOrder__catLabel">{m.category_name || 'Món'}</p>
@@ -646,6 +693,7 @@ export default function TableOrder() {
             <aside className="tableOrder__cart" aria-label="Đơn của bạn">
               <div className="tableOrder__cartHead">
                 <h2 className="tableOrder__h2">Đơn của bạn</h2>
+                <button type='button' className="tableOrder__clearCart" onClick={handleClearAllCart}>Xóa tất cả món</button>
               </div>
               {ctx.items.length === 0 ? (
                 <div className="tableOrder__cartEmpty">
@@ -680,23 +728,25 @@ export default function TableOrder() {
                                 <div className="tableOrder__lineMain">
                                   <span className="tableOrder__lineName">{i.food_name || `Món #${i.food_id}`}</span>
                                   <span className="tableOrder__lineSub">{formatPrice(Number(i.price))} / phần</span>
-                                  {/* Chỉ hiện trạng thái bếp với đơn PENDING — SERVING đã được xử lý rồi */}
-                                  {isPending ? (
                                     <span
                                       className={
-                                        String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
+                                        String(i.kitchen_status || '').toUpperCase() === 'SERVED'
+                                          ? 'tableOrder__kitchenOk'
+                                          : String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
                                           ? 'tableOrder__kitchenOk'
                                           : 'tableOrder__kitchenWait'
                                       }
+                                      style={String(i.kitchen_status || '').toUpperCase() === 'SERVED' ? { background: '#E3F2FD', color: '#1976D2' } : {}}
                                     >
-                                      {String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
+                                      {String(i.kitchen_status || '').toUpperCase() === 'SERVED'
+                                        ? 'Bếp đã lên món'
+                                        : String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
                                         ? 'Bếp đã nhận'
                                         : 'Chờ bếp xác nhận'}
                                     </span>
-                                  ) : null}
                                 </div>
                                 <div className="tableOrder__lineActions">
-                                  {isPending ? (
+                                  {(String(group.status).toUpperCase() === 'PENDING' || String(i.kitchen_status || 'PENDING').toUpperCase() === 'PENDING') ? (
                                     <>
                                       <button
                                         type="button"
@@ -794,22 +844,25 @@ export default function TableOrder() {
                                 <div className="tableOrder__lineMain">
                                   <span className="tableOrder__lineName">{i.food_name || `Món #${i.food_id}`}</span>
                                   <span className="tableOrder__lineSub">{formatPrice(Number(i.price))} / phần</span>
-                                  {isPending ? (
                                     <span
                                       className={
-                                        String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
+                                        String(i.kitchen_status || '').toUpperCase() === 'SERVED'
+                                          ? 'tableOrder__kitchenOk'
+                                          : String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
                                           ? 'tableOrder__kitchenOk'
                                           : 'tableOrder__kitchenWait'
                                       }
+                                      style={String(i.kitchen_status || '').toUpperCase() === 'SERVED' ? { background: '#E3F2FD', color: '#1976D2' } : {}}
                                     >
-                                      {String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
+                                      {String(i.kitchen_status || '').toUpperCase() === 'SERVED'
+                                        ? 'Bếp đã lên món'
+                                        : String(i.kitchen_status || '').toUpperCase() === 'ACKNOWLEDGED'
                                         ? 'Bếp đã nhận'
                                         : 'Chờ bếp xác nhận'}
                                     </span>
-                                  ) : null}
                                 </div>
                                 <div className="tableOrder__lineActions">
-                                  {isPending ? (
+                                  {(String(group.status).toUpperCase() === 'PENDING' || String(i.kitchen_status || 'PENDING').toUpperCase() === 'PENDING') ? (
                                     <>
                                       <button
                                         type="button"

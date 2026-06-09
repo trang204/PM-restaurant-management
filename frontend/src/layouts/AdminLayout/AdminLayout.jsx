@@ -13,8 +13,11 @@ import {
   Home,
   Menu as MenuIcon,
   X,
+  Package,
+  Receipt,
 } from 'lucide-react'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
+import { useNotifications } from '../../context/NotificationsContext'
 import { fetchPublicSettings } from '../../lib/settings'
 import NotificationBell from '../../components/NotificationBell.jsx'
 import './AdminLayout.css'
@@ -36,6 +39,7 @@ const adminTree = [
       { to: '/admin/tables', label: 'Quản lý bàn', icon: <TableProperties size={15} /> },
       { to: '/admin/kitchen', label: 'Bếp & gọi món', icon: <ChefHat size={15} /> },
       { to: '/admin/reports', label: 'Doanh thu', icon: <BarChart3 size={15} /> },
+      { to: '/admin/payments', label: 'Lịch sử thanh toán', icon: <Receipt size={15} /> },
     ],
   },
   {
@@ -44,6 +48,7 @@ const adminTree = [
     label: 'Thực đơn',
     children: [
       { to: '/admin/menu', label: 'Món ăn', icon: <UtensilsCrossed size={15} /> },
+      { to: '/admin/ingredients', label: 'Nguyên liệu', icon: <Package size={15} /> },
     ],
   },
   {
@@ -63,10 +68,11 @@ function pathOpensGroup(pathname) {
     pathname.startsWith('/admin/bookings') ||
     pathname.startsWith('/admin/tables') ||
     pathname.startsWith('/admin/reports') ||
+    pathname.startsWith('/admin/payments') ||
     pathname.startsWith('/admin/kitchen')
   )
     s.add('van-hanh')
-  if (pathname.startsWith('/admin/menu')) s.add('thuc-don')
+  if (pathname.startsWith('/admin/menu') || pathname.startsWith('/admin/ingredients')) s.add('thuc-don')
   if (pathname.startsWith('/admin/users') || pathname.startsWith('/admin/settings')) s.add('he-thong')
   return s
 }
@@ -74,6 +80,7 @@ function pathOpensGroup(pathname) {
 export default function AdminLayout() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const { confirm } = useNotifications()
   const [openGroups, setOpenGroups] = useState(() => new Set(['van-hanh', 'thuc-don', 'he-thong']))
   const [me, setMe] = useState(null)
   const [brand, setBrand] = useState({ name: 'Luxeat', logoUrl: null })
@@ -123,7 +130,16 @@ export default function AdminLayout() {
     })
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    const ok = await confirm({
+      title: 'Đăng xuất',
+      message: 'Bạn có muốn đăng xuất không?',
+      danger: true,
+      confirmLabel: 'Đăng xuất',
+      cancelLabel: 'Hủy',
+      warningText: 'Bạn sẽ cần đăng nhập lại để tiếp tục sử dụng hệ thống.',
+    })
+    if (!ok) return
     setToken(null)
     setMe(null)
     navigate('/login')

@@ -186,6 +186,36 @@ export async function ensureDbSchema() {
       used_at TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS ingredient_units (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(50) UNIQUE NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS ingredients (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(150) NOT NULL,
+      unit VARCHAR(50) NOT NULL,
+      stock_quantity DECIMAL(14,2) NOT NULL DEFAULT 0,
+      min_stock_alert DECIMAL(14,2) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS ingredient_imports (
+      id SERIAL PRIMARY KEY,
+      ingredient_id INT REFERENCES ingredients(id) ON DELETE CASCADE,
+      quantity DECIMAL(14,2) NOT NULL,
+      note TEXT,
+      import_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS food_ingredients (
+      id SERIAL PRIMARY KEY,
+      food_id INT REFERENCES foods(id) ON DELETE CASCADE,
+      ingredient_id INT REFERENCES ingredients(id) ON DELETE RESTRICT,
+      quantity_needed DECIMAL(14,2) NOT NULL DEFAULT 1
+    );
   `)
 
   // Seed roles tối thiểu để auth/register không lỗi.
@@ -196,8 +226,25 @@ export async function ensureDbSchema() {
      WHERE NOT EXISTS (SELECT 1 FROM roles)`,
   )
 
+  // Seed default ingredient units
+  await query(
+    `INSERT INTO ingredient_units (name)
+     SELECT x.name
+     FROM (VALUES ('kg'), ('g'), ('lít'), ('ml'), ('hộp'), ('cái'), ('lon'), ('chai')) AS x(name)
+     ON CONFLICT (name) DO NOTHING`,
+  )
+
   // Đảm bảo settings id=1 tồn tại (admin/settings và public/settings dựa vào 1 row).
   await query(`INSERT INTO settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING`)
+
+  // Bảng khu vực (zones) — quản lý khu vực cho bàn.
+  await query(`
+    CREATE TABLE IF NOT EXISTS zones (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) UNIQUE NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
 
   const r = await query(
     `
@@ -225,6 +272,20 @@ export async function ensureDbSchema() {
   )
   if (!ti.rows.length) {
     await query(`ALTER TABLE tables ADD COLUMN image_url TEXT`)
+  }
+
+  const tz = await query(
+    `
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'tables'
+      AND column_name = 'zone'
+    LIMIT 1
+    `,
+  )
+  if (!tz.rows.length) {
+    await query(`ALTER TABLE tables ADD COLUMN zone TEXT`)
   }
 
   /** DB cũ: status quá ngắn hoặc ENUM thiếu nhãn CLOSED → đóng bàn không lưu được. */
@@ -308,6 +369,20 @@ export async function ensureDbSchema() {
     await query(`ALTER TABLE order_items ADD COLUMN kitchen_ack_at TIMESTAMP`)
   }
 
+  const oiNote = await query(
+    `
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'order_items'
+      AND column_name = 'note'
+    LIMIT 1
+    `,
+  )
+  if (!oiNote.rows.length) {
+    await query(`ALTER TABLE order_items ADD COLUMN note TEXT`)
+  }
+
   const pr = await query(
     `
     SELECT 1
@@ -330,6 +405,25 @@ export async function ensureDbSchema() {
     `)
   }
 
+  // Cột bổ sung cho bảng payments phục vụ thanh toán tiền mặt/quầy
+  const pmCols = [
+    ['transaction_code', 'TEXT'],
+    ['cashier_id', 'INT REFERENCES users(id)'],
+    ['note', 'TEXT'],
+    ['tax', 'DECIMAL(14,2) DEFAULT 0'],
+    ['discount', 'DECIMAL(14,2) DEFAULT 0'],
+    ['surcharge', 'DECIMAL(14,2) DEFAULT 0']
+  ]
+  for (const [col, type] of pmCols) {
+    const pmc = await query(
+      `SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='payments' AND column_name=$1 LIMIT 1`,
+      [col],
+    )
+    if (!pmc.rows.length) {
+      await query(`ALTER TABLE payments ADD COLUMN ${col} ${type}`)
+    }
+  }
+
   // Cột cài đặt thanh toán chuyển khoản (SePay QR).
   const paymentCols = [
     ['payment_bank_account', 'TEXT'],
@@ -338,6 +432,7 @@ export async function ensureDbSchema() {
     ['payment_qr_template', 'TEXT'],
     ['system_email', 'TEXT'],
     ['system_email_password', 'TEXT'],
+    ['reservation_hold_duration', 'INT DEFAULT 15'],
   ]
   for (const [col, type] of paymentCols) {
     const pc = await query(
@@ -391,6 +486,50 @@ export async function ensureDbSchema() {
     const prec = Number(pr.rows[0].p)
     if (Number.isFinite(prec) && prec < 14) {
       await query(`ALTER TABLE ${table} ALTER COLUMN ${column} TYPE DECIMAL(14, 2)`)
+    }
+  }
+
+  // Trạng thái món (thực đơn): cột foods.status — AVAILABLE = Còn món, UNAVAILABLE = Hết món.
+  const foodSt = await query(
+    `
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'foods'
+      AND column_name = 'status'
+    LIMIT 1
+    `,
+  )
+  if (!foodSt.rows.length) {
+    await query(`ALTER TABLE foods ADD COLUMN status VARCHAR(20) DEFAULT 'AVAILABLE'`)
+  }
+  await query(`UPDATE foods SET status = 'AVAILABLE' WHERE status IS NULL OR TRIM(status) = ''`)
+  await query(
+    `UPDATE foods SET status = 'AVAILABLE' WHERE UPPER(TRIM(status)) NOT IN ('AVAILABLE', 'UNAVAILABLE')`,
+  )
+  await query(`ALTER TABLE foods ALTER COLUMN status SET DEFAULT 'AVAILABLE'`)
+
+  // Nâng cấp FK order_items.food_id → ON DELETE SET NULL
+  // (giúp xóa món mà không mất lịch sử đơn hàng)
+  const fkCheck = await query(`
+    SELECT tc.constraint_name, rc.delete_rule
+    FROM information_schema.table_constraints AS tc
+    JOIN information_schema.referential_constraints AS rc
+      ON rc.constraint_name = tc.constraint_name
+    JOIN information_schema.key_column_usage AS kcu
+      ON kcu.constraint_name = tc.constraint_name
+    WHERE tc.constraint_type = 'FOREIGN KEY'
+      AND tc.table_name = 'order_items'
+      AND kcu.column_name = 'food_id'
+    LIMIT 1
+  `)
+  if (fkCheck.rows.length) {
+    const rule = String(fkCheck.rows[0].delete_rule || '').toUpperCase()
+    if (rule !== 'SET NULL') {
+      const constraintName = fkCheck.rows[0].constraint_name
+      await query(`ALTER TABLE order_items DROP CONSTRAINT IF EXISTS "${constraintName}"`)
+      await query(`ALTER TABLE order_items ADD CONSTRAINT order_items_food_id_fkey
+        FOREIGN KEY (food_id) REFERENCES foods(id) ON DELETE SET NULL`)
     }
   }
 }
