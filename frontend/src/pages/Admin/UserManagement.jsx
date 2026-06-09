@@ -5,6 +5,7 @@ import { useNotifications } from '../../context/NotificationsContext'
 import AdminPagination from '../../components/AdminPagination'
 import { requiredMessage, validatePhone } from '../../lib/validation'
 import { getStatusLabel, USER_STATUS } from '../../lib/statusMapper'
+import DetailModal from '../../components/DetailModal/DetailModal'
 import './UserManagement.css'
 
 const roles = ['CUSTOMER', 'STAFF', 'ADMIN']
@@ -369,17 +370,8 @@ export default function UserManagement() {
       ) : null}
 
       {editModal ? (
-        <div
-          className="user-mgmt__backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="user-edit-title"
-          onClick={() => setEditModal(null)}
-        >
-          <div className="user-mgmt__dialog" onClick={(e) => e.stopPropagation()}>
-            <h2 id="user-edit-title" className="user-mgmt__dialogTitle">
-              Chỉnh sửa người dùng
-            </h2>
+        <DetailModal title="Chỉnh sửa người dùng" onClose={() => setEditModal(null)}>
+          <DetailModal.Card>
             <label className="user-mgmt__dialogField">
               <span>Họ tên <span className="required-asterisk">*</span></span>
               <input
@@ -460,22 +452,13 @@ export default function UserManagement() {
                 Lưu
               </button>
             </div>
-          </div>
-        </div>
+          </DetailModal.Card>
+        </DetailModal>
       ) : null}
 
       {addModalOpen ? (
-        <div
-          className="user-mgmt__backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="user-add-title"
-          onClick={() => setAddModalOpen(false)}
-        >
-          <div className="user-mgmt__dialog" onClick={(e) => e.stopPropagation()}>
-            <h2 id="user-add-title" className="user-mgmt__dialogTitle">
-              Thêm {meta.label}
-            </h2>
+        <DetailModal title={`Thêm ${meta.label}`} onClose={() => setAddModalOpen(false)}>
+          <DetailModal.Card>
             <label className="user-mgmt__dialogField">
               <span>Họ tên <span className="required-asterisk">*</span></span>
               <input
@@ -567,8 +550,8 @@ export default function UserManagement() {
                 Tạo
               </button>
             </div>
-          </div>
-        </div>
+          </DetailModal.Card>
+        </DetailModal>
       ) : null}
     </div>
   )
