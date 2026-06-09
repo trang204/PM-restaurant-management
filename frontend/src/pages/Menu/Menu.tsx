@@ -195,7 +195,7 @@ export default function Menu() {
                 aria-label="Tìm theo tên món"
               />
             </div>
-            <div className="menuSide__status" role="group" aria-labelledby="menu-availability-label">
+            {/* <div className="menuSide__status" role="group" aria-labelledby="menu-availability-label">
               <p id="menu-availability-label" className="menuStatus__label">
                 Trạng thái
               </p>
@@ -225,7 +225,7 @@ export default function Menu() {
                   Hết món
                 </button>
               </div>
-            </div>
+            </div> */}
             <nav className="menuCats">
               <button
                 type="button"

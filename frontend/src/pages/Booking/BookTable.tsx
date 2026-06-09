@@ -369,7 +369,7 @@ export default function BookTable() {
         <div className="bookHero__panel" aria-hidden="false">
           <div className="bookHero__stat">
             <span className="bookHero__stat-label">Bàn đang mở</span>
-            <span className="bookHero__stat-val">{tables.filter((t) => isTableSelectable(t, guestCount)).length}</span>
+            <span className="bookHero__stat-val">{tables.filter((t) => isTableAvailable(t)).length}</span>
           </div>
           <div className="bookHero__stat">
             <span className="bookHero__stat-label">Món trên thực đơn</span>
