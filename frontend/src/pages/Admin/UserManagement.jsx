@@ -259,9 +259,9 @@ export default function UserManagement() {
           <h1 className="user-mgmt__title">Người dùng · {meta.label}</h1>
         </div>
         <div className="user-mgmt__headRight">
-          <button type="button" className="user-mgmt__add" onClick={openAddModal}>
+          <button type="button"  className="user-mgmt__add" onClick={openAddModal}>
             Thêm {meta.label}
-          </button>
+          </button> 
         </div>
       </header>
 
@@ -370,7 +370,7 @@ export default function UserManagement() {
       ) : null}
 
       {editModal ? (
-        <DetailModal title="Chỉnh sửa người dùng" onClose={() => setEditModal(null)}>
+        <DetailModal isOpen={true} title="Chỉnh sửa người dùng" onClose={() => setEditModal(null)}>
           <DetailModal.Card>
             <label className="user-mgmt__dialogField">
               <span>Họ tên <span className="required-asterisk">*</span></span>
@@ -457,7 +457,7 @@ export default function UserManagement() {
       ) : null}
 
       {addModalOpen ? (
-        <DetailModal title={`Thêm ${meta.label}`} onClose={() => setAddModalOpen(false)}>
+        <DetailModal isOpen={true} title={`Thêm ${meta.label}`} onClose={() => setAddModalOpen(false)}>
           <DetailModal.Card>
             <label className="user-mgmt__dialogField">
               <span>Họ tên <span className="required-asterisk">*</span></span>

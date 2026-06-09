@@ -20,13 +20,13 @@ export default function DetailModal({
   subtitle,
   children,
   footerActions,
-  width = 800,
+  width = 600,
   height= 'auto',
 }: DetailModalProps) {
   if (!isOpen) return null
 
   const modalStyle: React.CSSProperties = {
-    width: width === 'auto' ? 'fit-content' : '100%',
+    width: width === 'auto' ? 'fit-content' : '80%',
     maxWidth: width === 'auto' ? '95vw' : width,
     height: height,
     maxHeight: height === 'auto' ? 'calc(200vh - 48px)' : (height ? 'calc(200vh - 48px)' : '200vh')
