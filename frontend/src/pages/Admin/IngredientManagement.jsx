@@ -341,7 +341,7 @@ export default function IngredientManagement() {
                 <th>Tồn kho</th>
                 <th>Ngưỡng cảnh báo</th>
                 <th>Trạng thái</th>
-                <th>Thao tác</th>
+                <th style={{display: 'flex', justifyContent: 'center' }}>Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -397,7 +397,7 @@ export default function IngredientManagement() {
       )}
 
       {!loading && !err && activeTab === 'units' && (
-        <div className="ing-mgmt__table-wrap" style={{ maxWidth: 700 }}>
+        <div className="ing-mgmt__table-wrap">
           <table className="ing-mgmt__table">
             <thead>
               <tr>
