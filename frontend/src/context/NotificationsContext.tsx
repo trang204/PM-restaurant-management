@@ -136,17 +136,15 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
               >
                 {confirmOptions.danger ? <AlertCircle size={26} /> : <AlertTriangle size={26} />}
               </div>
-
               <div className="notify-confirm__textBlock">
-                <p id="notify-confirm-desc" className="notify-confirm__msg notify-confirm__msg--lead">
-                  {confirmOptions.message}
-                </p>
-
                 {confirmOptions.title ? (
                   <h2 id="notify-confirm-title" className="notify-confirm__title">
                     {confirmOptions.title}
                   </h2>
                 ) : null}
+                <p id="notify-confirm-desc" className="notify-confirm__msg notify-confirm__msg--lead">
+                  {confirmOptions.message}
+                </p>
               </div>
             </div>
 

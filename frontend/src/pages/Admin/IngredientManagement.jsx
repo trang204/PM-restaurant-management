@@ -397,8 +397,8 @@ export default function IngredientManagement() {
       )}
 
       {!loading && !err && activeTab === 'units' && (
-        <div className="ing-mgmt__table-wrap">
-          <table className="ing-mgmt__table" style={{ width: '100%', maxWidth: 600 }}>
+        <div className="ing-mgmt__table-wrap" style={{ maxWidth: 700 }}>
+          <table className="ing-mgmt__table">
             <thead>
               <tr>
                 <th>Tên đơn vị</th>
