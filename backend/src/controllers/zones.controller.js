@@ -28,8 +28,16 @@ export async function deleteZone(req, res, next) {
   try {
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
-    // Bỏ zone khỏi các bàn thuộc zone này
-    await query(`UPDATE tables SET zone = NULL WHERE zone = (SELECT name FROM zones WHERE id = $1)`, [id])
+    
+    // Kiểm tra xem có bàn nào thuộc khu vực này không
+    const checkTables = await query(
+      `SELECT COUNT(*) FROM tables WHERE zone = (SELECT name FROM zones WHERE id = $1)`,
+      [id]
+    )
+    if (Number(checkTables.rows[0].count) > 0) {
+      throw badRequest('Khu vực đã có bàn gán, không thể xóa')
+    }
+
     const r = await query(`DELETE FROM zones WHERE id = $1 RETURNING id, name`, [id])
     if (!r.rows.length) throw notFound('Không tìm thấy khu vực')
     return ok(res, r.rows[0])

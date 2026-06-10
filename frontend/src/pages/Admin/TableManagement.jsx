@@ -96,14 +96,19 @@ export default function TableManagement() {
   }
 
   async function deleteZone(id, name) {
+    const tableCount = tables.filter((t) => String(t.zone || '') === String(name)).length
+    if (tableCount > 0) {
+      toast(`Khu vực "${name}" đã có bàn gán, không thể xóa.`, { variant: 'error' })
+      return
+    }
     const ok = await confirm({
       title: 'Xóa khu vực',
-      message: `Xóa khu vực "${name}"? Các bàn thuộc khu này sẽ chuyển về Mặc định.`,
+      message: `Bạn có chắc chắn muốn xóa khu vực "${name}"?`,
       danger: true,
       fields: [
         { label: 'Tên khu', value: name },
       ],
-      warningText: 'Hành động này không thể hoàn tác. Các bàn sẽ được chuyển về khu Mặc định.',
+      warningText: 'Hành động này không thể hoàn tác.',
       confirmLabel: 'Xóa',
       cancelLabel: 'Hủy',
     })
@@ -113,6 +118,7 @@ export default function TableManagement() {
       if (String(filterZone) === String(name)) setFilterZone('all')
       loadZones()
       load()
+      toast('Xóa khu vực thành công', { variant: 'success' })
     } catch (err) {
       toast(err.message, { variant: 'error' })
     }
