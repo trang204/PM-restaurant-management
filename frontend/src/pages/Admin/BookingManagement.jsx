@@ -1391,6 +1391,7 @@ export default function BookingManagement({ staffMode = false }) {
         <ReservationDetailView
           bookingId={String(detailBookingId)}
           variant="modal"
+          adminMode={true}
           onClose={() => setDetailBookingId(null)}
           onCancelled={load}
         />

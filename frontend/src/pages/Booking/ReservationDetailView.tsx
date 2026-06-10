@@ -25,9 +25,10 @@ type Props = {
   onClose?: () => void
   /** Gọi sau khi hủy đơn thành công (vd. làm mới danh sách) */
   onCancelled?: () => void
+  adminMode?: boolean
 }
 
-export default function ReservationDetailView({ bookingId, variant, onClose, onCancelled }: Props) {
+export default function ReservationDetailView({ bookingId, variant, onClose, onCancelled, adminMode }: Props) {
   const navigate = useNavigate()
   const { toast, confirm } = useNotifications()
   const [data, setData] = useState<ReservationRow | null>(null)
@@ -40,7 +41,8 @@ export default function ReservationDetailView({ bookingId, variant, onClose, onC
     let c = false
     setLoading(true)
     setError(null)
-    apiFetch<unknown>(`/reservations/${bookingId}`)
+    const detailUrl = adminMode ? `/admin/reservations/${bookingId}` : `/reservations/${bookingId}`
+    apiFetch<unknown>(detailUrl)
       .then((d) => {
         if (!c) setData(normalizeReservation(d))
       })
@@ -53,7 +55,7 @@ export default function ReservationDetailView({ bookingId, variant, onClose, onC
     return () => {
       c = true
     }
-  }, [bookingId])
+  }, [bookingId, adminMode])
 
   async function cancel() {
     const token = localStorage.getItem('luxeat_token')
@@ -66,8 +68,10 @@ export default function ReservationDetailView({ bookingId, variant, onClose, onC
     if (!okCancel) return
     setCancelling(true)
     try {
-      await apiFetch(`/reservations/${bookingId}/cancel`, { method: 'POST', body: '{}' })
-      const d = await apiFetch<unknown>(`/reservations/${bookingId}`)
+      const cancelUrl = adminMode ? `/admin/reservations/${bookingId}/cancel` : `/reservations/${bookingId}/cancel`
+      const detailUrl = adminMode ? `/admin/reservations/${bookingId}` : `/reservations/${bookingId}`
+      await apiFetch(cancelUrl, { method: 'POST', body: '{}' })
+      const d = await apiFetch<unknown>(detailUrl)
       setData(normalizeReservation(d))
       onCancelled?.()
     } catch (e) {
