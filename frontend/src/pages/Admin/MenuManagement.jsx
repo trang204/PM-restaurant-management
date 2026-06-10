@@ -164,9 +164,14 @@ export default function MenuManagement() {
   }
 
   async function deleteCategory(id, name) {
+    const itemCount = items.filter((item) => Number(item.category_id) === Number(id)).length
+    if (itemCount > 0) {
+      toast(`Danh mục "${name}" đã có món ăn gán, không thể xóa.`, { variant: 'error' })
+      return
+    }
     const ok = await confirm({
       title: 'Xóa danh mục',
-      message: `Xóa danh mục "${name}"? Các món thuộc danh mục này sẽ chuyển sang Chưa phân loại.`,
+      message: `Bạn có chắc chắn muốn xóa danh mục "${name}"?`,
       danger: true,
       fields: [{ label: 'Tên danh mục', value: name }],
       warningText: 'Hành động này không thể hoàn tác.',
