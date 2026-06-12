@@ -149,9 +149,9 @@
 }
 
 .menu-mgmt__filterBtn.menu-mgmt__filterBtn--active {
-  background: #fff3cd;
-  border-color: #f8d7da;
-  color: #856404;
+  background: var(--mn-gold-s);
+  border-color: rgba(184,147,90,0.35);
+  color: var(--mn-gold-d);
 }
 
 /* ─── Category Manager ─── */

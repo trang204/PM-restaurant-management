@@ -266,21 +266,21 @@ export default function UserManagement() {
       </header>
 
       <div className="user-mgmt__toolbar">
-        <select
-          className="user-mgmt__filterSelect"
-          value={meta.role}
-          onChange={(e) => {
-            const nextRole = e.target.value
-            const nextGroup = nextRole === 'ADMIN' ? 'admins' : nextRole === 'STAFF' ? 'staff' : 'customers'
-            navigate(`/admin/users/${nextGroup}`)
-          }}
-        >
-          {roles.map((role) => (
-            <option key={role} value={role}>
-              {ROLE_LABELS[role]}
-            </option>
-          ))}
-        </select>
+        <div className="user-mgmt__filters">
+          {roles.map((role) => {
+            const nextGroup = role === 'ADMIN' ? 'admins' : role === 'STAFF' ? 'staff' : 'customers'
+            return (
+              <button
+                key={role}
+                type="button"
+                className={`user-mgmt__filterBtn${meta.role === role ? ' user-mgmt__filterBtn--active' : ''}`}
+                onClick={() => navigate(`/admin/users/${nextGroup}`)}
+              >
+                {ROLE_LABELS[role]}
+              </button>
+            )
+          })}
+        </div>
         <input
           className="user-mgmt__search"
           value={q}
@@ -288,14 +288,25 @@ export default function UserManagement() {
           placeholder="Tìm theo tên/email/SĐT…"
           type="search"
         />
-        <select className="user-mgmt__filterSelect" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="ALL">Tất cả trạng thái</option>
+        <div className="user-mgmt__filters">
+          <button
+            type="button"
+            className={`user-mgmt__filterBtn${statusFilter === 'ALL' ? ' user-mgmt__filterBtn--active' : ''}`}
+            onClick={() => setStatusFilter('ALL')}
+          >
+            Tất cả trạng thái
+          </button>
           {statuses.map((status) => (
-            <option key={status} value={status}>
+            <button
+              key={status}
+              type="button"
+              className={`user-mgmt__filterBtn${statusFilter === status ? ' user-mgmt__filterBtn--active' : ''}`}
+              onClick={() => setStatusFilter(status)}
+            >
               {getStatusLabel(status, 'user')}
-            </option>
+            </button>
           ))}
-        </select>
+        </div>
         <input className="user-mgmt__date" type="date" value={createdFrom} onChange={(e) => setCreatedFrom(e.target.value)} />
         {/* <input className="user-mgmt__date" type="date" value={createdTo} onChange={(e) => setCreatedTo(e.target.value)} /> */}
       </div>
