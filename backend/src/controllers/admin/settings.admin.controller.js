@@ -34,7 +34,7 @@ export async function getSettings(req, res, next) {
   try {
     const [settingsRes, tablesRes] = await Promise.all([
       query('SELECT * FROM settings ORDER BY id LIMIT 1'),
-      query('SELECT COUNT(*)::int AS total FROM tables'),
+      query('SELECT COUNT(*)::int AS total FROM tables WHERE is_deleted = false'),
     ])
     const row = settingsRes.rows[0] || null
     return ok(res, row ? { ...row, total_tables: Number(tablesRes.rows[0]?.total || 0) } : null)
@@ -93,7 +93,7 @@ export async function updateSettings(req, res, next) {
 
     // Đảm bảo row id=1 tồn tại trước.
     await query(`INSERT INTO settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING`)
-    const tablesRes = await query('SELECT COUNT(*)::int AS total FROM tables')
+    const tablesRes = await query('SELECT COUNT(*)::int AS total FROM tables WHERE is_deleted = false')
     const totalTablesAuto = Number(tablesRes.rows[0]?.total || 0)
 
     // Build SET động: chỉ cập nhật các cột đã biết — tránh INSERT ON CONFLICT liệt kê cột

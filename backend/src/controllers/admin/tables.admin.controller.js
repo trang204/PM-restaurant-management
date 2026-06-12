@@ -13,7 +13,7 @@ export async function closeTable(req, res, next) {
     const { reason } = req.body || {}
     const note = reason != null && String(reason).trim() ? String(reason).trim() : null
 
-    const t = await query('SELECT id, status FROM tables WHERE id = $1', [id])
+    const t = await query('SELECT id, status FROM tables WHERE id = $1 AND is_deleted = false', [id])
     if (!t.rows.length) throw notFound('Không tìm thấy bàn')
     if (String(t.rows[0].status || '').toUpperCase() === 'CLOSED') {
       return ok(res, { tableId: id, status: 'CLOSED', message: 'Bàn đã ở trạng thái đóng' })
@@ -50,7 +50,7 @@ export async function reopenTable(req, res, next) {
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
 
-    const t = await query('SELECT id, status FROM tables WHERE id = $1', [id])
+    const t = await query('SELECT id, status FROM tables WHERE id = $1 AND is_deleted = false', [id])
     if (!t.rows.length) throw notFound('Không tìm thấy bàn')
     if (String(t.rows[0].status || '').toUpperCase() !== 'CLOSED') {
       throw badRequest('Chỉ mở lại được bàn đang ở trạng thái đóng')

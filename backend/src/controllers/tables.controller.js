@@ -68,6 +68,7 @@ export async function listTables(req, res, next) {
         ORDER BY o.id DESC
         LIMIT 1
       ) ord ON true
+      WHERE t.is_deleted = false
       ORDER BY t.id ASC
     `,
     )
@@ -89,7 +90,7 @@ export async function getTable(req, res, next) {
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
 
     const r = await query(
-      'SELECT id, name, capacity, image_url, status, status_note, pos_x, pos_y, created_at FROM tables WHERE id = $1',
+      'SELECT id, name, capacity, image_url, status, status_note, pos_x, pos_y, created_at FROM tables WHERE id = $1 AND is_deleted = false',
       [id],
     )
     if (!r.rows.length) throw notFound('Không tìm thấy bàn')
@@ -155,7 +156,7 @@ export async function updateTable(req, res, next) {
         pos_x = COALESCE($4, pos_x),
         pos_y = COALESCE($5, pos_y),
         zone = CASE WHEN $7::boolean THEN $6 ELSE zone END
-      WHERE id = $8
+      WHERE id = $8 AND is_deleted = false
       RETURNING id, name, capacity, image_url, status, status_note, zone, pos_x, pos_y, created_at
     `,
       [
@@ -186,7 +187,7 @@ export async function uploadImage(req, res, next) {
     const mime = String(file.mimetype || '').toLowerCase()
     if (!IMAGE_MIME.has(mime)) throw badRequest('Chỉ chấp nhận ảnh JPEG, PNG, WebP hoặc GIF')
 
-    const cur = await query('SELECT id, image_url FROM tables WHERE id = $1', [id])
+    const cur = await query('SELECT id, image_url FROM tables WHERE id = $1 AND is_deleted = false', [id])
     if (!cur.rows.length) throw notFound('Không tìm thấy bàn')
     const prevUrl = cur.rows[0].image_url
 
@@ -196,7 +197,7 @@ export async function uploadImage(req, res, next) {
     await fs.writeFile(path.join(UPLOAD_DIR, safeName), file.buffer)
 
     const publicUrl = `/uploads/${safeName}`
-    const r = await query(`UPDATE tables SET image_url = $1 WHERE id = $2 RETURNING id, image_url`, [publicUrl, id])
+    const r = await query(`UPDATE tables SET image_url = $1 WHERE id = $2 AND is_deleted = false RETURNING id, image_url`, [publicUrl, id])
     if (prevUrl && prevUrl !== publicUrl) await removeUploadFileIfSafe(prevUrl)
     return ok(res, { id: r.rows[0].id, image_url: r.rows[0].image_url })
   } catch (e) {
@@ -210,7 +211,9 @@ export async function deleteTable(req, res, next) {
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
 
     const r = await query(
-      'DELETE FROM tables WHERE id = $1 RETURNING id, name, capacity, image_url, status, pos_x, pos_y, created_at',
+      `UPDATE tables SET is_deleted = true, status = 'CLOSED'
+       WHERE id = $1 AND is_deleted = false
+       RETURNING id, name, capacity, image_url, status, pos_x, pos_y, created_at`,
       [id],
     )
     if (!r.rows.length) throw notFound('Không tìm thấy bàn')

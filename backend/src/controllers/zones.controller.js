@@ -31,7 +31,7 @@ export async function deleteZone(req, res, next) {
     
     // Kiểm tra xem có bàn nào thuộc khu vực này không
     const checkTables = await query(
-      `SELECT COUNT(*) FROM tables WHERE zone = (SELECT name FROM zones WHERE id = $1)`,
+      `SELECT COUNT(*) FROM tables WHERE zone = (SELECT name FROM zones WHERE id = $1) AND is_deleted = false`,
       [id]
     )
     if (Number(checkTables.rows[0].count) > 0) {

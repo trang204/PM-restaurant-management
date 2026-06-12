@@ -51,7 +51,7 @@ export async function walkIn(req, res, next) {
     let timeRaw = bookingTime != null ? String(bookingTime).trim() : ''
     const timeForDb = padTimeForDb(timeRaw) || (await query(`SELECT to_char(NOW(), 'HH24:MI:SS') AS t`)).rows[0].t
 
-    const tbl = await query('SELECT id, status FROM tables WHERE id = $1', [tId])
+    const tbl = await query('SELECT id, status FROM tables WHERE id = $1 AND is_deleted = false', [tId])
     if (!tbl.rows.length) throw notFound('Bàn không tồn tại')
     const tst = String(tbl.rows[0].status || '').toUpperCase()
     if (tst === 'CLOSED') throw badRequest('Bàn đang đóng — không mở được cho khách')
@@ -325,7 +325,7 @@ export async function assignTable(req, res, next) {
     if (curStatus === 'COMPLETED') throw badRequest('Đơn đặt bàn đã thanh toán hoàn tất, không thể gán bàn.')
     if (curStatus === 'CANCELLED') throw badRequest('Đơn đặt bàn đã bị hủy, không thể gán bàn.')
 
-    const tblSt = await query('SELECT status FROM tables WHERE id = $1', [tId])
+    const tblSt = await query('SELECT status FROM tables WHERE id = $1 AND is_deleted = false', [tId])
     if (!tblSt.rows.length) throw notFound('Bàn không tồn tại')
     if (String(tblSt.rows[0].status || '').toUpperCase() === 'CLOSED') {
       throw badRequest('Bàn đang đóng — không gán được')
@@ -379,7 +379,7 @@ export async function transferTable(req, res, next) {
     if (curStatus === 'COMPLETED') throw badRequest('Đơn đặt bàn đã thanh toán hoàn tất, không thể chuyển bàn.')
     if (curStatus === 'CANCELLED') throw badRequest('Đơn đặt bàn đã bị hủy, không thể chuyển bàn.')
 
-    const newT = await query('SELECT id, status FROM tables WHERE id = $1', [tId])
+    const newT = await query('SELECT id, status FROM tables WHERE id = $1 AND is_deleted = false', [tId])
     if (!newT.rows.length) throw notFound('Bàn không tồn tại')
     if (String(newT.rows[0].status || '').toUpperCase() === 'CLOSED') {
       throw badRequest('Bàn đích đang đóng — chọn bàn khác')
@@ -704,7 +704,7 @@ export async function cashierPay(req, res, next) {
       if (bt.rows.length) {
         for (const row of bt.rows) {
           // Case 4: Kiểm tra bàn có tồn tại không
-          const tableCheck = await client.query('SELECT id FROM tables WHERE id = $1', [row.table_id])
+          const tableCheck = await client.query('SELECT id FROM tables WHERE id = $1 AND is_deleted = false', [row.table_id])
           if (!tableCheck.rows.length) {
             throw new Error(`Bàn gán với mã ${row.table_id} không tồn tại trên hệ thống.`)
           }

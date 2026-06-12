@@ -14,7 +14,6 @@ import {
   Menu as MenuIcon,
   X,
   Package,
-  Receipt,
 } from 'lucide-react'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
@@ -39,7 +38,6 @@ const adminTree = [
       { to: '/admin/tables', label: 'Quản lý bàn', icon: <TableProperties size={15} /> },
       { to: '/admin/kitchen', label: 'Bếp & gọi món', icon: <ChefHat size={15} /> },
       { to: '/admin/reports', label: 'Doanh thu', icon: <BarChart3 size={15} /> },
-      { to: '/admin/payments', label: 'Lịch sử thanh toán', icon: <Receipt size={15} /> },
     ],
   },
   {
@@ -68,7 +66,6 @@ function pathOpensGroup(pathname) {
     pathname.startsWith('/admin/bookings') ||
     pathname.startsWith('/admin/tables') ||
     pathname.startsWith('/admin/reports') ||
-    pathname.startsWith('/admin/payments') ||
     pathname.startsWith('/admin/kitchen')
   )
     s.add('van-hanh')

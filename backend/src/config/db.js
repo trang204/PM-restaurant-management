@@ -288,6 +288,21 @@ export async function ensureDbSchema() {
     await query(`ALTER TABLE tables ADD COLUMN zone TEXT`)
   }
 
+  const tDel = await query(
+    `
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'tables'
+      AND column_name = 'is_deleted'
+    LIMIT 1
+    `,
+  )
+  if (!tDel.rows.length) {
+    await query(`ALTER TABLE tables ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE`)
+    await query(`UPDATE tables SET is_deleted = FALSE WHERE is_deleted IS NULL`)
+  }
+
   /** DB cũ: status quá ngắn hoặc ENUM thiếu nhãn CLOSED → đóng bàn không lưu được. */
   const stCol = await query(
     `

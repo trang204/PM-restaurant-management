@@ -62,7 +62,7 @@ export async function createReservation(req, res, next) {
     const booking = await withTransaction(async (client) => {
       if (requestedTableIds.length) {
         const tableRows = await client.query(
-          `SELECT id, capacity, COALESCE(NULLIF(TRIM(status), ''), 'AVAILABLE') AS status FROM tables WHERE id = ANY($1::int[])`,
+          `SELECT id, capacity, COALESCE(NULLIF(TRIM(status), ''), 'AVAILABLE') AS status FROM tables WHERE id = ANY($1::int[]) AND is_deleted = false`,
           [requestedTableIds],
         )
         if (tableRows.rows.length !== requestedTableIds.length) throw badRequest('Không tìm thấy bàn')
@@ -356,7 +356,7 @@ export async function holdTable(req, res, next) {
 
     const guestN = Number(cur.rows[0].guests) || 1
     const tableRow = await query(
-      `SELECT id, capacity, COALESCE(NULLIF(TRIM(status), ''), 'AVAILABLE') AS status FROM tables WHERE id = $1`,
+      `SELECT id, capacity, COALESCE(NULLIF(TRIM(status), ''), 'AVAILABLE') AS status FROM tables WHERE id = $1 AND is_deleted = false`,
       [tId],
     )
     if (!tableRow.rows.length) throw badRequest('Không tìm thấy bàn')
