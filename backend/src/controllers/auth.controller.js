@@ -208,3 +208,63 @@ export async function resetPassword(req, res, next) {
     return next(e)
   }
 }
+
+export async function verifyResetToken(req, res, next) {
+  try {
+    const { token } = req.query || {}
+    const tokenRaw = String(token || '').trim()
+    if (!tokenRaw) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã xác thực không hợp lệ hoặc đã hết hạn. Vui lòng gửi lại yêu cầu quên mật khẩu.',
+        expired: true,
+        showResetForm: false,
+        showForgotPasswordLink: true
+      })
+    }
+
+    const tokenHash = hashResetToken(tokenRaw)
+    const tokenRes = await query(
+      `
+      SELECT id, used_at, (expires_at <= NOW()) AS is_expired
+      FROM password_reset_tokens
+      WHERE token_hash = $1
+      LIMIT 1
+      `,
+      [tokenHash]
+    )
+
+    const resetRow = tokenRes.rows[0]
+    if (!resetRow) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã xác thực không hợp lệ hoặc đã hết hạn. Vui lòng gửi lại yêu cầu quên mật khẩu.',
+        expired: true,
+        showResetForm: false,
+        showForgotPasswordLink: true
+      })
+    }
+
+    const isExpired = resetRow.is_expired || resetRow.used_at !== null
+
+    if (isExpired) {
+      return res.status(400).json({
+        success: false,
+        message: 'Liên kết đặt lại mật khẩu đã hết hạn. Vui lòng gửi lại yêu cầu.',
+        expired: true,
+        showResetForm: false,
+        showForgotPasswordLink: true
+      })
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Mã xác thực hợp lệ.',
+      expired: false,
+      showResetForm: true,
+      showForgotPasswordLink: false
+    })
+  } catch (e) {
+    return next(e)
+  }
+}

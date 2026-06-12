@@ -608,6 +608,51 @@
   gap: 10px;
 }
 
+.tableOrder__line--swipeable {
+  position: relative;
+  overflow: hidden;
+  padding: 0 !important;
+  display: block !important;
+}
+
+.tableOrder__lineContent {
+  position: relative;
+  z-index: 2;
+  padding: 12px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--to-card);
+  width: 100%;
+  box-sizing: border-box;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.tableOrder__swipeDelete {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  bottom: 8px;
+  width: 48px;
+  background: #FEE2E2;
+  color: #EF4444;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.tableOrder__swipeDelete:hover {
+  background: #FCA5A5;
+  color: #DC2626;
+}
+
 .tableOrder__line:last-child { border-bottom: none; }
 
 .tableOrder__lineMain { flex: 1; min-width: 0; }

@@ -133,6 +133,7 @@ router.post('/forgot-password', auth.forgotPassword)
  *         description: Đặt lại mật khẩu thành công
  */
 router.post('/reset-password', auth.resetPassword)
+router.get('/reset-password', auth.verifyResetToken)
 
 export default router
 

@@ -1091,7 +1091,7 @@ export default function BookingManagement({ staffMode = false }) {
         </div>
       ) : null}
 
-      {!loading && !err ? (
+      {/* {!loading && !err ? (
         <div className="booking-mgmt__today">
           <p className="booking-mgmt__todayEyebrow">Hôm nay</p>
           <div className="booking-mgmt__todayRow">
@@ -1107,7 +1107,7 @@ export default function BookingManagement({ staffMode = false }) {
             )}
           </div>
         </div>
-      ) : null}
+      ) : null} */}
 
       {activeDateKey ? (
         <section className="booking-mgmt__day">

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { mediaUrl, publicApiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
@@ -57,6 +58,105 @@ type PaymentCtx = {
   transferContent?: string | null
 }
 
+type SwipeableLineProps = {
+  isEditable: boolean
+  onDelete: () => void
+  children: ReactNode
+}
+
+function SwipeableLine({ isEditable, onDelete, children }: SwipeableLineProps) {
+  const [startX, setStartX] = useState<number | null>(null)
+  const [currentX, setCurrentX] = useState<number | null>(null)
+  const [swipedOpen, setSwipedOpen] = useState(false)
+  const [isSwiping, setIsSwiping] = useState(false)
+
+  const maxSwipe = -64
+
+  if (!isEditable) {
+    return <li className="tableOrder__line">{children}</li>
+  }
+
+  const handleStart = (clientX: number) => {
+    setStartX(clientX)
+    setIsSwiping(true)
+  }
+
+  const handleMove = (clientX: number) => {
+    if (startX === null) return
+    const diff = clientX - startX
+    let newOffset = swipedOpen ? maxSwipe + diff : diff
+    if (newOffset > 0) newOffset = 0
+    if (newOffset < maxSwipe) newOffset = maxSwipe
+    setCurrentX(newOffset)
+  }
+
+  const handleEnd = () => {
+    if (startX === null || currentX === null) {
+      setStartX(null)
+      setCurrentX(null)
+      setIsSwiping(false)
+      return
+    }
+    const diff = currentX - (swipedOpen ? maxSwipe : 0)
+    if (Math.abs(diff) > Math.abs(maxSwipe) / 2) {
+      setSwipedOpen(!swipedOpen)
+    }
+    setStartX(null)
+    setCurrentX(null)
+    setIsSwiping(false)
+  }
+
+  const offset = currentX !== null ? currentX : (swipedOpen ? maxSwipe : 0)
+
+  return (
+    <li className="tableOrder__line tableOrder__line--swipeable">
+      <button
+        type="button"
+        className="tableOrder__swipeDelete"
+        onClick={(e) => {
+          e.stopPropagation()
+          onDelete()
+        }}
+        aria-label="Xóa"
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        </svg>
+      </button>
+      <div
+        className="tableOrder__lineContent"
+        style={{
+          transform: `translateX(${offset}px)`,
+          transition: isSwiping ? 'none' : 'transform 0.2s ease-out'
+        }}
+        onTouchStart={(e) => handleStart(e.touches[0].clientX)}
+        onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+        onTouchEnd={handleEnd}
+        onMouseDown={(e) => handleStart(e.clientX)}
+        onMouseMove={(e) => {
+          if (startX !== null) {
+            handleMove(e.clientX)
+          }
+        }}
+        onMouseUp={handleEnd}
+        onMouseLeave={handleEnd}
+      >
+        {children}
+      </div>
+    </li>
+  )
+}
+
 function formatPrice(n: number) {
   return `${n.toLocaleString('vi-VN')} ₫`
 }
@@ -75,7 +175,8 @@ export default function TableOrder() {
   const [paying, setPaying] = useState(false)
   const [payMethod, setPayMethod] = useState<'cash' | 'bank_transfer'>('cash')
   const [paymentCtx, setPaymentCtx] = useState<PaymentCtx | null>(null)
-  const { confirm, toast } = useNotifications()
+  const [showPaymentFields, setShowPaymentFields] = useState(false)
+  const { toast } = useNotifications()
 
   const load = useCallback((silent = false) => {
     if (!token) return
@@ -114,45 +215,7 @@ export default function TableOrder() {
   }, [cartOpen])
 
 
-  const handleClearAllCart = async () => {
-    if (!ctx || !token) return
-    const editableItems = ctx.items.filter(i => 
-      String(i.order_status || 'PENDING').toUpperCase() === 'PENDING' ||
-      String(i.kitchen_status || 'PENDING').toUpperCase() === 'PENDING'
-    )
-    
-    if (editableItems.length === 0) {
-      toast('Chỉ có thể xóa các món chưa được bếp chế biến.')
-      return
-    }
 
-    const ok = await confirm({
-      title: 'Xóa tất cả món chưa chế biến',
-      message: 'Bạn có chắc chắn muốn xóa tất cả các món chưa được chế biến trong đơn này không?',
-      confirmLabel: 'Xóa tất cả',
-    })
-    if (!ok) return
-
-    setErr(null)
-    setLoading(true)
-    try {
-      await Promise.all(
-        editableItems.map(i =>
-          publicApiFetch(`/table-session/${encodeURIComponent(token)}/items/${i.id}`, {
-            method: 'DELETE',
-          })
-        )
-      )
-      await load()
-      await loadPayment()
-      toast('Đã xóa các món chưa chế biến.')
-      setCartOpen(false)
-    } catch (e) {
-      setErr((e as Error).message)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   // function toast(msg: string) {
   //   toast(msg)
@@ -336,137 +399,155 @@ export default function TableOrder() {
     )
   }
 
-  /** Section thanh toán riêng — hiện bên dưới layout */
   function renderPayPanel() {
     const hasItems = (ctx?.items.length ?? 0) > 0
     if (!hasItems) return null
+
+    const showFields = showPaymentFields || !!paymentCtx?.payment
+
     return (
       <section className="tableOrder__payPanel" aria-label="Thanh toán">
         <div className="tableOrder__payPanelInner">
           <h2 className="tableOrder__payPanelTitle">Thanh toán</h2>
           <div className="tableOrder__payPanelBody">
-            {/* Chọn phương thức + nút yêu cầu */}
-            <div className="tableOrder__payPanelLeft">
-              <p className="tableOrder__payPanelSub">Tổng tạm tính: <strong className="tableOrder__payAmount">{formatPrice(total)}</strong></p>
-              <div className="tableOrder__payRow">
-                <label className="tableOrder__radio">
-                  <input type="radio" checked={payMethod === 'cash'} onChange={() => setPayMethod('cash')} /> Tiền mặt
-                </label>
-                <label className="tableOrder__radio">
-                  <input
-                    type="radio"
-                    checked={payMethod === 'bank_transfer'}
-                    onChange={() => setPayMethod('bank_transfer')}
-                  />{' '}
-                  Chuyển khoản
-                </label>
+            {!showFields ? (
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  className="tableOrder__btn tableOrder__btn--accent tableOrder__btn--full"
+                  style={{ padding: '12px 24px', fontSize: '1rem', height: 'auto' }}
+                  onClick={() => setShowPaymentFields(true)}
+                >
+                  Yêu cầu thanh toán
+                </button>
               </div>
-              <button
-                type="button"
-                className="tableOrder__btn tableOrder__btn--outline tableOrder__btn--full"
-                disabled={paying}
-                onClick={createPay}
-              >
-                {paying ? 'Đang tạo…' : 'Yêu cầu thanh toán'}
-              </button>
-
-              {paymentCtx?.payment ? (
-                <div className="tableOrder__payMeta">
-                  <span>
-                    Trạng thái:{' '}
-                    <strong className={String(paymentCtx.payment.status || '').toUpperCase() === 'PAID' ? 'tableOrder__payPaid' : 'tableOrder__payUnpaid'}>
-                      {String(paymentCtx.payment.status || '').toUpperCase() === 'PAID' ? 'Đã thanh toán ✓' : 'Chờ xác nhận'}
-                    </strong>
-                  </span>
-                  <span>
-                    Phương thức:{' '}
-                    <strong>
-                      {paymentCtx.payment.method === 'bank_transfer' ? 'Chuyển khoản' : paymentCtx.payment.method === 'cash' ? 'Tiền mặt' : '—'}
-                    </strong>
-                  </span>
-                  <span>
-                    Số tiền: <strong className="tableOrder__payAmount">{formatPrice(Number(paymentCtx.total || total))}</strong>
-                  </span>
-                  {String(paymentCtx.payment.status || '').toUpperCase() !== 'PAID' &&
-                   paymentCtx.payment.method !== 'bank_transfer' ? (
-                    <p className="tableOrder__payNotify">
-                      Yêu cầu đã gửi tới nhân viên. Quý khách vui lòng chờ xác nhận.
-                    </p>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="tableOrder__legal">Chọn phương thức rồi nhấn "Yêu cầu thanh toán". Nhân viên sẽ xác nhận.</p>
-              )}
-            </div>
-
-            {/* QR chuyển khoản */}
-            {paymentCtx?.qrUrl && paymentCtx?.payment?.method === 'bank_transfer' ? (
-              <div className="tableOrder__payPanelRight">
-                <div className="tableOrder__qrSection">
-                  <p className="tableOrder__qrLabel">Quét mã QR để chuyển khoản</p>
-                  <div className="tableOrder__qrImgWrap">
-                    <img
-                      src={paymentCtx.qrUrl}
-                      alt="QR chuyển khoản"
-                      className="tableOrder__qrImg"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                    />
+            ) : (
+              <>
+                {/* Chọn phương thức + nút yêu cầu */}
+                <div className="tableOrder__payPanelLeft">
+                  <p className="tableOrder__payPanelSub">Tổng tạm tính: <strong className="tableOrder__payAmount">{formatPrice(total)}</strong></p>
+                  <div className="tableOrder__payRow">
+                    <label className="tableOrder__radio">
+                      <input type="radio" checked={payMethod === 'cash'} onChange={() => setPayMethod('cash')} /> Tiền mặt
+                    </label>
+                    <label className="tableOrder__radio">
+                      <input
+                        type="radio"
+                        checked={payMethod === 'bank_transfer'}
+                        onChange={() => setPayMethod('bank_transfer')}
+                      />{' '}
+                      Chuyển khoản
+                    </label>
                   </div>
-                  {paymentCtx.bankCode ? (
-                    <div className="tableOrder__qrBankRow">
-                      <img
-                        src={`https://qr.sepay.vn/assets/img/banklogo/${paymentCtx.bankCode}.png`}
-                        alt={paymentCtx.bankCode}
-                        className="tableOrder__qrBankLogo"
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                      />
-                      <span className="tableOrder__qrBankCode">{paymentCtx.bankCode}</span>
+                  {!paymentCtx?.payment ? (
+                    <button
+                      type="button"
+                      className="tableOrder__btn tableOrder__btn--accent tableOrder__btn--full"
+                      disabled={paying}
+                      onClick={createPay}
+                      style={{ marginTop: '12px' }}
+                    >
+                      {paying ? 'Đang gửi yêu cầu…' : 'Xác nhận gửi yêu cầu'}
+                    </button>
+                  ) : null}
+
+                  {paymentCtx?.payment ? (
+                    <div className="tableOrder__payMeta">
+                      <span>
+                        Trạng thái:{' '}
+                        <strong className={String(paymentCtx.payment.status || '').toUpperCase() === 'PAID' ? 'tableOrder__payPaid' : 'tableOrder__payUnpaid'}>
+                          {String(paymentCtx.payment.status || '').toUpperCase() === 'PAID' ? 'Đã thanh toán ✓' : 'Chờ xác nhận'}
+                        </strong>
+                      </span>
+                      <span>
+                        Phương thức:{' '}
+                        <strong>
+                          {paymentCtx.payment.method === 'bank_transfer' ? 'Chuyển khoản' : paymentCtx.payment.method === 'cash' ? 'Tiền mặt' : '—'}
+                        </strong>
+                      </span>
+                      <span>
+                        Số tiền: <strong className="tableOrder__payAmount">{formatPrice(Number(paymentCtx.total || total))}</strong>
+                      </span>
+                      {String(paymentCtx.payment.status || '').toUpperCase() !== 'PAID' &&
+                       paymentCtx.payment.method !== 'bank_transfer' ? (
+                        <p className="tableOrder__payNotify">
+                          Yêu cầu đã gửi tới nhân viên. Quý khách vui lòng chờ xác nhận.
+                        </p>
+                      ) : null}
                     </div>
                   ) : null}
-                  {paymentCtx.bankAccount ? (
-                    <div className="tableOrder__qrInfoRow">
-                      <span className="tableOrder__qrInfoLabel">Số tài khoản</span>
-                      <span className="tableOrder__qrInfoValue">{paymentCtx.bankAccount}</span>
-                      <button
-                        type="button"
-                        className="tableOrder__qrCopy"
-                        onClick={() => navigator.clipboard.writeText(paymentCtx.bankAccount!).then(() => toast('Đã sao chép STK'))}
-                        title="Sao chép"
-                      >⎘</button>
-                    </div>
-                  ) : null}
-                  {paymentCtx.total > 0 ? (
-                    <div className="tableOrder__qrInfoRow">
-                      <span className="tableOrder__qrInfoLabel">Số tiền</span>
-                      <span className="tableOrder__qrInfoValue tableOrder__payAmount">{formatPrice(Number(paymentCtx.total))}</span>
-                    </div>
-                  ) : null}
-                  {paymentCtx.transferContent ? (
-                    <div className="tableOrder__qrInfoRow">
-                      <span className="tableOrder__qrInfoLabel">Nội dung CK</span>
-                      <span className="tableOrder__qrInfoValue">{paymentCtx.transferContent}</span>
-                      <button
-                        type="button"
-                        className="tableOrder__qrCopy"
-                        onClick={() => navigator.clipboard.writeText(paymentCtx.transferContent!).then(() => toast('Đã sao chép nội dung'))}
-                        title="Sao chép"
-                      >⎘</button>
-                    </div>
-                  ) : null}
-                  <p className="tableOrder__payNotify" style={{ textAlign: 'center', marginTop: 4 }}>
-                    Sau khi chuyển khoản, nhân viên sẽ xác nhận thanh toán cho bạn.
-                  </p>
-                  <a
-                    href={paymentCtx.qrUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="tableOrder__qrOpenLink"
-                  >
-                    Mở QR trong tab mới ↗
-                  </a>
                 </div>
-              </div>
-            ) : null}
+
+                {/* QR chuyển khoản */}
+                {paymentCtx?.qrUrl && paymentCtx?.payment?.method === 'bank_transfer' ? (
+                  <div className="tableOrder__payPanelRight">
+                    <div className="tableOrder__qrSection">
+                      <p className="tableOrder__qrLabel">Quét mã QR để chuyển khoản</p>
+                      <div className="tableOrder__qrImgWrap">
+                        <img
+                          src={paymentCtx.qrUrl}
+                          alt="QR chuyển khoản"
+                          className="tableOrder__qrImg"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                        />
+                      </div>
+                      {paymentCtx.bankCode ? (
+                        <div className="tableOrder__qrBankRow">
+                          <img
+                            src={`https://qr.sepay.vn/assets/img/banklogo/${paymentCtx.bankCode}.png`}
+                            alt={paymentCtx.bankCode}
+                            className="tableOrder__qrBankLogo"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                          />
+                          <span className="tableOrder__qrBankCode">{paymentCtx.bankCode}</span>
+                        </div>
+                      ) : null}
+                      {paymentCtx.bankAccount ? (
+                        <div className="tableOrder__qrInfoRow">
+                          <span className="tableOrder__qrInfoLabel">Số tài khoản</span>
+                          <span className="tableOrder__qrInfoValue">{paymentCtx.bankAccount}</span>
+                          <button
+                            type="button"
+                            className="tableOrder__qrCopy"
+                            onClick={() => navigator.clipboard.writeText(paymentCtx.bankAccount!).then(() => toast('Đã sao chép STK'))}
+                            title="Sao chép"
+                          >⎘</button>
+                        </div>
+                      ) : null}
+                      {paymentCtx.total > 0 ? (
+                        <div className="tableOrder__qrInfoRow">
+                          <span className="tableOrder__qrInfoLabel">Số tiền</span>
+                          <span className="tableOrder__qrInfoValue tableOrder__payAmount">{formatPrice(Number(paymentCtx.total))}</span>
+                        </div>
+                      ) : null}
+                      {paymentCtx.transferContent ? (
+                        <div className="tableOrder__qrInfoRow">
+                          <span className="tableOrder__qrInfoLabel">Nội dung CK</span>
+                          <span className="tableOrder__qrInfoValue">{paymentCtx.transferContent}</span>
+                          <button
+                            type="button"
+                            className="tableOrder__qrCopy"
+                            onClick={() => navigator.clipboard.writeText(paymentCtx.transferContent!).then(() => toast('Đã sao chép nội dung'))}
+                            title="Sao chép"
+                          >⎘</button>
+                        </div>
+                      ) : null}
+                      <p className="tableOrder__payNotify" style={{ textAlign: 'center', marginTop: 4 }}>
+                        Sau khi chuyển khoản, nhân viên sẽ xác nhận thanh toán cho bạn.
+                      </p>
+                      <a
+                        href={paymentCtx.qrUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="tableOrder__qrOpenLink"
+                      >
+                        Mở QR trong tab mới ↗
+                      </a>
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -693,7 +774,6 @@ export default function TableOrder() {
             <aside className="tableOrder__cart" aria-label="Đơn của bạn">
               <div className="tableOrder__cartHead">
                 <h2 className="tableOrder__h2">Đơn của bạn</h2>
-                <button type='button' className="tableOrder__clearCart" onClick={handleClearAllCart}>Xóa tất cả món</button>
               </div>
               {ctx.items.length === 0 ? (
                 <div className="tableOrder__cartEmpty">
@@ -723,8 +803,13 @@ export default function TableOrder() {
                           {group.items.map((i) => {
                             const line = Number(i.price) * i.quantity
                             const busy = itemBusy === i.id
+                            const isEditable = String(group.status).toUpperCase() === 'PENDING' || String(i.kitchen_status || 'PENDING').toUpperCase() === 'PENDING'
                             return (
-                              <li key={i.id} className="tableOrder__line">
+                              <SwipeableLine
+                                key={i.id}
+                                isEditable={isEditable}
+                                onDelete={() => removeLine(i.id)}
+                              >
                                 <div className="tableOrder__lineMain">
                                   <span className="tableOrder__lineName">{i.food_name || `Món #${i.food_id}`}</span>
                                   <span className="tableOrder__lineSub">{formatPrice(Number(i.price))} / phần</span>
@@ -775,7 +860,7 @@ export default function TableOrder() {
                                   )}
                                   <span className="tableOrder__lineTotal">{formatPrice(line)}</span>
                                 </div>
-                              </li>
+                              </SwipeableLine>
                             )
                           })}
                         </ul>
@@ -839,8 +924,13 @@ export default function TableOrder() {
                           {group.items.map((i) => {
                             const line = Number(i.price) * i.quantity
                             const busy = itemBusy === i.id
+                            const isEditable = String(group.status).toUpperCase() === 'PENDING' || String(i.kitchen_status || 'PENDING').toUpperCase() === 'PENDING'
                             return (
-                              <li key={i.id} className="tableOrder__line">
+                              <SwipeableLine
+                                key={i.id}
+                                isEditable={isEditable}
+                                onDelete={() => removeLine(i.id)}
+                              >
                                 <div className="tableOrder__lineMain">
                                   <span className="tableOrder__lineName">{i.food_name || `Món #${i.food_id}`}</span>
                                   <span className="tableOrder__lineSub">{formatPrice(Number(i.price))} / phần</span>
@@ -889,7 +979,7 @@ export default function TableOrder() {
                                   )}
                                   <span className="tableOrder__lineTotal">{formatPrice(line)}</span>
                                 </div>
-                              </li>
+                              </SwipeableLine>
                             )
                           })}
                         </ul>

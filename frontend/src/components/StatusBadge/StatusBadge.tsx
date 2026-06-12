@@ -2,6 +2,7 @@ import React from 'react'
 import './StatusBadge.css'
 
 export type StatusType = 
+  | 'HOLD'
   | 'PENDING' 
   | 'CONFIRMED' 
   | 'CHECKED_IN' 
@@ -27,7 +28,10 @@ export default function StatusBadge({ status, label, className = '' }: StatusBad
   let colorClass = 'status-badge--default'
   let displayLabel = label || norm
 
-  if (norm === 'PENDING') {
+  if (norm === 'HOLD') {
+    colorClass = 'status-badge--default'
+    if (!label) displayLabel = 'Chờ Xác nhận'
+  } else if (norm === 'PENDING') {
     colorClass = 'status-badge--yellow'
     if (!label) displayLabel = 'Chờ xử lý'
   } else if (norm === 'CONFIRMED') {

@@ -185,28 +185,7 @@ export async function sendResetPasswordEmail({
         <p>
           <strong>${to}</strong>
         </p>
-
-        <p>
-          Nhấn vào nút bên dưới để tạo mật khẩu mới:
-        </p>
-
-        <p style="margin: 24px 0">
-          <a
-            href="${resetUrl}"
-            style="
-              display: inline-block;
-              padding: 12px 20px;
-              background: #8b6e41;
-              color: #ffffff;
-              text-decoration: none;
-              border-radius: 8px;
-              font-weight: bold;
-            "
-          >
-            Đặt lại mật khẩu
-          </a>
-        </p>
-
+        
         <p>
           Hoặc mở liên kết sau trong trình duyệt:
         </p>
