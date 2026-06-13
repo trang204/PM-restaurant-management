@@ -266,21 +266,21 @@ export default function UserManagement() {
       </header>
 
       <div className="user-mgmt__toolbar">
-        <div className="user-mgmt__filters">
-          {roles.map((role) => {
-            const nextGroup = role === 'ADMIN' ? 'admins' : role === 'STAFF' ? 'staff' : 'customers'
-            return (
-              <button
-                key={role}
-                type="button"
-                className={`user-mgmt__filterBtn${meta.role === role ? ' user-mgmt__filterBtn--active' : ''}`}
-                onClick={() => navigate(`/admin/users/${nextGroup}`)}
-              >
-                {ROLE_LABELS[role]}
-              </button>
-            )
-          })}
-        </div>
+        <select
+          className="user-mgmt__filterSelect"
+          value={meta.role}
+          onChange={(e) => {
+            const nextRole = e.target.value
+            const nextGroup = nextRole === 'ADMIN' ? 'admins' : nextRole === 'STAFF' ? 'staff' : 'customers'
+            navigate(`/admin/users/${nextGroup}`)
+          }}
+        >
+          {roles.map((role) => (
+            <option key={role} value={role}>
+              {ROLE_LABELS[role]}
+            </option>
+          ))}
+        </select>
         <input
           className="user-mgmt__search"
           value={q}

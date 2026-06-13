@@ -101,6 +101,7 @@
   border-color: rgba(184,147,90,0.35);
 }
 
+.user-mgmt__filterSelect,
 .user-mgmt__date {
   min-width: 150px;
   padding: 9px 13px;
@@ -114,6 +115,7 @@
   transition: border-color var(--um-ease), box-shadow var(--um-ease);
 }
 
+.user-mgmt__filterSelect:focus,
 .user-mgmt__date:focus {
   border-color: var(--um-gold);
   box-shadow: 0 0 0 3px rgba(184,147,90,0.14);
@@ -426,6 +428,7 @@
   .user-mgmt__toolbar { flex-direction: column; align-items: stretch; }
   .user-mgmt__search { min-width: 0; width: 100%; }
   .user-mgmt__dialog { padding: 18px; }
+  .user-mgmt__filterSelect,
   .user-mgmt__date {
     width: 100%;
   }
