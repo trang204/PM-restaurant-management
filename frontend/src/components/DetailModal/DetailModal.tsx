@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react'
+import React, { type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import './DetailModal.css'
 

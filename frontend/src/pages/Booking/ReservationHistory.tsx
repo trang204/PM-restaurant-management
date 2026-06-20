@@ -3,7 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Calendar, MapPin, Pin, Users } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import { normalizeReservation, type ReservationRow } from '../../lib/reservation'
-import ReservationDetailView, { StatusBadge } from './ReservationDetailView'
+import ReservationDetailView from './ReservationDetailView'
+import StatusBadge from '../../components/StatusBadge/StatusBadge'
 
 function formatDateVi(isoDate: string) {
   const s = String(isoDate || '').trim()

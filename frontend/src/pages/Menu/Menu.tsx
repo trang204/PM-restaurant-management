@@ -53,8 +53,7 @@ export default function Menu() {
   const [categories, setCategories] = useState<CategoryRow[]>([])
   const [activeCat, setActiveCat] = useState<number | 'all'>('all')
   /** all | in_stock | out_of_stock */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [availability, setAvailability] = useState<'all' | 'in_stock' | 'out_of_stock'>('all')
+  const [availability] = useState<'all' | 'in_stock' | 'out_of_stock'>('all')
   const [q, setQ] = useState('')
   const [myTable, setMyTable] = useState<null | { tableName: string; url: string }>(null)
   const [loading, setLoading] = useState(true)

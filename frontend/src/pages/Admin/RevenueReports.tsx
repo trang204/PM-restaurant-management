@@ -125,7 +125,7 @@ function CustomTooltip({ active, payload, label, groupBy }: { active?: boolean; 
   if (active && payload && payload.length) {
     return (
       <div className="rev-chart__tooltip">
-        <p className="rev-chart__tooltipDate">{formatAxisLabel(label, groupBy)}</p>
+        <p className="rev-chart__tooltipDate">{formatAxisLabel(label || '', groupBy || 'day')}</p>
         <p className="rev-chart__tooltipValue">{formatCurrency(payload[0].value)}</p>
       </div>
     )
