@@ -53,6 +53,7 @@ export default function Menu() {
   const [categories, setCategories] = useState<CategoryRow[]>([])
   const [activeCat, setActiveCat] = useState<number | 'all'>('all')
   /** all | in_stock | out_of_stock */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [availability, setAvailability] = useState<'all' | 'in_stock' | 'out_of_stock'>('all')
   const [q, setQ] = useState('')
   const [myTable, setMyTable] = useState<null | { tableName: string; url: string }>(null)
@@ -109,7 +110,7 @@ export default function Menu() {
       setMyTable(null)
       return
     }
-    apiFetch<any>('/table-session/me')
+    apiFetch<Record<string, unknown>>('/table-session/me')
       .then((d) => {
         if (d?.tableName && d?.tableOrderToken) {
           setMyTable({ tableName: String(d.tableName), url: `/order/table/${encodeURIComponent(String(d.tableOrderToken))}` })

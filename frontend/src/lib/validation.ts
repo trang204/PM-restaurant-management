@@ -8,7 +8,7 @@ export function isBlank(value: unknown) {
 
 /** Chuẩn hoá SĐT: bỏ dấu chấm, gạch ngang, khoảng trắng */
 export function normalizePhone(raw: string): string {
-  return raw.trim().replace(/[\s.\-]/g, '')
+  return raw.trim().replace(/[\s.-]/g, '')
 }
 
 /**

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { MapPin, X, ShoppingBag, Hash } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import { normalizeReservation, type ReservationRow } from '../../lib/reservation'

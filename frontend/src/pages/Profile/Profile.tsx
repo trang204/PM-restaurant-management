@@ -43,7 +43,7 @@ export default function Profile() {
       return
     }
     setLoading(true)
-    apiFetch<any>('/users/me')
+    apiFetch<{ id: string; fullName: string; email: string; phone?: string | null; avatarUrl?: string | null; role?: string | null; createdAt?: string | null }>('/users/me')
       .then((d) => {
         setMe(d)
         setForm({
@@ -54,6 +54,7 @@ export default function Profile() {
       })
       .catch((e) => toast((e as Error).message, { variant: 'error' }))
       .finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function save(e?: React.FormEvent) {
@@ -90,10 +91,10 @@ export default function Profile() {
       if (pendingAvatar) {
         const fd = new FormData()
         fd.append('avatar', pendingAvatar.file)
-        updatedMe = await apiFetch<any>('/users/me/avatar', { method: 'POST', body: fd })
+        updatedMe = await apiFetch<{ id: string; fullName: string; email: string; phone?: string | null; avatarUrl?: string | null; role?: string | null; createdAt?: string | null }>('/users/me/avatar', { method: 'POST', body: fd })
       }
 
-      updatedMe = await apiFetch<any>('/users/me', {
+      updatedMe = await apiFetch<{ id: string; fullName: string; email: string; phone?: string | null; avatarUrl?: string | null; role?: string | null; createdAt?: string | null }>('/users/me', {
         method: 'PATCH',
         body: JSON.stringify({
           fullName: nextFullName,

@@ -17,7 +17,7 @@ export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5
 /** Origin API (no /api suffix) — for static uploads if backend serves them. */
 export function getApiOrigin(): string {
   const raw = String(API_BASE).replace(/\/$/, '')
-  let origin = raw.replace(/\/api$/, '') || 'http://localhost:5000'
+  const origin = raw.replace(/\/api$/, '') || 'http://localhost:5000'
   try {
     const u = new URL(origin)
     if (u.port === '5173' || u.port === '4173') {

@@ -115,7 +115,7 @@ export default function BookTable() {
     if (!token) {
       return
     }
-    apiFetch<any>('/users/me')
+    apiFetch<Record<string, unknown>>('/users/me')
       .then((d) => {
         if (d?.fullName) setFullName(String(d.fullName))
         if (d?.phone) setPhone(String(d.phone))

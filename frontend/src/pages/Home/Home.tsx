@@ -105,9 +105,12 @@ export default function Home() {
     return () => window.clearInterval(t)
   }, [banners.length, bannerCfg.enabled, bannerCfg.mode, bannerCfg.showOnHome])
 
+  const bannersKey = banners.join('|')
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setBannerIdx(0)
-  }, [banners.join('|')])
+  }, [bannersKey])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const showHeroBanner =
     bannerCfg.enabled && bannerCfg.showOnHome && banners.length > 0

@@ -41,7 +41,12 @@ export async function adminListMenuItems(params?: {
   search?: string
   status?: string
 }): Promise<MenuItem[]> {
-  return apiFetch<MenuItem[]>('/admin/menu-items', { cache: 'no-store' })
+  const qs = new URLSearchParams()
+  if (params?.categoryId) qs.set('categoryId', String(params.categoryId))
+  if (params?.search) qs.set('search', params.search)
+  if (params?.status) qs.set('status', params.status)
+  const query = qs.toString() ? `?${qs.toString()}` : ''
+  return apiFetch<MenuItem[]>(`/admin/menu-items${query}`, { cache: 'no-store' })
 }
 
 export async function adminCreateMenuItem(payload: {

@@ -121,7 +121,7 @@ function methodLabel(m: string | null) {
 }
 
 /* ─── Components ─── */
-function CustomTooltip({ active, payload, label, groupBy }: any) {
+function CustomTooltip({ active, payload, label, groupBy }: { active?: boolean; payload?: { value: number }[]; label?: string; groupBy?: GroupBy }) {
   if (active && payload && payload.length) {
     return (
       <div className="rev-chart__tooltip">
@@ -256,6 +256,7 @@ export default function RevenueReports() {
   useEffect(() => {
     if (activeTab !== 'period') return
     let c = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true); setErr(null)
     apiFetch<RevenueRes>(`/admin/reports/revenue?${qs}`)
       .then((d) => { if (!c) setData(d) })
@@ -267,6 +268,7 @@ export default function RevenueReports() {
   useEffect(() => {
     if (activeTab !== 'table') return
     let c = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTableLoading(true); setTableErr(null)
     apiFetch<TableRow[]>(`/admin/reports/revenue/by-table?${dateQs}`)
       .then((rows) => { if (!c) setTableData(Array.isArray(rows) ? rows : []) })
@@ -278,6 +280,7 @@ export default function RevenueReports() {
   useEffect(() => {
     if (!detailOpen) return
     let c = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDetailLoading(true); setDetailErr(null)
     const q = new URLSearchParams()
     q.set('from', detailOpen.from)
@@ -294,10 +297,12 @@ export default function RevenueReports() {
   const invoiceCount = Number(data?.invoiceCount || 0)
   const averageOrderValue = Number(data?.averageOrderValue || 0)
   const previousTotal = Number(data?.previousTotal || 0)
-  const series = data?.series || []
+  const series = useMemo(() => data?.series || [], [data?.series])
   const tableTotal = tableData.reduce((s, r) => s + Number(r.total || 0), 0)
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setPeriodPage(1) }, [groupBy, from, to, activeTab])
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setTablePage(1) }, [from, to, activeTab])
 
   const pagedSeries = useMemo(() => {
@@ -515,7 +520,7 @@ export default function RevenueReports() {
     } else if (from && to && from.substring(0, 7) === to.substring(0, 7)) {
       // Same month
       const [y, m, dFrom] = from.split('-')
-      const [y2, m2, dTo] = to.split('-')
+      const [, , dTo] = to.split('-')
       if (dFrom === '01' && Number(dTo) >= 28) { // basic check for full month
         filename += `-thang-${m}-${y}`
       } else {

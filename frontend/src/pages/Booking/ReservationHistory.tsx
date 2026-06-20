@@ -3,8 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Calendar, MapPin, Pin, Users } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import { normalizeReservation, type ReservationRow } from '../../lib/reservation'
-import ReservationDetailView from './ReservationDetailView'
-import StatusBadge from '../../components/StatusBadge/StatusBadge'
+import ReservationDetailView, { StatusBadge } from './ReservationDetailView'
 
 function formatDateVi(isoDate: string) {
   const s = String(isoDate || '').trim()
@@ -47,6 +46,7 @@ export default function ReservationHistory() {
   useEffect(() => {
     const token = localStorage.getItem('luxeat_token')
     if (!token) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false)
       setError('Đăng nhập để xem lịch sử đặt bàn của bạn.')
       return
@@ -66,6 +66,7 @@ export default function ReservationHistory() {
 
   useEffect(() => {
     if (!detailFromUrl) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDetailId(detailFromUrl)
     setSearchParams(
       (prev) => {
@@ -108,7 +109,7 @@ export default function ReservationHistory() {
             ) : null}
           </p>
         ) : null}
-        {!loading && !error && rows.length === 0 ? <p>Chưa có đơn nào (khi đặt đã đăng nhập, đơn sẽ gắn tài khoản).</p> : null}
+        {!loading && !error && rows.length === 0 ? <p>Chưa có đơn nào .</p> : null}
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {rows.map((r) => (
             <li key={r.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
@@ -129,7 +130,7 @@ export default function ReservationHistory() {
                   </div>
                   <div>
                     <MapPin size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
-                    {r.tables?.length ? `${r.tables.join(', ')}`: r.assignedTableId ? ` ${r.assignedTableId}` : 'Chưa gán bàn'}
+                    {r.tables?.length ? `Bàn ${r.tables.join(', ')}` : r.assignedTableId ? `Bàn ${r.assignedTableId}` : 'Chưa gán bàn'}
                   </div>
                   <div>
                     <Pin size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />

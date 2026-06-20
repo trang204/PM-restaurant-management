@@ -108,7 +108,7 @@ export function normalizeReservation(raw: unknown): ReservationRow | null {
     out.tables = r.tables.filter((x): x is string => typeof x === 'string' && Boolean(x))
   }
   if (Array.isArray(r.assignedTables)) {
-    out.assignedTables = r.assignedTables.map((t: any) => ({
+    out.assignedTables = r.assignedTables.map((t: Record<string, unknown>) => ({
       id: Number(t.id),
       name: String(t.name || ''),
       zone: t.zone ? String(t.zone) : null,
@@ -117,7 +117,7 @@ export function normalizeReservation(raw: unknown): ReservationRow | null {
     }))
   }
   if (Array.isArray(r.orderItems)) {
-    out.orderItems = r.orderItems.map((item: any) => ({
+    out.orderItems = r.orderItems.map((item: Record<string, unknown>) => ({
       id: Number(item.id),
       foodName: String(item.foodName || item.food_name || ''),
       quantity: Number(item.quantity) || 0,

@@ -15,6 +15,7 @@ export default function AppLayout() {
   const navRef = useRef<HTMLElement>(null)
   const location = useLocation()
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMenuOpen(false) }, [location.pathname])
   const [brand, setBrand] = useState<{ name: string; logoUrl?: string | null }>({ name: 'Luxeat', logoUrl: null })
   const [publicInfo, setPublicInfo] = useState<{

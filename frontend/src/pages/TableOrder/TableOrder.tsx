@@ -267,6 +267,7 @@ export default function TableOrder() {
   useEffect(() => {
     if (!ctx) return
     loadPayment()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx?.order?.id])
 
   async function addToCart(foodId: number, qty = 1) {
