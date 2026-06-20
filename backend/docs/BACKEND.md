@@ -147,6 +147,7 @@ backend/
 │   ├── services/                 # Logic nghiệp vụ phức tạp / tích hợp bên ngoài
 │   │   ├── tableSession.service.js   # Quản lý vòng đời QR session
 │   │   ├── mail.service.js           # Gửi email qua SMTP
+│   │   ├── inventory.service.js      # Trừ tồn kho nguyên liệu khi bếp xác nhận món
 │   │   └── tableLayoutVision.service.js  # Phân tích sơ đồ bàn bằng vision API
 │   ├── middleware/               # Express middleware
 │   │   ├── requireAuth.js        # Xác thực JWT bắt buộc
@@ -373,6 +374,32 @@ backend/
 ```json
 { "success": true, "data": { "id": 1, "name": "...", "email": "...", "phone": "..." } }
 ```
+
+---
+
+#### POST /api/users/me/password
+
+**Mô tả:** Đổi mật khẩu của người dùng đang đăng nhập (yêu cầu nhập mật khẩu hiện tại).
+**Authentication:** Bắt buộc ✅
+
+**Request Body:**
+
+| Field | Type | Required | Mô tả |
+|---|---|---|---|
+| `currentPassword` | string | ✅ | Mật khẩu hiện tại |
+| `newPassword` | string | ✅ | Mật khẩu mới (≥ 6 ký tự) |
+
+**Response 200:**
+```json
+{ "success": true, "data": { "message": "Password changed successfully" } }
+```
+
+**Error Codes:**
+
+| Code | Message | Nguyên nhân |
+|---|---|---|
+| 400 | Current password is incorrect | Mật khẩu hiện tại sai |
+| 400 | Validation error | Thiếu field hoặc mật khẩu mới quá ngắn |
 
 ---
 
@@ -717,7 +744,9 @@ backend/
 
 | Field | Type | Required | Mô tả |
 |---|---|---|---|
-| `tableId` | number | ✅ | ID bàn muốn giữ |
+| `tableIds` | number[] | ✅ | Danh sách ID bàn muốn giữ |
+
+> **Lưu ý:** Body nhận `tableIds` (mảng), không phải `tableId` (đơn). Ví dụ: `{ "tableIds": [1, 2] }`.
 
 ---
 
@@ -1085,18 +1114,45 @@ backend/
 
 #### POST /api/admin/reservations/walk-in
 
-**Mô tả:** Tạo booking walk-in tại chỗ (không cần tài khoản, ngay lập tức CHECKED_IN).
+**Mô tả:** Tạo booking walk-in tại chỗ (không cần tài khoản, ngay lập tức CHECKED_IN, tạo QR gọi món).
 **Role:** ADMIN, STAFF
 
 **Request Body:**
 
 | Field | Type | Required | Mô tả |
 |---|---|---|---|
-| `guest_name` | string | ✅ | Tên khách |
-| `guest_phone` | string | ❌ | SĐT khách |
-| `guests` | number | ✅ | Số người |
-| `table_ids` | number[] | ✅ | Danh sách ID bàn gán |
-| `note` | string | ❌ | Ghi chú |
+| `tableId` | number | ✅ | ID bàn gán (single, không phải mảng) |
+| `guestName` | string | ❌ | Tên khách (mặc định: "Khách vãng lai") |
+| `guestPhone` | string | ❌ | SĐT khách |
+| `guests` | number | ❌ | Số người (mặc định: 2, tối đa: 99) |
+| `bookingDate` | string | ❌ | Ngày (YYYY-MM-DD, mặc định: hôm nay) |
+| `bookingTime` | string | ❌ | Giờ (HH:MM, mặc định: giờ hiện tại) |
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": {
+    "reservationId": 10,
+    "walkIn": true,
+    "status": "CHECKED_IN",
+    "tableSession": {
+      "orderUrl": "http://localhost:5173/order/table/abc...",
+      "qrSvg": "<svg>..."
+    }
+  }
+}
+```
+
+**Error Codes:**
+
+| Code | Message | Nguyên nhân |
+|---|---|---|
+| 400 | tableId là bắt buộc | Thiếu tableId |
+| 400 | Bàn đang đóng | Bàn ở trạng thái CLOSED |
+| 400 | Bàn không trống | Bàn đang OCCUPIED hoặc RESERVED |
+| 400 | Bàn đã có đơn khác | Xung đột cùng ngày giờ |
+| 404 | Bàn không tồn tại | tableId không hợp lệ |
 
 ---
 
@@ -1189,14 +1245,17 @@ backend/
 
 #### POST /api/admin/reservations/:id/transfer-table
 
-**Mô tả:** Chuyển khách sang bàn khác.
+**Mô tả:** Chuyển khách sang bàn khác. Giữ nguyên QR/phiên nếu đã check-in, cập nhật `table_sessions.table_id`.
 **Role:** ADMIN, STAFF
 
 **Request Body:**
 
 | Field | Type | Required | Mô tả |
 |---|---|---|---|
-| `new_table_id` | number | ✅ | ID bàn mới |
+| `tableId` | number | ✅ | ID bàn đích (camelCase, không phải `new_table_id`) |
+| `reason` | string | ❌ | Lý do chuyển bàn (được ghi vào `bookings.note`) |
+
+> **Lưu ý:** Field là `tableId` (camelCase), không phải `new_table_id`.
 
 ---
 
@@ -1216,15 +1275,38 @@ backend/
 
 #### POST /api/admin/reservations/:id/cashier-pay
 
-**Mô tả:** Ghi nhận thanh toán tiền mặt tại quầy.
+**Mô tả:** Ghi nhận thanh toán tại quầy. Tính tổng tiền từ order items, kiểm tra xung đột, cập nhật booking → COMPLETED, bàn → AVAILABLE, đóng QR session.
 **Role:** ADMIN, STAFF
+
+> Chỉ áp dụng cho booking đang ở trạng thái `CHECKED_IN`.
 
 **Request Body:**
 
 | Field | Type | Required | Mô tả |
 |---|---|---|---|
-| `amount` | number | ✅ | Số tiền thu |
-| `method` | string | ✅ | `cash` / `bank_transfer` |
+| `amount` | number | ❌ | Số tiền thu (nếu có, phải khớp tổng hóa đơn) |
+| `transactionCode` | string | ❌ | Mã giao dịch (chuyển khoản) |
+| `note` | string | ❌ | Ghi chú thanh toán |
+| `tax` | number | ❌ | Thuế cộng thêm (VNĐ, mặc định: 0) |
+| `discount` | number | ❌ | Giảm giá (VNĐ, mặc định: 0) |
+| `surcharge` | number | ❌ | Phụ phí (VNĐ, mặc định: 0) |
+
+**Công thức tổng tiền:** `finalTotal = foodTotal + surcharge + tax - discount`
+
+**Response 200:**
+```json
+{ "success": true, "data": { "reservationId": 10, "status": "COMPLETED", "paymentId": 3, "amount": 170000 } }
+```
+
+**Error Codes:**
+
+| Code | Message | Nguyên nhân |
+|---|---|---|
+| 400 | Đơn đặt bàn này đã được thanh toán | Booking đã COMPLETED |
+| 400 | Đơn đặt bàn này đã bị hủy | Booking đã CANCELLED |
+| 400 | Chỉ cho phép thanh toán đơn CHECKED_IN | Sai trạng thái booking |
+| 400 | Số tiền thanh toán không khớp | `amount` sai so với tổng hóa đơn |
+| 400 | Đơn hàng đã có bản ghi thanh toán PAID | Trùng thanh toán |
 
 ---
 
@@ -1552,6 +1634,26 @@ backend/
 
 ---
 
+#### PATCH /api/admin/tables/layout/bulk
+
+**Mô tả:** Cập nhật vị trí (`pos_x`, `pos_y`) cho nhiều bàn cùng lúc — dùng khi lưu sơ đồ bàn.
+**Role:** ADMIN, STAFF
+
+**Request Body:**
+
+| Field | Type | Required | Mô tả |
+|---|---|---|---|
+| `layout` | array | ✅ | Danh sách: `[{ id, pos_x, pos_y }]` |
+
+**Response 200:**
+```json
+{ "success": true, "data": { "message": "Cập nhật sơ đồ bàn thành công" } }
+```
+
+> **Lưu ý:** Thực thi trong transaction. Bỏ qua item không có `id` hợp lệ.
+
+---
+
 #### GET /api/admin/kitchen/orders
 
 **Mô tả:** Lấy danh sách orders cần bếp xử lý (có item chưa ACK).
@@ -1568,22 +1670,62 @@ backend/
 
 #### PATCH /api/admin/kitchen/order-items/:itemId/ack
 
-**Mô tả:** Bếp xác nhận đã nhận một món (`kitchen_status` → ACKNOWLEDGED).
+**Mô tả:** Bếp xác nhận đã nhận một món (`kitchen_status` → `ACKNOWLEDGED`). Tự động gọi `deductIngredientsForFood()` để **trừ tồn kho nguyên liệu** theo `food_ingredients`.
 **Role:** ADMIN, STAFF
+
+**Response 200:**
+```json
+{ "success": true, "data": { "id": 1, "order_id": 5, "kitchen_status": "ACKNOWLEDGED", "kitchen_ack_at": "2025-12-25T18:05:00Z" } }
+```
+
+**Error Codes:**
+
+| Code | Message | Nguyên nhân |
+|---|---|---|
+| 404 | Không tìm thấy dòng món hoặc đã xác nhận | itemId không tồn tại hoặc không còn PENDING |
+
+---
+
+#### PATCH /api/admin/kitchen/order-items/:itemId/serve
+
+**Mô tả:** Bếp đánh dấu đã lên món (`kitchen_status` → `SERVED`). Chỉ áp dụng cho món trong phiên ACTIVE.
+**Role:** ADMIN, STAFF
+
+**Response 200:**
+```json
+{ "success": true, "data": { "id": 1, "order_id": 5, "kitchen_status": "SERVED", "kitchen_ack_at": "..." } }
+```
 
 ---
 
 #### POST /api/admin/kitchen/orders/:orderId/ack-all
 
-**Mô tả:** Bếp xác nhận tất cả món còn PENDING trong order.
+**Mô tả:** Bếp xác nhận tất cả món còn PENDING trong order. Trừ tồn kho nguyên liệu cho từng món.
 **Role:** ADMIN, STAFF
 
 ---
 
 #### POST /api/admin/kitchen/orders/:orderId/confirm-payment
 
-**Mô tả:** Xác nhận thanh toán và đóng table session.
+**Mô tả:** Nhân viên xác nhận đã thu tiền (UNPAID → PAID). Hoàn tất vòng đời: booking → COMPLETED, đóng QR session, bàn → AVAILABLE.
 **Role:** ADMIN, STAFF
+
+**Điều kiện:** Phải có bản ghi payment `status = 'UNPAID'` trong order.
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": { "payment": { "id": 3, "amount": "170000.00", "method": "cash", "status": "PAID" }, "tableReleased": true, "bookingCompleted": true }
+}
+```
+
+**Error Codes:**
+
+| Code | Message | Nguyên nhân |
+|---|---|---|
+| 400 | Không có yêu cầu thanh toán chờ thu | Không tìm thấy payment UNPAID |
+| 404 | Không tìm thấy đơn hoặc phiên đã đóng | orderId không hợp lệ |
 
 ---
 
@@ -1913,6 +2055,7 @@ erDiagram
         TEXT zone
         INT pos_x
         INT pos_y
+        BOOLEAN is_deleted
         TIMESTAMP created_at
     }
 
@@ -1976,6 +2119,7 @@ erDiagram
         INT food_id FK
         INT quantity
         DECIMAL_14_2 price
+        TEXT note
         VARCHAR_20 kitchen_status
         TIMESTAMP kitchen_ack_at
     }
@@ -1983,10 +2127,16 @@ erDiagram
     payments {
         SERIAL id PK
         INT order_id FK
+        INT cashier_id FK
         DECIMAL_14_2 amount
         VARCHAR_20 method
         VARCHAR_20 status
         TIMESTAMP paid_at
+        TEXT transaction_code
+        TEXT note
+        DECIMAL_14_2 tax
+        DECIMAL_14_2 discount
+        DECIMAL_14_2 surcharge
     }
 
     notifications {
@@ -2200,9 +2350,12 @@ erDiagram
 | `zone` | TEXT | YES | NULL | Tên khu vực |
 | `pos_x` | INT | YES | NULL | Tọa độ X trên sơ đồ |
 | `pos_y` | INT | YES | NULL | Tọa độ Y trên sơ đồ |
+| `is_deleted` | BOOLEAN | NO | `false` | Soft-delete flag (khi xóa bàn) |
 | `created_at` | TIMESTAMP WITH TZ | NO | `NOW()` | Thời gian tạo |
 
 **Enum `status`:** `AVAILABLE`, `RESERVED`, `OCCUPIED`, `CLOSED`
+
+> **Soft-delete:** Bàn bị xóa qua `DELETE /api/tables/:id` không bị xóa khỏi DB mà được đặt `is_deleted = true`. Các query đọc dữ liệu bàn đều thêm điều kiện `AND is_deleted = false`.
 
 ---
 
@@ -2303,8 +2456,15 @@ PENDING → HOLD → (hết hạn tự động) → CANCELLED
 | `food_id` | INT | YES | NULL | FK → `foods.id` |
 | `quantity` | INT | NO | — | Số lượng |
 | `price` | DECIMAL(14,2) | NO | — | Giá tại thời điểm đặt (snapshot) |
-| `kitchen_status` | VARCHAR(20) | NO | `'PENDING'` | `PENDING` / `ACKNOWLEDGED` |
-| `kitchen_ack_at` | TIMESTAMP WITH TZ | YES | NULL | Thời điểm bếp xác nhận |
+| `note` | TEXT | YES | NULL | Ghi chú của khách khi thêm món |
+| `kitchen_status` | VARCHAR(20) | NO | `'PENDING'` | `PENDING` → `ACKNOWLEDGED` → `SERVED` |
+| `kitchen_ack_at` | TIMESTAMP WITH TZ | YES | NULL | Thời điểm bếp xác nhận (ack) |
+
+**Vòng đời `kitchen_status`:**
+```
+PENDING → ACKNOWLEDGED (bếp nhận làm, trừ tồn kho)
+        → SERVED (bếp lên món)
+```
 
 ---
 
@@ -2318,6 +2478,14 @@ PENDING → HOLD → (hết hạn tự động) → CANCELLED
 | `method` | VARCHAR(20) | NO | — | `cash` / `bank_transfer` |
 | `status` | VARCHAR(20) | NO | `'UNPAID'` | `UNPAID` / `PAID` |
 | `paid_at` | TIMESTAMP WITH TZ | YES | NULL | Thời điểm thanh toán |
+| `transaction_code` | TEXT | YES | NULL | Mã giao dịch (chuyển khoản) |
+| `cashier_id` | INT | YES | NULL | FK → `users.id` — nhân viên thu ngân |
+| `note` | TEXT | YES | NULL | Ghi chú thanh toán |
+| `tax` | DECIMAL(14,2) | YES | `0` | Thuế cộng thêm |
+| `discount` | DECIMAL(14,2) | YES | `0` | Giảm giá |
+| `surcharge` | DECIMAL(14,2) | YES | `0` | Phụ phí |
+
+> **Lưu ý:** Các cột `transaction_code`, `cashier_id`, `note`, `tax`, `discount`, `surcharge` được thêm vào bởi `ensureDbSchema()` qua `ALTER TABLE ADD COLUMN IF NOT EXISTS` — đảm bảo tương thích ngược với DB cũ.
 
 ---
 
