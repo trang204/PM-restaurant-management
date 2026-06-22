@@ -383,6 +383,22 @@ export async function createPayment(req, res, next) {
     const orderRow = await getOrCreateOrderForSession(row)
     const orderId = orderRow.id
 
+    // Kiểm tra xem có món nào chưa lên (chưa có trạng thái SERVED)
+    const unservedRes = await query(
+      `
+      SELECT COUNT(*)::int AS count
+      FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id
+      WHERE o.table_session_id = $1
+        AND o.status IN ('PENDING', 'SERVING')
+        AND COALESCE(oi.kitchen_status, 'PENDING') <> 'SERVED'
+    `,
+      [row.session_id],
+    )
+    if (unservedRes.rows[0].count > 0) {
+      throw badRequest('Không thể yêu cầu thanh toán khi có món chưa được phục vụ xong')
+    }
+
     const total = await computeSessionTotal(row.session_id)
     if (!Number.isFinite(total) || total <= 0) throw badRequest('Chưa có món trong đơn')
 

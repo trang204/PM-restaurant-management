@@ -262,7 +262,10 @@ export default function TableOrder() {
 
   const totalQty = useMemo(() => ctx?.items.reduce((s, i) => s + Number(i.quantity), 0) ?? 0, [ctx?.items])
 
-
+  const hasUnservedItems = useMemo(() => {
+    if (!ctx?.items || ctx.items.length === 0) return false
+    return ctx.items.some(i => String(i.kitchen_status || 'PENDING').toUpperCase() !== 'SERVED')
+  }, [ctx?.items])
 
   useEffect(() => {
     if (!ctx) return
@@ -412,11 +415,17 @@ export default function TableOrder() {
           <h2 className="tableOrder__payPanelTitle">Thanh toán</h2>
           <div className="tableOrder__payPanelBody">
             {!showFields ? (
-              <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                {hasUnservedItems && (
+                  <p className="tableOrder__payNotify" style={{ borderLeftColor: '#E53E3E', background: '#FFF5F5', color: '#C53030', width: '100%', boxSizing: 'border-box' }}>
+                    Quý khách có món chưa lên, vui lòng đợi phục vụ xong tất cả các món để yêu cầu thanh toán.
+                  </p>
+                )}
                 <button
                   type="button"
                   className="tableOrder__btn tableOrder__btn--accent tableOrder__btn--full"
                   style={{ padding: '12px 24px', fontSize: '1rem', height: 'auto' }}
+                  disabled={hasUnservedItems}
                   onClick={() => setShowPaymentFields(true)}
                 >
                   Yêu cầu thanh toán
@@ -441,15 +450,22 @@ export default function TableOrder() {
                     </label>
                   </div>
                   {!paymentCtx?.payment ? (
-                    <button
-                      type="button"
-                      className="tableOrder__btn tableOrder__btn--accent tableOrder__btn--full"
-                      disabled={paying}
-                      onClick={createPay}
-                      style={{ marginTop: '12px' }}
-                    >
-                      {paying ? 'Đang gửi yêu cầu…' : 'Xác nhận gửi yêu cầu'}
-                    </button>
+                    <>
+                      {hasUnservedItems && (
+                        <p className="tableOrder__payNotify" style={{ borderLeftColor: '#E53E3E', background: '#FFF5F5', color: '#C53030', marginBottom: '8px' }}>
+                          Quý khách có món chưa lên, vui lòng đợi phục vụ xong để yêu cầu thanh toán.
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        className="tableOrder__btn tableOrder__btn--accent tableOrder__btn--full"
+                        disabled={paying || hasUnservedItems}
+                        onClick={createPay}
+                        style={{ marginTop: '12px' }}
+                      >
+                        {paying ? 'Đang gửi yêu cầu…' : 'Xác nhận gửi yêu cầu'}
+                      </button>
+                    </>
                   ) : null}
 
                   {paymentCtx?.payment ? (
