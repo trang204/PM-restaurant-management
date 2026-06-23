@@ -10,8 +10,6 @@ export async function listMenuItems(req, res, next) {
 
     const params = []
     const where = []
-    // Public menu: chỉ hiển thị món đang hoạt động
-    where.push(`COALESCE(f.status, 'AVAILABLE') = 'AVAILABLE'`)
     if (search) {
       params.push(`%${search}%`)
       where.push(`LOWER(f.name) LIKE $${params.length}`)
@@ -19,6 +17,11 @@ export async function listMenuItems(req, res, next) {
     if (categoryId) {
       params.push(categoryId)
       where.push(`f.category_id = $${params.length}`)
+    }
+    // By default, only show AVAILABLE items on public menu unless explicitly requested
+    const showAll = String(req.query.show_all || '').trim() === '1' || String(req.query.show_unavailable || '').trim() === '1'
+    if (!showAll) {
+      where.push(`COALESCE(UPPER(TRIM(f.status)), 'AVAILABLE') = 'AVAILABLE'`)
     }
 
     const sql = `
@@ -28,6 +31,7 @@ export async function listMenuItems(req, res, next) {
         f.price,
         f.description,
         f.image_url,
+        f.status,
         f.category_id,
         c.name AS category_name,
         f.created_at

@@ -34,7 +34,7 @@ export async function getSettings(req, res, next) {
   try {
     const [settingsRes, tablesRes] = await Promise.all([
       query('SELECT * FROM settings ORDER BY id LIMIT 1'),
-      query('SELECT COUNT(*)::int AS total FROM tables'),
+      query('SELECT COUNT(*)::int AS total FROM tables WHERE is_deleted = false'),
     ])
     const row = settingsRes.rows[0] || null
     return ok(res, row ? { ...row, total_tables: Number(tablesRes.rows[0]?.total || 0) } : null)
@@ -76,6 +76,7 @@ export async function updateSettings(req, res, next) {
       home_cta_title,
       home_cta_text,
       home_features_json,
+      reservation_hold_duration,
     } = req.body || {}
 
     const phoneValue = phone != null ? String(phone).trim() : ''
@@ -92,7 +93,7 @@ export async function updateSettings(req, res, next) {
 
     // Đảm bảo row id=1 tồn tại trước.
     await query(`INSERT INTO settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING`)
-    const tablesRes = await query('SELECT COUNT(*)::int AS total FROM tables')
+    const tablesRes = await query('SELECT COUNT(*)::int AS total FROM tables WHERE is_deleted = false')
     const totalTablesAuto = Number(tablesRes.rows[0]?.total || 0)
 
     // Build SET động: chỉ cập nhật các cột đã biết — tránh INSERT ON CONFLICT liệt kê cột
@@ -115,7 +116,14 @@ export async function updateSettings(req, res, next) {
     col('footer_tagline', footer_tagline ?? null)
     col('footer_copyright', footer_copyright ?? null)
     col('footer_links', Array.isArray(footer_links) ? footer_links : [])
-    col('social_links', Array.isArray(social_links) ? social_links : [])
+    col('social_links', (() => {
+      if (social_links == null) return null
+      // FE mới gửi object {facebook, instagram, zalo}
+      if (!Array.isArray(social_links) && typeof social_links === 'object') return social_links
+      // FE cũ gửi array [{label, url}]
+      if (Array.isArray(social_links)) return social_links
+      return null
+    })())
     col('total_tables', totalTablesAuto)
     col('address', address ?? null)
     col('phone', phone ?? null)
@@ -126,6 +134,7 @@ export async function updateSettings(req, res, next) {
     col('payment_bank_code', payment_bank_code != null ? String(payment_bank_code).trim() || null : null)
     col('payment_transfer_content', payment_transfer_content != null ? String(payment_transfer_content).trim() || null : null)
     col('payment_qr_template', payment_qr_template != null ? String(payment_qr_template).trim() || null : null)
+    col('reservation_hold_duration', reservation_hold_duration != null ? Math.max(1, Number(reservation_hold_duration)) : 15)
 
     // Các cột homepage — chỉ thêm vào SET nếu cột thực sự tồn tại trong DB.
     const homeCols = {

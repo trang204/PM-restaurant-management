@@ -13,7 +13,7 @@ export async function closeTable(req, res, next) {
     const { reason } = req.body || {}
     const note = reason != null && String(reason).trim() ? String(reason).trim() : null
 
-    const t = await query('SELECT id, status FROM tables WHERE id = $1', [id])
+    const t = await query('SELECT id, status FROM tables WHERE id = $1 AND is_deleted = false', [id])
     if (!t.rows.length) throw notFound('Không tìm thấy bàn')
     if (String(t.rows[0].status || '').toUpperCase() === 'CLOSED') {
       return ok(res, { tableId: id, status: 'CLOSED', message: 'Bàn đã ở trạng thái đóng' })
@@ -50,7 +50,7 @@ export async function reopenTable(req, res, next) {
     const id = Number(req.params.id)
     if (!Number.isFinite(id)) throw badRequest('id không hợp lệ')
 
-    const t = await query('SELECT id, status FROM tables WHERE id = $1', [id])
+    const t = await query('SELECT id, status FROM tables WHERE id = $1 AND is_deleted = false', [id])
     if (!t.rows.length) throw notFound('Không tìm thấy bàn')
     if (String(t.rows[0].status || '').toUpperCase() !== 'CLOSED') {
       throw badRequest('Chỉ mở lại được bàn đang ở trạng thái đóng')
@@ -62,6 +62,36 @@ export async function reopenTable(req, res, next) {
       [id],
     )
     return ok(res, upd.rows[0])
+  } catch (e) {
+    return next(e)
+  }
+}
+
+/**
+ * Cập nhật vị trí nhiều bàn cùng lúc
+ * Body: { layout: [{ id, pos_x, pos_y }] }
+ */
+export async function bulkUpdateLayout(req, res, next) {
+  try {
+    const { layout } = req.body || {}
+    if (!Array.isArray(layout)) {
+      throw badRequest('layout phải là một mảng')
+    }
+
+    await query('BEGIN')
+    try {
+      for (const item of layout) {
+        if (!item || typeof item.id !== 'number') continue
+        const posX = Number.isFinite(Number(item.pos_x)) ? Number(item.pos_x) : null
+        const posY = Number.isFinite(Number(item.pos_y)) ? Number(item.pos_y) : null
+        await query('UPDATE tables SET pos_x = $1, pos_y = $2 WHERE id = $3', [posX, posY, item.id])
+      }
+      await query('COMMIT')
+      return ok(res, { message: 'Cập nhật sơ đồ bàn thành công' })
+    } catch (err) {
+      await query('ROLLBACK')
+      throw err
+    }
   } catch (e) {
     return next(e)
   }

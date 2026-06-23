@@ -1,4 +1,19 @@
-/** Chuẩn hóa đơn đặt bàn từ API (camelCase mới hoặc snake_case cũ). */
+export type AssignedTableInfo = {
+  id: number
+  name: string
+  zone: string | null
+  capacity: number
+  status: string
+}
+
+export type OrderedItemInfo = {
+  id: number
+  foodName: string
+  quantity: number
+  price: number
+  note: string | null
+}
+
 export type ReservationRow = {
   id: string
   fullName: string
@@ -14,12 +29,20 @@ export type ReservationRow = {
   /** Link gọi món tại bàn (chỉ có sau khi khách đã vào bàn và có phiên QR). */
   tableOrderUrl?: string | null
   tableOrderToken?: string | null
+  createdAt?: string | null
+  assignedTables?: AssignedTableInfo[]
+  orderItems?: OrderedItemInfo[]
 }
 
 function formatDateRaw(v: unknown): string {
   if (v == null || v === '') return ''
   if (typeof v === 'string') return v.length >= 10 ? v.slice(0, 10) : v
-  if (v instanceof Date) return v.toISOString().slice(0, 10)
+  if (v instanceof Date) {
+    const y = v.getFullYear()
+    const m = String(v.getMonth() + 1).padStart(2, '0')
+    const d = String(v.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
   return String(v)
 }
 
@@ -83,6 +106,29 @@ export function normalizeReservation(raw: unknown): ReservationRow | null {
   if (typeof r.tableOrderToken === 'string' && r.tableOrderToken) out.tableOrderToken = r.tableOrderToken
   if (Array.isArray(r.tables) && r.tables.length) {
     out.tables = r.tables.filter((x): x is string => typeof x === 'string' && Boolean(x))
+  }
+  if (Array.isArray(r.assignedTables)) {
+    out.assignedTables = r.assignedTables.map((t: Record<string, unknown>) => ({
+      id: Number(t.id),
+      name: String(t.name || ''),
+      zone: t.zone ? String(t.zone) : null,
+      capacity: Number(t.capacity) || 0,
+      status: String(t.status || '')
+    }))
+  }
+  if (Array.isArray(r.orderItems)) {
+    out.orderItems = r.orderItems.map((item: Record<string, unknown>) => ({
+      id: Number(item.id),
+      foodName: String(item.foodName || item.food_name || ''),
+      quantity: Number(item.quantity) || 0,
+      price: Number(item.price) || 0,
+      note: item.note ? String(item.note) : null
+    }))
+  }
+  if (r.createdAt) {
+    out.createdAt = String(r.createdAt)
+  } else if (r.created_at) {
+    out.createdAt = String(r.created_at)
   }
   return out
 }

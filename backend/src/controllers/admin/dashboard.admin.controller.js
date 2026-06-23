@@ -19,7 +19,7 @@ export async function stats(req, res, next) {
       `,
       ),
       query('SELECT COUNT(*)::int AS total FROM users'),
-      query('SELECT COUNT(*)::int AS total FROM tables'),
+      query('SELECT COUNT(*)::int AS total FROM tables WHERE is_deleted = false'),
       query(
         `
         SELECT

@@ -126,6 +126,10 @@ export async function create(req, res, next) {
     const statusName = status ? String(status).toUpperCase() : 'ACTIVE'
     if (!USER_STATUS.has(statusName)) throw badRequest('status không hợp lệ')
 
+    const phoneVal = phone != null ? String(phone).trim() : ''
+    if (!phoneVal) throw badRequest('Số điện thoại không được để trống')
+    if (!/^0[0-9]{9,10}$/.test(phoneVal)) throw badRequest('Số điện thoại không hợp lệ')
+
     const passwordHash = await bcrypt.hash(String(password), 10)
     const r = await query(
       `
@@ -133,7 +137,7 @@ export async function create(req, res, next) {
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id, name, email, phone, avatar_url, status, role_id, created_at
     `,
-      [String(name).trim(), emailNorm, passwordHash, phone ? String(phone) : null, roleRes.rows[0].id, statusName],
+      [String(name).trim(), emailNorm, passwordHash, phoneVal, roleRes.rows[0].id, statusName],
     )
 
     return created(res, {
@@ -165,10 +169,9 @@ export async function update(req, res, next) {
     if (!emailNorm) throw badRequest('email là bắt buộc')
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNorm)) throw badRequest('Email không hợp lệ')
 
-    const phoneVal = phone != null && String(phone).trim() ? String(phone).trim().replace(/[.\s-]/g, '') : null
-    if (phoneVal && !/^(?:\+?84|0)\d{9,10}$/.test(phoneVal)) {
-      throw badRequest('Số điện thoại không hợp lệ')
-    }
+    const phoneVal = phone != null ? String(phone).trim() : ''
+    if (!phoneVal) throw badRequest('Số điện thoại không được để trống')
+    if (!/^0[0-9]{9,10}$/.test(phoneVal)) throw badRequest('Số điện thoại không hợp lệ')
 
     const roleName = String(role || '').toUpperCase()
     if (!roleName) throw badRequest('role là bắt buộc')

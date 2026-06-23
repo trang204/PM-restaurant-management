@@ -1,47 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Calendar, MapPin, Pin, Users } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import { normalizeReservation, type ReservationRow } from '../../lib/reservation'
-
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: 'Chờ xác nhận',
-  CONFIRMED: 'Đã xác nhận',
-  CHECKED_IN: 'Đã vào bàn',
-  COMPLETED: 'Hoàn thành',
-  CANCELLED: 'Đã hủy',
-  PAID: 'Đã thanh toán',
-}
-
-function statusBadgeStyle(statusRaw: string): React.CSSProperties {
-  const s = String(statusRaw || '').toUpperCase()
-  if (s === 'COMPLETED') return { color: '#0f5132', background: '#d1e7dd', border: '1px solid #badbcc' } // xanh
-  if (s === 'CANCELLED') return { color: '#842029', background: '#f8d7da', border: '1px solid #f5c2c7' } // đỏ
-  if (s === 'PENDING') return { color: '#664d03', background: '#fff3cd', border: '1px solid #ffecb5' } // vàng
-  return { color: 'inherit', background: 'transparent', border: '1px solid transparent' }
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const label = STATUS_LABELS[status] || status
-  const style = statusBadgeStyle(status)
-  return (
-    <span
-      style={{
-        ...style,
-        display: 'inline-flex',
-        alignItems: 'center',
-        padding: '2px 8px',
-        borderRadius: 999,
-        fontWeight: 700,
-        fontSize: '0.82rem',
-        lineHeight: 1.2,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {label}
-    </span>
-  )
-}
+import ReservationDetailView from './ReservationDetailView'
+import StatusBadge from '../../components/StatusBadge/StatusBadge'
 
 function formatDateVi(isoDate: string) {
   const s = String(isoDate || '').trim()
@@ -61,10 +24,30 @@ export default function ReservationHistory() {
   const [rows, setRows] = useState<ReservationRow[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [detailId, setDetailId] = useState<string | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const detailFromUrl = searchParams.get('detail')
+
+  function reloadList() {
+    const token = localStorage.getItem('luxeat_token')
+    if (!token) return
+    apiFetch<unknown[]>('/reservations')
+      .then((d) => {
+        const arr = Array.isArray(d) ? d : []
+        setRows(
+          arr
+            .map((raw) => normalizeReservation(raw))
+            .filter((x): x is ReservationRow => x != null),
+        )
+      })
+      .catch(() => {})
+  }
 
   useEffect(() => {
     const token = localStorage.getItem('luxeat_token')
     if (!token) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false)
       setError('Đăng nhập để xem lịch sử đặt bàn của bạn.')
       return
@@ -81,6 +64,29 @@ export default function ReservationHistory() {
       .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (!detailFromUrl) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDetailId(detailFromUrl)
+    setSearchParams(
+      (prev) => {
+        const n = new URLSearchParams(prev)
+        n.delete('detail')
+        return n
+      },
+      { replace: true },
+    )
+  }, [detailFromUrl, setSearchParams])
+
+  useEffect(() => {
+    if (!detailId) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setDetailId(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [detailId])
 
   return (
     <main className="menuPage">
@@ -104,47 +110,59 @@ export default function ReservationHistory() {
             ) : null}
           </p>
         ) : null}
-        {!loading && !error && rows.length === 0 ? <p>Chưa có đơn nào (khi đặt đã đăng nhập, đơn sẽ gắn tài khoản).</p> : null}
+        {!loading && !error && rows.length === 0 ? <p>Chưa có đơn nào .</p> : null}
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {rows.map((r) => (
-            <li key={r.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 12, marginBottom: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                <strong>{r.fullName}</strong>
-                <span style={{ opacity: 0.9 }}>· {r.phone}</span>
+            <li key={r.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                  <strong>{r.fullName}</strong>
+                  <span style={{ opacity: 0.9 }}>· {r.phone}</span>
+                </div>
+
+                <div style={{ marginTop: 6, display: 'grid', gap: 2 }}>
+                  <div>
+                    <Calendar size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
+                    {formatDateVi(r.date)} - {formatTimeVi(r.time)}
+                  </div>
+                  <div>
+                    <Users size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
+                    {r.guestCount} khách
+                  </div>
+                  <div>
+                    <MapPin size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
+                    {r.tables?.length ? `Bàn ${r.tables.join(', ')}` : r.assignedTableId ? `Bàn ${r.assignedTableId}` : 'Chưa gán bàn'}
+                  </div>
+                  <div>
+                    <Pin size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
+                    Trạng thái: <StatusBadge status={String(r.status || '')} />
+                  </div>
+                </div>
               </div>
 
-              <div style={{ marginTop: 6, display: 'grid', gap: 2 }}>
-                <div>
-                  <Calendar size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
-                  {formatDateVi(r.date)} - {formatTimeVi(r.time)}
-                </div>
-                <div>
-                  <Users size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
-                  {r.guestCount} khách
-                </div>
-                <div>
-                  <MapPin size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
-                  {r.tables?.length ? `Bàn ${r.tables.join(', ')}` : r.assignedTableId ? `Bàn ${r.assignedTableId}` : 'Chưa gán bàn'}
-                </div>
-                <div>
-                  <Pin size={16} style={{ marginRight: 8, verticalAlign: '-0.15em' }} />
-                  Trạng thái: <StatusBadge status={String(r.status || '')} />
-                </div>
-              </div>
-
-              <div style={{ marginTop: 8 }}>
-                <Link
-                  to={`/reservations/${r.id}`}
+              <div style={{ flexShrink: 0 }}>
+                <button
+                  type="button"
                   className="nav__link nav__cta"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 30, minWidth: 115 }}
+                  onClick={() => setDetailId(String(r.id))}
                 >
                   Xem chi tiết
-                </Link>
+                </button>
               </div>
             </li>
           ))}
         </ul>
       </section>
+
+      {detailId ? (
+        <ReservationDetailView
+          bookingId={detailId}
+          variant="modal"
+          onClose={() => setDetailId(null)}
+          onCancelled={reloadList}
+        />
+      ) : null}
     </main>
   )
 }

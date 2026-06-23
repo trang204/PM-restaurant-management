@@ -94,7 +94,11 @@ function BankSelect({ value, onChange }) {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [])
 
-  function select(code) {
+  function select(e, code) {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     onChange(code)
     setOpen(false)
     setSearch('')
@@ -105,7 +109,10 @@ function BankSelect({ value, onChange }) {
       <button
         type="button"
         className="bank-select__trigger"
-        onClick={() => setOpen((o) => !o)}
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpen((o) => !o)
+        }}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
@@ -118,11 +125,11 @@ function BankSelect({ value, onChange }) {
         ) : (
           <span className="bank-select__placeholder">— Chọn ngân hàng —</span>
         )}
-        <span className="bank-select__arrow">{open ? '▲' : '▼'}</span>
+        <span className="bank-select__arrow">{open}</span>
       </button>
 
       {open ? (
-        <div className="bank-select__dropdown" role="listbox">
+        <div className="bank-select__dropdown" role="listbox" onClick={(e) => e.stopPropagation()}>
           <div className="bank-select__search-wrap">
             <input
               autoFocus
@@ -130,6 +137,7 @@ function BankSelect({ value, onChange }) {
               placeholder="Tìm ngân hàng..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
             />
           </div>
           <ul className="bank-select__list">
@@ -137,7 +145,7 @@ function BankSelect({ value, onChange }) {
               role="option"
               aria-selected={value === ''}
               className={`bank-select__item ${value === '' ? 'bank-select__item--active' : ''}`}
-              onClick={() => select('')}
+              onClick={(e) => select(e, '')}
             >
               <span className="bank-select__item-placeholder">— Chưa chọn —</span>
             </li>
@@ -147,7 +155,7 @@ function BankSelect({ value, onChange }) {
                 role="option"
                 aria-selected={value === b.code}
                 className={`bank-select__item ${value === b.code ? 'bank-select__item--active' : ''}`}
-                onClick={() => select(b.code)}
+                onClick={(e) => select(e, b.code)}
               >
                 <img src={logoUrl(b.code)} alt={b.name} className="bank-select__logo" />
                 <span className="bank-select__item-name">{b.name}</span>
@@ -178,9 +186,10 @@ const DEFAULT_FEATURES = [
 
 const tabs = [
   { id: 'general', label: 'Thông tin chung' },
+  { id: 'social', label: 'Mạng xã hội' },
   { id: 'payment', label: 'Thanh toán' },
   { id: 'content', label: 'Nội dung website' },
-  { id: 'banner', label: 'Giao diện / Banner' },
+  { id: 'banner', label: 'Giao diện hiển thị' },
 ]
 
 function parseFeaturesJson(raw) {
@@ -214,6 +223,7 @@ export default function Settings() {
     paymentBankCode: '',
     paymentTransferContent: 'Thanh toan dat ban {id}',
     paymentQrTemplate: 'compact',
+    reservationHoldDuration: '15',
   })
   const [homeForm, setHomeForm] = useState({
     heroEyebrow: 'Ẩm thực tinh tế · Đặt bàn trực tuyến',
@@ -237,6 +247,7 @@ export default function Settings() {
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState(null)
   const [fieldErrors, setFieldErrors] = useState({})
+  const [socialLinks, setSocialLinks] = useState({ facebook: '', instagram: '', zalo: '' })
 
   useEffect(() => {
     setLoading(true)
@@ -255,6 +266,7 @@ export default function Settings() {
           paymentBankCode: String(d.payment_bank_code ?? ''),
           paymentTransferContent: String(d.payment_transfer_content ?? 'Thanh toan dat ban {id}'),
           paymentQrTemplate: String(d.payment_qr_template ?? 'compact'),
+          reservationHoldDuration: String(d.reservation_hold_duration ?? '15'),
         })
         setHomeForm((prev) => ({
           heroEyebrow: d.hero_eyebrow ?? prev.heroEyebrow,
@@ -274,6 +286,23 @@ export default function Settings() {
         setBannerMode(String(d.banner_mode || 'SLIDESHOW').toUpperCase())
         setShowOnHome(Boolean(d.banner_show_on_home ?? true))
         setShowOnAuth(Boolean(d.banner_show_on_auth ?? true))
+        // Load social links — tương thích cả object mới và array cũ
+        const sl = d.social_links
+        let fb = '', ig = '', zl = ''
+        if (sl && !Array.isArray(sl) && typeof sl === 'object') {
+          fb = String(sl.facebook || '')
+          ig = String(sl.instagram || '')
+          zl = String(sl.zalo || '')
+        } else if (Array.isArray(sl)) {
+          // format cũ [{label, url}]
+          for (const item of sl) {
+            const lbl = String(item?.label || '').toLowerCase()
+            if (lbl === 'facebook') fb = String(item.url || '')
+            if (lbl === 'instagram') ig = String(item.url || '')
+            if (lbl === 'zalo') zl = String(item.url || '')
+          }
+        }
+        setSocialLinks({ facebook: fb, instagram: ig, zalo: zl })
       })
       .catch(() => setErr('Không tải được cài đặt (cần quyền admin/nhân viên).'))
       .finally(() => setLoading(false))
@@ -312,6 +341,9 @@ export default function Settings() {
     if (form.paymentBankAccount.trim() && !/^\d{6,20}$/.test(form.paymentBankAccount.trim())) {
       nextErrors.paymentBankAccount = 'Số tài khoản nên gồm 6-20 chữ số.'
     }
+    if (form.reservationHoldDuration && (!/^\d+$/.test(form.reservationHoldDuration) || Number(form.reservationHoldDuration) <= 0)) {
+      nextErrors.reservationHoldDuration = 'Thời gian hết hạn phải là số phút nguyên dương.'
+    }
     features.forEach((item, index) => {
       if (!item.title.trim()) nextErrors[`feature-title-${index}`] = requiredMessage(`Tiêu đề tính năng #${index + 1}`)
       if (!item.text.trim()) nextErrors[`feature-text-${index}`] = requiredMessage(`Mô tả tính năng #${index + 1}`)
@@ -347,6 +379,7 @@ export default function Settings() {
           payment_bank_code: form.paymentBankCode.trim() || null,
           payment_transfer_content: form.paymentTransferContent.trim() || null,
           payment_qr_template: form.paymentQrTemplate.trim() || null,
+          reservation_hold_duration: Number(form.reservationHoldDuration) || 15,
           hero_eyebrow: homeForm.heroEyebrow.trim() || null,
           hero_lead: homeForm.heroLead.trim() || null,
           hero_meta: homeForm.heroMeta.trim() || null,
@@ -356,6 +389,11 @@ export default function Settings() {
           home_cta_title: homeForm.ctaTitle.trim() || null,
           home_cta_text: homeForm.ctaText.trim() || null,
           home_features_json: featureJson,
+          social_links: {
+            facebook: socialLinks.facebook.trim() || null,
+            instagram: socialLinks.instagram.trim() || null,
+            zalo: socialLinks.zalo.trim() || null,
+          },
         }),
       })
       toast('Đã lưu cài đặt.', { variant: 'success' })
@@ -451,9 +489,6 @@ export default function Settings() {
     <div className="settings-page">
       <header className="settings-page__header">
         <h1 className="settings-page__title">Cài đặt nhà hàng</h1>
-        <p className="settings-page__subtitle">
-          Cập nhật thông tin hiển thị trên website và khu quản trị. Chỉ tài khoản Quản trị viên mới sửa được.
-        </p>
       </header>
 
       {loading ? <p>Đang tải...</p> : null}
@@ -478,34 +513,48 @@ export default function Settings() {
         {activeTab === 'general' ? (
         <div className="settings-card__grid">
           <label className="settings-field">
-            <span>Tên nhà hàng</span>
-            <input name="restaurantName" value={form.restaurantName} onChange={onChange} required />
+            <span>Tên nhà hàng <span className="required-asterisk">*</span></span>
+            <input name="restaurantName" className={fieldErrors.restaurantName ? 'input-error' : ''} value={form.restaurantName} onChange={onChange} required />
             {fieldErrors.restaurantName ? <small className="settings-field__error">{fieldErrors.restaurantName}</small> : null}
           </label>
           <label className="settings-field">
-            <span>Điện thoại</span>
-            <input name="phone" value={form.phone} onChange={onChange} required />
+            <span>Điện thoại <span className="required-asterisk">*</span></span>
+            <input name="phone" className={fieldErrors.phone ? 'input-error' : ''} value={form.phone} onChange={onChange} required />
             {fieldErrors.phone ? <small className="settings-field__error">{fieldErrors.phone}</small> : null}
           </label>
           <label className="settings-field">
-            <span>Email</span>
-            <input name="email" type="email" value={form.email} onChange={onChange} required />
+            <span>Email <span className="required-asterisk">*</span></span>
+            <input name="email" type="email" className={fieldErrors.email ? 'input-error' : ''} value={form.email} onChange={onChange} required />
             {fieldErrors.email ? <small className="settings-field__error">{fieldErrors.email}</small> : null}
           </label>
           <label className="settings-field settings-field--full">
-            <span>Địa chỉ</span>
-            <input name="address" value={form.address} onChange={onChange} required />
+            <span>Địa chỉ <span className="required-asterisk">*</span></span>
+            <input name="address" className={fieldErrors.address ? 'input-error' : ''} value={form.address} onChange={onChange} required />
             {fieldErrors.address ? <small className="settings-field__error">{fieldErrors.address}</small> : null}
           </label>
           <label className="settings-field">
-            <span>Mở cửa</span>
-            <input name="openTime" type="time" value={form.openTime} onChange={onChange} required />
+            <span>Mở cửa <span className="required-asterisk">*</span></span>
+            <input name="openTime" type="time" className={fieldErrors.openTime ? 'input-error' : ''} value={form.openTime} onChange={onChange} required />
             {fieldErrors.openTime ? <small className="settings-field__error">{fieldErrors.openTime}</small> : null}
           </label>
           <label className="settings-field">
-            <span>Đóng cửa</span>
-            <input name="closeTime" type="time" value={form.closeTime} onChange={onChange} required />
+            <span>Đóng cửa <span className="required-asterisk">*</span></span>
+            <input name="closeTime" type="time" className={fieldErrors.closeTime ? 'input-error' : ''} value={form.closeTime} onChange={onChange} required />
             {fieldErrors.closeTime ? <small className="settings-field__error">{fieldErrors.closeTime}</small> : null}
+          </label>
+          <label className="settings-field">
+            <span>Thời gian giữ bàn hết hạn (phút) <span className="required-asterisk">*</span></span>
+            <input
+              name="reservationHoldDuration"
+              type="number"
+              min="1"
+              className={fieldErrors.reservationHoldDuration ? 'input-error' : ''}
+              value={form.reservationHoldDuration}
+              onChange={onChange}
+              required
+            />
+            {fieldErrors.reservationHoldDuration ? <small className="settings-field__error">{fieldErrors.reservationHoldDuration}</small> : null}
+            <small className="settings-field__hint">Thời gian giữ chỗ khi đang gán bàn trước khi tự động hủy đơn.</small>
           </label>
           <label className="settings-field settings-field--readonly">
             <span>Tổng số bàn</span>
@@ -529,14 +578,56 @@ export default function Settings() {
         </div>
         ) : null}
 
+        {activeTab === 'social' ? (
+        <div className="settings-card__grid">
+          <div className="settings-field--full settings-social-section">
+            <span className="settings-social-section__label">Liên kết mạng xã hội</span>
+            <div className="settings-card__grid" style={{ marginTop: 12 }}>
+              <label className="settings-field settings-field--full">
+                <span className="settings-social-label settings-social-label--fb">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                  Facebook
+                </span>
+                <input
+                  value={socialLinks.facebook}
+                  onChange={(e) => setSocialLinks((p) => ({ ...p, facebook: e.target.value }))}
+                  placeholder="https://facebook.com/nhahang"
+                  type="url"
+                />
+              </label>
+              <label className="settings-field settings-field--full">
+                <span className="settings-social-label settings-social-label--ig">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                  Instagram
+                </span>
+                <input
+                  value={socialLinks.instagram}
+                  onChange={(e) => setSocialLinks((p) => ({ ...p, instagram: e.target.value }))}
+                  placeholder="https://instagram.com/nhahang"
+                  type="url"
+                />
+              </label>
+              <label className="settings-field settings-field--full">
+                <span className="settings-social-label settings-social-label--zalo">
+                  <svg width="16" height="16" viewBox="0 0 48 48" fill="currentColor" aria-hidden="true"><rect width="48" height="48" rx="10" fill="#0068FF"/><text x="50%" y="56%" dominantBaseline="middle" textAnchor="middle" fill="white" fontSize="22" fontWeight="bold" fontFamily="Arial">Z</text></svg>
+                  Zalo
+                </span>
+                <input
+                  value={socialLinks.zalo}
+                  onChange={(e) => setSocialLinks((p) => ({ ...p, zalo: e.target.value }))}
+                  placeholder="https://zalo.me/nhahang"
+                  type="url"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+        ) : null}
+
         {activeTab === 'payment' ? (
         <div className="settings-card__grid">
           <div className="settings-field--full settings-payment">
             <span className="settings-payment__label">Thanh toán chuyển khoản (QR SePay)</span>
-            <p className="settings-payment__hint">
-              Khi nhân viên chọn &quot;QR Thanh toán CK&quot; cho đơn, hệ thống tạo ảnh QR từ SePay với thông tin dưới đây.
-              Nội dung chuyển khoản hỗ trợ <code>{'{id}'}</code> (mã đơn) và <code>{'{amount}'}</code> (số tiền).
-            </p>
             <div className="settings-card__grid" style={{ marginTop: 8 }}>
               <label className="settings-field">
                 <span>Số tài khoản ngân hàng</span>
@@ -548,13 +639,13 @@ export default function Settings() {
                 />
                 {fieldErrors.paymentBankAccount ? <small className="settings-field__error">{fieldErrors.paymentBankAccount}</small> : null}
               </label>
-              <label className="settings-field">
+              <div className="settings-field">
                 <span>Ngân hàng</span>
                 <BankSelect
                   value={form.paymentBankCode}
                   onChange={(code) => setForm((f) => ({ ...f, paymentBankCode: code }))}
                 />
-              </label>
+              </div>
               <label className="settings-field settings-field--full">
                 <span>Nội dung chuyển khoản</span>
                 <input
@@ -582,9 +673,6 @@ export default function Settings() {
         <div className="settings-card__grid">
           <div className="settings-field--full settings-home-section">
             <span className="settings-home-section__label">Nội dung trang chủ</span>
-            <p className="settings-home-section__hint">
-              Chỉnh sửa các đoạn văn bản hiển thị trên trang chủ. Để trống sẽ dùng giá trị mặc định.
-            </p>
             <div className="settings-card__grid" style={{ marginTop: 8 }}>
               <label className="settings-field settings-field--full">
                 <span>Tiêu đề phụ</span>

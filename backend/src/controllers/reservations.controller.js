@@ -41,8 +41,40 @@ export async function createReservation(req, res, next) {
     const guestName = fullName != null && String(fullName).trim() ? String(fullName).trim() : null
     const guestPhone = phone != null && String(phone).trim() ? String(phone).trim() : null
 
+    // Ngăn chặn đặt nhiều bàn cùng lúc
+    let conflictCheckParams = []
+    let conflictCheckQuery = ''
+    if (userId) {
+      conflictCheckQuery = `SELECT id FROM bookings WHERE user_id = $1 AND status IN ('PENDING', 'CONFIRMED', 'HOLD')`
+      conflictCheckParams = [userId]
+    } else if (guestPhone) {
+      conflictCheckQuery = `SELECT id FROM bookings WHERE guest_phone = $1 AND status IN ('PENDING', 'CONFIRMED', 'HOLD')`
+      conflictCheckParams = [guestPhone]
+    }
+
+    if (conflictCheckQuery) {
+      const existing = await query(conflictCheckQuery, conflictCheckParams)
+      if (existing.rows.length > 0) {
+        throw badRequest('Bạn đã có một đơn đặt bàn đang xử lý. Vui lòng hoàn thành hoặc hủy đơn cũ trước khi đặt bàn mới.')
+      }
+    }
+
     const booking = await withTransaction(async (client) => {
       if (requestedTableIds.length) {
+        const tableRows = await client.query(
+          `SELECT id, capacity, COALESCE(NULLIF(TRIM(status), ''), 'AVAILABLE') AS status FROM tables WHERE id = ANY($1::int[]) AND is_deleted = false`,
+          [requestedTableIds],
+        )
+        if (tableRows.rows.length !== requestedTableIds.length) throw badRequest('Không tìm thấy bàn')
+        for (const row of tableRows.rows) {
+          const cap = Number(row.capacity)
+          if (!Number.isFinite(cap)) throw badRequest('Không tìm thấy bàn')
+          if (guests > cap) throw badRequest('Bàn không đủ chỗ')
+          if (cap > guests * 2) throw badRequest('Bàn quá lớn so với số khách')
+          const st = String(row.status || '').toUpperCase()
+          if (st !== 'AVAILABLE') throw badRequest('Bàn đang được sử dụng')
+        }
+
         const conflicts = await client.query(
           `
           SELECT bt.table_id
@@ -58,7 +90,7 @@ export async function createReservation(req, res, next) {
         `,
           [booking_date, booking_time, requestedTableIds],
         )
-        if (conflicts.rows.length) throw badRequest('Bàn đã được đặt trong khung giờ này')
+        if (conflicts.rows.length) throw badRequest('Bàn đang được sử dụng')
       }
 
       const inserted = await client.query(
@@ -205,6 +237,56 @@ export async function getReservationDetail(req, res, next) {
     }
 
     const mapped = mapBookingForClient(booking)
+    mapped.createdAt = booking.created_at
+
+    // Fetch assigned tables detailed info
+    const tablesRes = await query(
+      `
+      SELECT t.id, t.name, t.zone, t.capacity, t.status
+      FROM booking_tables bt
+      JOIN tables t ON t.id = bt.table_id
+      WHERE bt.booking_id = $1
+      `,
+      [id]
+    )
+    mapped.assignedTables = tablesRes.rows.map(t => ({
+      id: t.id,
+      name: t.name,
+      zone: t.zone,
+      capacity: Number(t.capacity) || 0,
+      status: t.status
+    }))
+
+    // Fetch ordered items
+    const ordersRes = await query(
+      `SELECT id FROM orders WHERE booking_id = $1 ORDER BY id DESC LIMIT 1`,
+      [id]
+    )
+    if (ordersRes.rows.length) {
+      const orderId = ordersRes.rows[0].id
+      const itemsRes = await query(
+        `
+        SELECT
+          oi.id, oi.quantity, oi.price,
+          f.name AS food_name, oi.note
+        FROM order_items oi
+        LEFT JOIN foods f ON f.id = oi.food_id
+        WHERE oi.order_id = $1
+        ORDER BY oi.id ASC
+        `,
+        [orderId]
+      )
+      mapped.orderItems = itemsRes.rows.map(item => ({
+        id: item.id,
+        foodName: item.food_name,
+        quantity: Number(item.quantity) || 0,
+        price: Number(item.price) || 0,
+        note: item.note ?? null
+      }))
+    } else {
+      mapped.orderItems = []
+    }
+
     if (
       Number.isFinite(userId) &&
       booking.user_id === userId &&
@@ -265,9 +347,24 @@ export async function holdTable(req, res, next) {
     const tId = Number(tableId)
     if (!Number.isFinite(tId)) throw badRequest('tableId là bắt buộc')
 
-    const cur = await query('SELECT id, booking_date, booking_time, status FROM bookings WHERE id = $1', [id])
+    const cur = await query(
+      'SELECT id, booking_date, booking_time, status, guests FROM bookings WHERE id = $1',
+      [id],
+    )
     if (!cur.rows.length) throw notFound('Không tìm thấy đơn đặt bàn')
     if (cur.rows[0].status !== 'PENDING') throw badRequest('Chỉ giữ bàn khi đơn đang chờ xác nhận')
+
+    const guestN = Number(cur.rows[0].guests) || 1
+    const tableRow = await query(
+      `SELECT id, capacity, COALESCE(NULLIF(TRIM(status), ''), 'AVAILABLE') AS status FROM tables WHERE id = $1 AND is_deleted = false`,
+      [tId],
+    )
+    if (!tableRow.rows.length) throw badRequest('Không tìm thấy bàn')
+    const cap = Number(tableRow.rows[0].capacity)
+    if (!Number.isFinite(cap) || guestN > cap) throw badRequest('Bàn không đủ chỗ')
+    if (cap > guestN * 2) throw badRequest('Bàn quá lớn so với số khách')
+    const tblStatus = String(tableRow.rows[0].status || '').toUpperCase()
+    if (tblStatus !== 'AVAILABLE') throw badRequest('Bàn đang được sử dụng')
 
     const conflicts = await query(
       `
@@ -286,7 +383,10 @@ export async function holdTable(req, res, next) {
     `,
       [cur.rows[0].booking_date, cur.rows[0].booking_time, tId, id],
     )
-    if (conflicts.rows.length) throw badRequest('Bàn đã được đặt trong khung giờ này')
+    if (conflicts.rows.length) throw badRequest('Bàn đang được sử dụng')
+
+    const settingsRes = await query('SELECT reservation_hold_duration FROM settings ORDER BY id LIMIT 1')
+    const holdDurationMinutes = Number(settingsRes.rows[0]?.reservation_hold_duration ?? 15)
 
     await withTransaction(async (client) => {
       const prev = await client.query('SELECT table_id FROM booking_tables WHERE booking_id = $1', [id])
@@ -297,9 +397,13 @@ export async function holdTable(req, res, next) {
       }
       await client.query('DELETE FROM booking_tables WHERE booking_id = $1', [id])
       await client.query('INSERT INTO booking_tables (booking_id, table_id) VALUES ($1, $2)', [id, tId])
-      await client.query(`UPDATE tables SET status = 'RESERVED' WHERE id = $1 AND status = 'AVAILABLE'`, [tId])
-      await client.query(`UPDATE bookings SET status = 'HOLD', hold_expires_at = NOW() + INTERVAL '15 minutes' WHERE id = $1`, [
+      const reserved = await client.query(`UPDATE tables SET status = 'RESERVED' WHERE id = $1 AND status = 'AVAILABLE'`, [
+        tId,
+      ])
+      if (!reserved.rowCount) throw badRequest('Bàn đang được sử dụng')
+      await client.query(`UPDATE bookings SET status = 'HOLD', hold_expires_at = NOW() + (INTERVAL '1 minute' * $2) WHERE id = $1`, [
         id,
+        holdDurationMinutes,
       ])
     })
 

@@ -43,6 +43,7 @@ function onListening() {
   console.log(
     HOST ? `Server running on http://${HOST}:${PORT}` : `Server running on port ${PORT}`,
   )
+  console.log('Truy cập tài liệu API tại: http://localhost:5000/api-docs');
 
   // Auto-cancel HOLD bookings after 15 minutes
   setInterval(async () => {

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { analyzeTableLayoutImage, apiFetch } from '../../lib/api'
+import { apiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
+import { getStatusLabel } from '../../lib/statusMapper'
 import './TableLayoutEditor.css'
 
 const CANVAS_WIDTH = 1200
@@ -16,12 +17,7 @@ const START_Y = 96
 const LEGACY_GRID_LIMIT = 20
 
 function statusLabel(status) {
-  const s = String(status || '').toUpperCase()
-  if (s === 'AVAILABLE') return 'Trống'
-  if (s === 'OCCUPIED' || s === 'IN_USE' || s === 'IN USE') return 'Đang dùng'
-  if (s === 'RESERVED') return 'Đã giữ'
-  if (s === 'CLOSED') return 'Đóng'
-  return status || '—'
+  return getStatusLabel(status, 'table')
 }
 
 function seatClass(status) {
@@ -74,12 +70,7 @@ export default function TableLayoutEditor() {
   const [draggingId, setDraggingId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [analyzingImage, setAnalyzingImage] = useState(false)
   const [err, setErr] = useState(null)
-  const [analysisError, setAnalysisError] = useState(null)
-  const [analysisWarnings, setAnalysisWarnings] = useState([])
-  const [analysisSource, setAnalysisSource] = useState('')
-  const [sourceImagePreview, setSourceImagePreview] = useState('')
   const canvasRef = useRef(null)
   const dragRef = useRef(null)
 
@@ -97,13 +88,7 @@ export default function TableLayoutEditor() {
       .finally(() => setLoading(false))
   }, [])
 
-  useEffect(() => {
-    return () => {
-      if (sourceImagePreview?.startsWith('blob:')) {
-        URL.revokeObjectURL(sourceImagePreview)
-      }
-    }
-  }, [sourceImagePreview])
+
 
   const dirty = useMemo(
     () =>
@@ -202,45 +187,7 @@ export default function TableLayoutEditor() {
     setPositions(Object.fromEntries(tables.map((table, index) => [table.id, theaterPosition(index)])))
   }
 
-  async function onImageSelected(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
 
-    if (sourceImagePreview?.startsWith('blob:')) {
-      URL.revokeObjectURL(sourceImagePreview)
-    }
-    const previewUrl = URL.createObjectURL(file)
-    setSourceImagePreview(previewUrl)
-    setAnalysisError(null)
-    setAnalysisWarnings([])
-    setAnalyzingImage(true)
-
-    try {
-      const result = await analyzeTableLayoutImage(file)
-      setAnalysisSource(result.source || '')
-      setAnalysisWarnings(Array.isArray(result.warnings) ? result.warnings : [])
-      setPositions((prev) => {
-        const next = { ...prev }
-        const detections = Array.isArray(result.detections) ? result.detections : []
-        tables.forEach((table, index) => {
-          const hit = detections[index]
-          if (!hit) return
-          next[table.id] = {
-            x: clamp(Math.round(Number(hit.x) || 0), PADDING, CANVAS_WIDTH - SEAT_WIDTH - PADDING),
-            y: clamp(Math.round(Number(hit.y) || 0), PADDING, CANVAS_HEIGHT - SEAT_HEIGHT - PADDING),
-          }
-        })
-        return next
-      })
-      toast('Đã tạo layout nháp từ ảnh. Bạn kiểm tra lại rồi bấm Lưu sơ đồ.', { variant: 'success' })
-    } catch (error) {
-      setAnalysisError(error.message)
-      toast(error.message, { variant: 'error' })
-    } finally {
-      setAnalyzingImage(false)
-      e.target.value = ''
-    }
-  }
 
   return (
     <div className="layout-editor">
@@ -253,9 +200,9 @@ export default function TableLayoutEditor() {
           <button type="button" className="layout-editor__btn layout-editor__btn--ghost" onClick={() => navigate('/admin/tables')}>
             Quay lại
           </button>
-          <button type="button" className="layout-editor__btn layout-editor__btn--ghost" onClick={resetTheaterLayout} disabled={loading || saving}>
+          {/* <button type="button" className="layout-editor__btn layout-editor__btn--ghost" onClick={resetTheaterLayout} disabled={loading || saving}>
             Xếp kiểu rạp phim
-          </button>
+          </button> */}
           <button type="button" className="layout-editor__btn layout-editor__btn--primary" onClick={saveLayout} disabled={loading || saving || !dirty}>
             {saving ? 'Đang lưu...' : 'Lưu sơ đồ'}
           </button>
@@ -268,7 +215,7 @@ export default function TableLayoutEditor() {
         <span><i className="layout-editor__legendDot layout-editor__legendDot--reserved" /> Đã giữ</span>
       </div>
 
-      <section className="layout-editor__aiPanel">
+      {/* <section className="layout-editor__aiPanel">
         <div className="layout-editor__aiHead">
           <div>
             <h2 className="layout-editor__aiTitle">Nhận diện từ ảnh</h2>
@@ -297,7 +244,7 @@ export default function TableLayoutEditor() {
           </ul>
         ) : null}
         {analysisError ? <p className="layout-editor__err">{analysisError}</p> : null}
-      </section>
+      </section> */}
 
       {loading ? <p>Đang tải sơ đồ...</p> : null}
       {err ? <p className="layout-editor__err">{err}</p> : null}

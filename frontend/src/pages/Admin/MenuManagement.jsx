@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { apiFetch, mediaUrl, uploadFoodImage } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import AdminPagination from '../../components/AdminPagination'
+import DetailModal from '../../components/DetailModal/DetailModal'
 import { requiredMessage } from '../../lib/validation'
 import './MenuManagement.css'
 
@@ -19,6 +20,7 @@ const emptyForm = {
   image: placeholderImg,
   description: '',
   status: 'AVAILABLE',
+  ingredients: [],
 }
 
 function formatPrice(n) {
@@ -29,6 +31,7 @@ export default function MenuManagement() {
   const { toast, confirm } = useNotifications()
   const [items, setItems] = useState([])
   const [categories, setCategories] = useState([])
+  const [availableIngredients, setAvailableIngredients] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -39,16 +42,28 @@ export default function MenuManagement() {
   const [imageFile, setImageFile] = useState(null)
   /** 'all' | string category id */
   const [filterCat, setFilterCat] = useState('all')
+  /** @type {'all' | 'in_stock' | 'out_of_stock'} */
+  const [filterStatus, setFilterStatus] = useState('all')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  /** id món đang gọi API bật/tắt trạng thái */
+  const [stockTogglingId, setStockTogglingId] = useState(null)
+  const [categoryName, setCategoryName] = useState('')
+  const [categorySaving, setCategorySaving] = useState(false)
 
   function load() {
     setLoading(true)
-    Promise.all([apiFetch('/admin/menu-items'), apiFetch('/admin/categories')])
-      .then(([mi, cat]) => {
+    // force fresh data (avoid cached 304 responses)
+    Promise.all([
+      apiFetch('/admin/menu-items', { cache: 'no-store' }),
+      apiFetch('/admin/categories', { cache: 'no-store' }),
+      apiFetch('/admin/ingredients', { cache: 'no-store' })
+    ])
+      .then(([mi, cat, ing]) => {
         setItems(Array.isArray(mi) ? mi : [])
         setCategories(Array.isArray(cat) ? cat : [])
+        setAvailableIngredients(Array.isArray(ing) ? ing : [])
       })
       .catch((e) => setErr(e.message))
       .finally(() => setLoading(false))
@@ -61,10 +76,10 @@ export default function MenuManagement() {
   function openAdd() {
     setEditingId(null)
     setImageFile(null)
-    const first = categories[0]
+    // When adding new item, leave category empty so the placeholder is shown
     setForm({
       ...emptyForm,
-      categoryId: first?.id != null ? String(first.id) : '',
+      categoryId: '',
     })
     setFormErrors({})
     setDetailItem(null)
@@ -88,6 +103,7 @@ export default function MenuManagement() {
       image: img ? mediaUrl(img) : placeholderImg,
       description: item.description || '',
       status: String(item.status || 'AVAILABLE').toUpperCase() === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'AVAILABLE',
+      ingredients: Array.isArray(item.ingredients) ? [...item.ingredients] : [],
     })
     setFormErrors({})
     setDetailItem(null)
@@ -97,6 +113,18 @@ export default function MenuManagement() {
   function openDetail(item) {
     setDetailItem(item)
     setModalOpen(false)
+  }
+
+  function normalizeInputUrl(raw) {
+    if (!raw) return ''
+    const s = String(raw).trim()
+    if (!s) return ''
+    if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('/')) return s
+    if (s.startsWith('//')) return `https:${s}`
+    if (s.startsWith('www.')) return `https://${s}`
+    // fallback: if looks like domain path (contains a dot and no spaces), assume https
+    if (/[.]./.test(s) && !s.includes(' ')) return `https://${s}`
+    return s
   }
 
   function closeModal() {
@@ -109,9 +137,95 @@ export default function MenuManagement() {
     setDetailItem(null)
   }
 
+  async function saveCategory(e) {
+    e.preventDefault()
+    const name = String(categoryName || '').trim()
+    if (!name) {
+      toast('Vui lòng nhập tên danh mục.', { variant: 'error' })
+      return
+    }
+    setCategorySaving(true)
+    try {
+      const created = await apiFetch('/admin/categories', {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      })
+      toast('Thêm danh mục thành công', { variant: 'success' })
+      setCategoryName('')
+      await load()
+      if (created?.id != null) {
+        setFilterCat(String(created.id))
+      }
+    } catch (err2) {
+      toast(err2.message, { variant: 'error' })
+    } finally {
+      setCategorySaving(false)
+    }
+  }
+
+  async function deleteCategory(id, name) {
+    const itemCount = items.filter((item) => Number(item.category_id) === Number(id)).length
+    if (itemCount > 0) {
+      toast(`Danh mục "${name}" đã có món ăn gán, không thể xóa.`, { variant: 'error' })
+      return
+    }
+    const ok = await confirm({
+      title: 'Xóa danh mục',
+      message: `Bạn có chắc chắn muốn xóa danh mục "${name}"?`,
+      danger: true,
+      fields: [{ label: 'Tên danh mục', value: name }],
+      warningText: 'Hành động này không thể hoàn tác.',
+      confirmLabel: 'Xóa',
+      cancelLabel: 'Hủy',
+    })
+    if (!ok) return
+    try {
+      await apiFetch(`/admin/categories/${id}`, { method: 'DELETE' })
+      toast('Xóa danh mục thành công', { variant: 'success' })
+      if (String(filterCat) === String(id)) setFilterCat('all')
+      await load()
+    } catch (err2) {
+      toast(err2.message, { variant: 'error' })
+    }
+  }
+
   async function saveItem(e) {
     e.preventDefault()
-    const priceNum = Number.parseInt(String(form.price).replace(/\D/g, ''), 10)
+    function parsePriceInput(raw) {
+      const s0 = String(raw ?? '').trim()
+      if (s0 === '') return NaN
+      // remove spaces
+      let s = s0.replace(/\s/g, '')
+      // keep only digits and separators (allows input like "50.000 đ")
+      s = s.replace(/[^\d.,]/g, '')
+      if (!s) return NaN
+      const hasDot = s.indexOf('.') >= 0
+      const hasComma = s.indexOf(',') >= 0
+      if (hasDot && hasComma) {
+        // e.g. 1.234,56 -> 1234.56
+        s = s.replace(/\./g, '').replace(',', '.')
+      } else if (hasComma) {
+        // e.g. 1234,56 -> 1234.56
+        s = s.replace(/\./g, '').replace(',', '.')
+      } else if (hasDot) {
+        const dots = (s.match(/\./g) || []).length
+        if (dots === 1) {
+          const after = s.split('.').pop() || ''
+          if (after.length !== 2) {
+            // treat dot as thousand separator (e.g. "10.000")
+            s = s.replace(/\./g, '')
+          }
+          // else keep decimal dot (e.g. "10000.00")
+        } else {
+          // multiple dots: remove as thousand separators
+          s = s.replace(/\./g, '')
+        }
+      }
+      const n = Number(s)
+      return Number.isFinite(n) ? n : NaN
+    }
+
+    const priceNum = parsePriceInput(form.price)
     const price = Number.isFinite(priceNum) ? priceNum : 0
     const catId = Number(form.categoryId)
     const cleanName = String(form.name || '').trim()
@@ -130,10 +244,19 @@ export default function MenuManagement() {
     }
     setFormErrors(nextErrors)
     if (Object.keys(nextErrors).length) {
+      toast('Vui lòng kiểm tra lại các trường bắt buộc.', { variant: 'error' })
       return
     }
     try {
-      const imageUrl = form.imageUrl?.trim() ? form.imageUrl.trim() : null
+      const rawImageUrl = form.imageUrl?.trim() ? form.imageUrl.trim() : null
+      const imageUrl = rawImageUrl ? normalizeInputUrl(rawImageUrl) : null
+
+      const validIngredients = (form.ingredients || [])
+        .filter(ing => ing.ingredient_id !== '' && ing.ingredient_id != null)
+        .map(ing => ({
+          ingredient_id: Number(ing.ingredient_id),
+          quantity_needed: Number(ing.quantity_needed) || 1,
+        }))
 
       if (editingId) {
         await apiFetch(`/admin/menu-items/${editingId}`, {
@@ -145,6 +268,7 @@ export default function MenuManagement() {
             image_url: imageUrl,
             description: cleanDescription || null,
             status: form.status,
+            ingredients: validIngredients,
           }),
         })
         if (imageFile) {
@@ -157,9 +281,10 @@ export default function MenuManagement() {
             name: cleanName,
             price,
             category_id: catId,
-            image_url: null,
+            image_url: imageUrl,
             description: cleanDescription || null,
             status: form.status,
+            ingredients: validIngredients,
           }),
         })
         if (imageFile && created?.id != null) {
@@ -168,19 +293,64 @@ export default function MenuManagement() {
       }
       load()
       closeModal()
+      toast(editingId ? 'Cập nhật món thành công' : 'Thêm món thành công', { variant: 'success' })
     } catch (ex) {
       toast(ex.message, { variant: 'error' })
     }
   }
 
-  async function deleteItem(id) {
-    const okDel = await confirm({ title: 'Xóa món', message: 'Xóa món này?' })
+  async function deleteItem(id, name) {
+    const okDel = await confirm({
+      title: 'Xóa món',
+      message: `Bạn có chắc muốn xóa món này?`,
+      danger: true,
+      fields: [
+        { label: 'Tên', value: String(name || '') },
+        { label: 'ID', value: String(id) },
+      ],
+      warningText: 'Hành động này không thể hoàn tác. Món sẽ bị xóa khỏi danh sách và mọi liên kết tham chiếu sẽ mất.',
+      confirmLabel: 'Xóa',
+      cancelLabel: 'Hủy',
+    })
     if (!okDel) return
     try {
-      await apiFetch(`/admin/menu-items/${id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/admin/menu-items/${id}`, { method: 'DELETE' })
+      // On successful delete, remove item from local state and show success,
+      // then refresh list from server to keep UI consistent.
+      setItems((prev) => prev.filter((x) => String(x.id) !== String(id)))
+      toast('Xóa món thành công', { variant: 'success' })
+      // refresh authoritative data
       load()
     } catch (e) {
+      const msg = String(e?.message || '')
+      if (msg.toLowerCase().includes('ràng buộc') || msg.toLowerCase().includes('foreign key')) {
+        toast('Không thể xóa món do có ràng buộc (ví dụ: đơn/phiên gọi món). Hãy xóa các mục tham chiếu trước.', { variant: 'error' })
+      } else {
+        toast(msg, { variant: 'error' })
+      }
+    }
+  }
+
+  async function toggleStock(item) {
+    const id = item?.id
+    if (id == null) return
+    setStockTogglingId(id)
+    try {
+      const data = await apiFetch(`/admin/menu-items/${id}/toggle-active`, { method: 'POST' })
+      const nextStatus = data?.status != null ? String(data.status) : null
+      setItems((prev) =>
+        prev.map((x) =>
+          String(x.id) === String(id) ? { ...x, status: nextStatus ?? x.status } : x,
+        ),
+      )
+      setDetailItem((d) =>
+        d != null && String(d.id) === String(id) ? { ...d, status: nextStatus ?? d.status } : d,
+      )
+      toast('Đã cập nhật trạng thái món.', { variant: 'success' })
+    } catch (e) {
       toast(e.message, { variant: 'error' })
+    } finally {
+      setStockTogglingId(null)
     }
   }
 
@@ -199,12 +369,20 @@ export default function MenuManagement() {
   }
 
   const previewSrc =
-    form.image && String(form.image).startsWith('data:') ? form.image : form.imageUrl ? mediaUrl(form.imageUrl) : form.image || placeholderImg
+    form.image && String(form.image).startsWith('data:')
+      ? form.image
+      : form.imageUrl
+      ? mediaUrl(normalizeInputUrl(form.imageUrl))
+      : form.image || placeholderImg
 
   const sections = useMemo(() => {
     const byKey = new Map()
     const searchNeedle = search.trim().toLowerCase()
     for (const it of items) {
+      const st = String(it.status || 'AVAILABLE').toUpperCase()
+      const out = st === 'UNAVAILABLE'
+      if (filterStatus === 'in_stock' && out ) continue
+      if (filterStatus === 'out_of_stock' && !out) continue
       const name = String(it.name || '').toLowerCase()
       const categoryName = String(it.category_name || '').toLowerCase()
       if (searchNeedle && !name.includes(searchNeedle) && !categoryName.includes(searchNeedle)) continue
@@ -225,11 +403,11 @@ export default function MenuManagement() {
     const n = Number(filterCat)
     if (!Number.isFinite(n)) return arr
     return arr.filter((s) => Number(s.category_id) === n)
-  }, [items, filterCat, search])
+  }, [items, filterCat, search, filterStatus])
 
   useEffect(() => {
     setPage(1)
-  }, [filterCat, search])
+  }, [filterCat, search, filterStatus])
 
   const flatItems = useMemo(
     () => sections.flatMap((sec) => sec.items.map((item) => ({ ...item, __sectionKey: String(sec.category_id ?? 'none') }))),
@@ -247,9 +425,8 @@ export default function MenuManagement() {
   }, [flatItems.length, pageSize])
 
   function ingredientText(item) {
-    const count = Number(item?.ingredient_count)
-    if (Number.isFinite(count) && count >= 0) {
-      return `Nguyên liệu: ${count} loại`
+    if (Array.isArray(item.ingredients) && item.ingredients.length > 0) {
+      return `Nguyên liệu: ${item.ingredients.length} loại`
     }
     return 'Nguyên liệu: Chưa liên kết'
   }
@@ -259,7 +436,6 @@ export default function MenuManagement() {
       <header className="menu-mgmt__header">
         <div>
           <h1 className="menu-mgmt__title">Thực đơn</h1>
-          <p className="menu-mgmt__subtitle">Thêm/sửa món, quản lý hiển thị và danh mục.</p>
         </div>
         <button type="button" className="menu-mgmt__add" onClick={openAdd}>
           Thêm món
@@ -269,54 +445,139 @@ export default function MenuManagement() {
       {loading ? <p>Đang tải...</p> : null}
       {err ? <p style={{ color: 'crimson' }}>{err}</p> : null}
 
+      {!loading && !err && (items.length > 0 || categories.length > 0) ? (
+        <section className="menu-mgmt__categoryManager" aria-label="Quản lý danh mục">
+          <div className="menu-mgmt__categoryManagerInner">
+            <div className="menu-mgmt__categoryLeft">
+              <h2 className="menu-mgmt__categoryTitle">Danh mục</h2>
+              <p className="menu-mgmt__categorySub">
+                Món không gán danh mục thuộc <strong>Chưa phân loại</strong>. Bấm vào danh mục để lọc món.
+              </p>
+            </div>
+
+            <div className="menu-mgmt__categoryRight">
+              <div className="menu-mgmt__categoryList">
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className={`menu-mgmt__categoryChip${filterCat === 'all' ? ' menu-mgmt__categoryChip--on' : ''}`}
+                  onClick={() => setFilterCat('all')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setFilterCat('all')
+                    }
+                  }}
+                >
+                  Tất cả ({items.length})
+                </span>
+                {categories.length > 0 ? (
+                  categories.map((c) => {
+                    const count = items.filter((i) => Number(i.category_id) === Number(c.id)).length
+                    return (
+                      <span
+                        key={c.id}
+                        role="button"
+                        tabIndex={0}
+                        className={`menu-mgmt__categoryChip${filterCat === String(c.id) ? ' menu-mgmt__categoryChip--on' : ''}`}
+                        onClick={() => setFilterCat(String(c.id))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            setFilterCat(String(c.id))
+                          }
+                        }}
+                      >
+                        {c.name}
+                        {count > 0 ? ` (${count})` : ''}
+                        <button
+                          type="button"
+                          className="menu-mgmt__categoryChipDel"
+                          aria-label={`Xóa danh mục ${c.name}`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            deleteCategory(c.id, c.name)
+                          }}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    )
+                  })
+                ) : (
+                  <span className="menu-mgmt__categoryEmpty">Chưa có danh mục nào</span>
+                )}
+              </div>
+
+              <form className="menu-mgmt__categoryForm" onSubmit={saveCategory}>
+                <input
+                  className="menu-mgmt__categoryInput"
+                  value={categoryName}
+                  onChange={(e) => setCategoryName(e.target.value)}
+                  placeholder="Tên danh mục mới..."
+                  autoComplete="off"
+                  disabled={categorySaving}
+                />
+                <button
+                  type="submit"
+                  className="menu-mgmt__add"
+                  disabled={categorySaving || !String(categoryName || '').trim()}
+                >
+                  {categorySaving ? 'Đang lưu…' : '+ Thêm danh mục'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {!loading && !err ? (
-        <div className="menu-mgmt__toolbar">
-          <label className="menu-mgmt__search">
-            <span className="sr-only">Tìm món</span>
+        <>
+          <div className="menu-mgmt__toolbar">
+            <label htmlFor="menu-search" className="sr-only">Tìm theo tên món</label>
             <input
+              id="menu-search"
+              className="menu-mgmt__search"
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm món..."
+              placeholder="Tìm theo tên món"
               autoComplete="off"
+              aria-label="Tìm theo tên món"
             />
-          </label>
-          <p className="menu-mgmt__resultCount">Hiển thị {visibleCount} món</p>
-        </div>
-      ) : null}
-
-      {!loading && !err && (items.length > 0 || categories.length > 0) ? (
-        <div className="menu-mgmt__filters" role="tablist" aria-label="Lọc theo danh mục">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={filterCat === 'all'}
-            className={`menu-mgmt__filter${filterCat === 'all' ? ' menu-mgmt__filter--on' : ''}`}
-            onClick={() => setFilterCat('all')}
-          >
-            Tất cả ({items.length})
-          </button>
-          {categories.map((c) => {
-            const count = items.filter((i) => Number(i.category_id) === Number(c.id)).length
-            return (
+            <div className="menu-mgmt__filters" aria-label="Lọc theo trạng thái">
               <button
-                key={c.id}
                 type="button"
-                role="tab"
-                aria-selected={filterCat === String(c.id)}
-                className={`menu-mgmt__filter${filterCat === String(c.id) ? ' menu-mgmt__filter--on' : ''}`}
-                onClick={() => setFilterCat(String(c.id))}
+                className={`menu-mgmt__filterBtn${filterStatus === 'all' ? ' menu-mgmt__filterBtn--active' : ''}`}
+                onClick={() => setFilterStatus('all')}
+                aria-pressed={filterStatus === 'all'}
               >
-                {c.name}
-                {count > 0 ? ` (${count})` : ''}
+                Tất cả
               </button>
-            )
-          })}
-        </div>
+              <button
+                type="button"
+                className={`menu-mgmt__filterBtn${filterStatus === 'in_stock' ? ' menu-mgmt__filterBtn--active' : ''}`}
+                onClick={() => setFilterStatus('in_stock')}
+                aria-pressed={filterStatus === 'in_stock'}
+              >
+                Còn món
+              </button>
+              <button
+                type="button"
+                className={`menu-mgmt__filterBtn${filterStatus === 'out_of_stock' ? ' menu-mgmt__filterBtn--active' : ''}`}
+                onClick={() => setFilterStatus('out_of_stock')}
+                aria-pressed={filterStatus === 'out_of_stock'}
+              >
+                Hết món
+              </button>
+            </div>
+          </div>
+          {/* <p className="menu-mgmt__resultCount">Hiển thị {visibleCount} món</p> */}
+        </>
       ) : null}
 
       {!loading && !err && sections.length === 0 ? (
-        <p className="menu-mgmt__empty">Không tìm thấy món nào phù hợp.</p>
+        <p className="menu-mgmt__empty">Không tìm thấy món nào phù hợp. Thử đổi danh mục, trạng thái hoặc từ khóa.</p>
       ) : null}
 
       {!loading && !err && pagedItems.length > 0 ? (
@@ -352,10 +613,55 @@ export default function MenuManagement() {
                   <p className="menu-card__price">{formatPrice(Number(it.price) || 0)}</p>
                   <p className="menu-card__category">{it.category_name || '—'}</p>
                   <p className="menu-card__meta">{ingredientText(it)}</p>
-                  <p className="menu-card__status" data-status={String(it.status || '').toUpperCase()}>
-                    {String(it.status || '').toUpperCase() === 'AVAILABLE' ? 'Đang bán' : 'Ngừng bán'}
-                  </p>
+                  <div
+                    className="menu-card__stockRow"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
+                    <span className="menu-card__stockTitle">Trạng thái</span>
+                    <div className="menu-card__stockActions">
+                      <span
+                        className="menu-card__status menu-card__status--row"
+                        data-status={String(it.status || '').toUpperCase()}
+                      >
+                        {String(it.status || '').toUpperCase() === 'AVAILABLE' ? 'Còn món' : 'Hết món'}
+                      </span>
+                      <button
+                        type="button"
+                        className={`menu-card__toggle${
+                          String(it.status || '').toUpperCase() !== 'UNAVAILABLE'
+                            ? ' menu-card__toggle--on'
+                            : ''
+                        }`}
+                        disabled={stockTogglingId === it.id}
+                        aria-busy={stockTogglingId === it.id}
+                        aria-label={
+                          String(it.status || '').toUpperCase() !== 'UNAVAILABLE'
+                            ? 'Đang còn món — bấm để chuyển sang hết món'
+                            : 'Đang hết món — bấm để còn món'
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          void toggleStock(it)
+                        }}
+                      >
+                        <span className="menu-card__toggleTrack">
+                          <span className="menu-card__toggleKnob" aria-hidden />
+                        </span>
+                      </button>
+                    </div>
+                  </div>
                   <div className="menu-card__actions">
+                    <button
+                      type="button"
+                      className="menu-card__btn menu-card__btn--secondary"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openDetail(it)
+                      }}
+                    >
+                      Chi tiết
+                    </button>
                     <button
                       type="button"
                       className="menu-card__btn menu-card__btn--secondary"
@@ -371,7 +677,7 @@ export default function MenuManagement() {
                       className="menu-card__btn menu-card__btn--danger"
                       onClick={(e) => {
                         e.stopPropagation()
-                        deleteItem(it.id)
+                        deleteItem(it.id, it.name)
                       }}
                     >
                       Xóa
@@ -396,42 +702,43 @@ export default function MenuManagement() {
       ) : null}
 
       {modalOpen ? (
-        <div className="menu-modal" role="dialog" aria-modal="true" aria-labelledby="menu-modal-title">
-          <div className="menu-modal__backdrop" onClick={closeModal} aria-hidden />
-          <div className="menu-modal__panel">
-            <h2 id="menu-modal-title" className="menu-modal__title">
-              {editingId ? 'Sửa món' : 'Thêm món'}
-            </h2>
+        <DetailModal isOpen={true} title={editingId ? 'Sửa món' : 'Thêm món'} onClose={closeModal}>
+          <DetailModal.Card>
             <form className="menu-modal__form" onSubmit={saveItem} noValidate>
               <label className="menu-modal__field">
-                <span>Tên</span>
+                <span>Tên <span className="required-asterisk">*</span></span>
                 <input
+                  className={formErrors.name ? 'input-error' : ''}
                   value={form.name}
                   onChange={(e) => {
                     setFormErrors((prev) => ({ ...prev, name: '' }))
                     setForm((f) => ({ ...f, name: e.target.value }))
                   }}
+                  placeholder="Nhập tên"
                   required
                   autoComplete="off"
                 />
                 {formErrors.name ? <small className="menu-modal__error">{formErrors.name}</small> : null}
               </label>
               <label className="menu-modal__field">
-                <span>Giá (VND)</span>
+                <span>Giá (VND) <span className="required-asterisk">*</span></span>
                 <input
+                  className={formErrors.price ? 'input-error' : ''}
                   value={form.price}
                   onChange={(e) => {
                     setFormErrors((prev) => ({ ...prev, price: '' }))
                     setForm((f) => ({ ...f, price: e.target.value }))
                   }}
+                  placeholder="Nhập giá"
                   inputMode="numeric"
                   required
                 />
                 {formErrors.price ? <small className="menu-modal__error">{formErrors.price}</small> : null}
               </label>
               <label className="menu-modal__field">
-                <span>Danh mục</span>
+                <span>Danh mục <span className="required-asterisk">*</span></span>
                 <select
+                  className={formErrors.categoryId ? 'input-error' : ''}
                   value={form.categoryId}
                   onChange={(e) => {
                     setFormErrors((prev) => ({ ...prev, categoryId: '' }))
@@ -462,10 +769,64 @@ export default function MenuManagement() {
                   value={form.status}
                   onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
                 >
-                  <option value="AVAILABLE">Đang bán</option>
-                  <option value="UNAVAILABLE">Ngừng bán</option>
+                  <option value="AVAILABLE">Còn món</option>
+                  <option value="UNAVAILABLE">Hết món</option>
                 </select>
               </label>
+              <div className="menu-modal__field menu-modal__field--ingredients">
+                <span>Nguyên liệu liên kết</span>
+                <div className="menu-modal__ingredients">
+                  {form.ingredients.map((ing, idx) => (
+                    <div key={idx} className="menu-modal__ingredient-row">
+                      <select
+                        value={ing.ingredient_id}
+                        onChange={(e) => {
+                          const newIngs = [...form.ingredients];
+                          newIngs[idx].ingredient_id = e.target.value;
+                          setForm(f => ({ ...f, ingredients: newIngs }));
+                        }}
+                      >
+                        <option value="">— Chọn nguyên liệu —</option>
+                        {availableIngredients.map(ai => (
+                          <option key={ai.id} value={String(ai.id)}>{ai.name} ({ai.unit})</option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Số lượng"
+                        value={ing.quantity_needed}
+                        onChange={(e) => {
+                          const newIngs = [...form.ingredients];
+                          newIngs[idx].quantity_needed = e.target.value;
+                          setForm(f => ({ ...f, ingredients: newIngs }));
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="menu-modal__ingredient-del"
+                        onClick={() => {
+                          const newIngs = [...form.ingredients];
+                          newIngs.splice(idx, 1);
+                          setForm(f => ({ ...f, ingredients: newIngs }));
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="menu-modal__ingredient-add"
+                    onClick={() => {
+                      setForm(f => ({ ...f, ingredients: [...f.ingredients, { ingredient_id: '', quantity_needed: 1 }] }));
+                    }}
+                  >
+                    + Thêm nguyên liệu
+                  </button>
+                </div>
+              </div>
               <label className="menu-modal__field">
                 <span>URL ảnh (tuỳ chọn)</span>
                 <input
@@ -490,17 +851,29 @@ export default function MenuManagement() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+          </DetailModal.Card>
+        </DetailModal>
       ) : null}
 
       {detailItem ? (
-        <div className="menu-modal" role="dialog" aria-modal="true" aria-labelledby="menu-detail-title">
-          <div className="menu-modal__backdrop" onClick={closeDetail} aria-hidden />
-          <div className="menu-modal__panel menu-modal__panel--detail">
-            <h2 id="menu-detail-title" className="menu-modal__title">
-              Chi tiết món ăn
-            </h2>
+        <DetailModal isOpen={true} title="Chi tiết món ăn" onClose={closeDetail} footerActions={
+          <>
+            <button type="button" className="menu-modal__cancel" onClick={closeDetail}>
+              Đóng
+            </button>
+            <button
+              type="button"
+              className="menu-modal__submit"
+              onClick={() => {
+                closeDetail()
+                openEdit(detailItem)
+              }}
+            >
+              Chỉnh sửa
+            </button>
+          </>
+        }>
+          <DetailModal.Card>
             <div className="menu-detail">
               <div className="menu-detail__imageWrap">
                 <img
@@ -515,9 +888,34 @@ export default function MenuManagement() {
                     <h3 className="menu-detail__name">{detailItem.name}</h3>
                     <p className="menu-detail__price">{formatPrice(Number(detailItem.price) || 0)}</p>
                   </div>
-                  <span className="menu-card__status" data-status={String(detailItem.status || '').toUpperCase()}>
-                    {String(detailItem.status || '').toUpperCase() === 'AVAILABLE' ? 'Đang bán' : 'Ngừng bán'}
-                  </span>
+                  <div className="menu-detail__statusBlock">
+                    <span
+                      className="menu-card__status menu-card__status--row"
+                      data-status={String(detailItem.status || '').toUpperCase()}
+                    >
+                      {String(detailItem.status || '').toUpperCase() === 'AVAILABLE' ? 'Còn món' : 'Hết món'}
+                    </span>
+                    <button
+                      type="button"
+                      className={`menu-card__toggle${
+                        String(detailItem.status || '').toUpperCase() !== 'UNAVAILABLE'
+                          ? ' menu-card__toggle--on'
+                          : ''
+                      }`}
+                      disabled={stockTogglingId === detailItem.id}
+                      aria-busy={stockTogglingId === detailItem.id}
+                      aria-label={
+                        String(detailItem.status || '').toUpperCase() !== 'UNAVAILABLE'
+                          ? 'Đang còn món — bấm để chuyển sang hết món'
+                          : 'Đang hết món — bấm để còn món'
+                      }
+                      onClick={() => void toggleStock(detailItem)}
+                    >
+                      <span className="menu-card__toggleTrack">
+                        <span className="menu-card__toggleKnob" aria-hidden />
+                      </span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="menu-detail__grid">
@@ -525,9 +923,26 @@ export default function MenuManagement() {
                     <span className="menu-detail__label">Danh mục</span>
                     <strong>{detailItem.category_name || '—'}</strong>
                   </div>
-                  <div className="menu-detail__item">
+                  <div className="menu-detail__item menu-detail__item--ingredients">
                     <span className="menu-detail__label">Nguyên liệu</span>
-                    <strong>{ingredientText(detailItem).replace('Nguyên liệu: ', '')}</strong>
+                    {detailItem.ingredients && detailItem.ingredients.length > 0 ? (
+                      <ul className="menu-detail__ingredients-list">
+                        {detailItem.ingredients.map((ing, idx) => {
+                          const ingName = ing.name || availableIngredients.find(ai => String(ai.id) === String(ing.ingredient_id))?.name || 'Nguyên liệu'
+                          const ingUnit = ing.unit || availableIngredients.find(ai => String(ai.id) === String(ing.ingredient_id))?.unit || ''
+                          return (
+                            <li key={idx} className="menu-detail__ingredient-bullet">
+                              <span className="menu-detail__ing-name">{ingName}</span>
+                              <span className="menu-detail__ing-qty">
+                                {Number(ing.quantity_needed).toLocaleString('vi-VN')} {ingUnit}
+                              </span>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    ) : (
+                      <strong>Chưa liên kết</strong>
+                    )}
                   </div>
                 </div>
 
@@ -537,24 +952,8 @@ export default function MenuManagement() {
                 </div>
               </div>
             </div>
-
-            <div className="menu-modal__footer">
-              <button type="button" className="menu-modal__cancel" onClick={closeDetail}>
-                Đóng
-              </button>
-              <button
-                type="button"
-                className="menu-modal__submit"
-                onClick={() => {
-                  closeDetail()
-                  openEdit(detailItem)
-                }}
-              >
-                Chỉnh sửa
-              </button>
-            </div>
-          </div>
-        </div>
+          </DetailModal.Card>
+        </DetailModal>
       ) : null}
     </div>
   )

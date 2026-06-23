@@ -12,6 +12,40 @@
   --bk2-ease:    0.2s ease;
 }
 
+/* ─── Zone filter chips ─── */
+.bookZones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 20px;
+}
+
+.bookZoneChip {
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--bk2-border);
+  background: #fff;
+  color: var(--bk2-muted);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--bk2-ease);
+}
+
+.bookZoneChip:hover {
+  border-color: rgba(184,147,90,0.4);
+  color: var(--bk2-gold-d);
+  background: var(--bk2-gold-s);
+}
+
+.bookZoneChip--active {
+  background: var(--bk2-gold-s);
+  color: var(--bk2-gold-d);
+  border-color: rgba(184,147,90,0.45);
+  box-shadow: 0 2px 8px rgba(184,147,90,0.18);
+}
+
 .bookPage {
   flex: 1;
   width: 100%;
@@ -44,7 +78,7 @@
 }
 
 .bookHero__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: clamp(1.8rem, 4vw, 2.4rem);
   font-weight: 700;
   color: #FAF8F4;
@@ -104,7 +138,7 @@
 
 .bookHero__stat-val {
   display: block;
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1.8rem;
   font-weight: 700;
   color: #FAF8F4;
@@ -148,7 +182,7 @@
 .bookCard__titles {}
 
 .bookCard__titles h2, .bookCard__titles > :first-child {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1rem;
   font-weight: 600;
   color: var(--bk2-text);
@@ -199,6 +233,11 @@
   font-size: 0.78rem;
   font-weight: 700;
   color: #C0392B;
+}
+
+.bookField__error--block {
+  margin: 0 22px 8px;
+  padding: 0;
 }
 
 .bookField input,
@@ -279,15 +318,30 @@
 }
 
 [class*="bookTableBtn"].bookTableBtn--active {
-  border-color: rgba(184,147,90,0.9);
-  background: linear-gradient(145deg, rgba(184,147,90,0.16), rgba(244,236,224,0.8));
+  border-color: rgba(181, 117, 21, 0.9);
+  background: linear-gradient(145deg, rgba(184,147,90,0.16), rgba(143, 116, 77, 0.8));
   box-shadow: 0 10px 26px rgba(184,147,90,0.18);
   transform: translateY(-1px);
 }
 
+[class*="bookTableBtn"].bookTableBtn--invalid {
+  opacity: 0.9;
+}
+
+[class*="bookTableBtn"].bookTableBtn--invalid .bookTableBtn__badge {
+  background: #FEF3F2;
+  color: #C0392B;
+  border-color: #F5C4C0;
+}
+
 [class*="bookTableBtn"]:hover:not(:disabled) {
-  border-color: rgba(184,147,90,0.4);
+  border-color: rgba(220, 138, 14, 0.4);
   background: var(--bk2-gold-s);
+}
+
+[class*="bookTableBtn"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .bookTableBtn__name {
@@ -337,12 +391,33 @@
 /* ─── Preorder ─── */
 .bookPreorder {
   padding: 16px 22px;
-  max-height: 400px;
-  overflow-y: auto;
 }
 
-.bookPreorder.bookPreorder--expanded {
-  max-height: 680px;
+.bookPreorder__hint {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: var(--bk2-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bookPreorder__hintBtn {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--bk2-gold-d);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color var(--bk2-ease);
+}
+
+.bookPreorder__hintBtn:hover {
+  color: var(--bk2-gold);
 }
 
 .bookCard__actions {
@@ -367,7 +442,7 @@
 }
 
 .bookPreorder__group-title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--bk2-text);
@@ -452,7 +527,7 @@
 .bookSummary { padding: 22px; }
 
 .bookSummary__title {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-size: 1rem;
   font-weight: 600;
   color: var(--bk2-text);
@@ -500,6 +575,71 @@
   border-radius: 10px;
   border: 1px solid var(--bk2-border);
   background: #f5f2ed;
+}
+
+.bookSummary__tableImgBtn {
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: zoom-in;
+  border-radius: 10px;
+}
+
+.bookSummary__tableImgBtn:focus-visible {
+  outline: 3px solid rgba(184,147,90,0.45);
+  outline-offset: 2px;
+}
+
+.bookImageModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(20,16,12,0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+
+.bookImageModal__body {
+  position: relative;
+  max-width: min(960px, 92vw);
+  max-height: 90vh;
+  background: #14100c;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(184,147,90,0.25);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+}
+
+.bookImageModal__img {
+  max-width: 100%;
+  max-height: 82vh;
+  display: block;
+  border-radius: 12px;
+  object-fit: contain;
+  background: #1c1713;
+}
+
+.bookImageModal__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: rgba(255,255,255,0.9);
+  color: #1c1713;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.bookImageModal__close:hover {
+  filter: brightness(0.95);
 }
 
 .bookSummary__pre {

@@ -40,6 +40,10 @@ export async function register(req, res, next) {
     const emailNorm = normalizeEmail(email)
     if (!emailNorm || !password) throw badRequest('email và password là bắt buộc')
 
+    const phoneVal = phone != null ? String(phone).trim() : ''
+    if (!phoneVal) throw badRequest('Số điện thoại không được để trống')
+    if (!/^0[0-9]{9,10}$/.test(phoneVal)) throw badRequest('Số điện thoại không hợp lệ')
+
     const exists = await query('SELECT id FROM users WHERE email = $1', [emailNorm])
     if (exists.rows.length) throw badRequest('Email đã tồn tại')
 
@@ -57,7 +61,7 @@ export async function register(req, res, next) {
       VALUES ($1, $2, $3, $4, $5)
       RETURNING id, name, email, phone, role_id, created_at
     `,
-      [userName, emailNorm, passwordHash, phone ? String(phone) : null, roleId],
+      [userName, emailNorm, passwordHash, phoneVal, roleId],
     )
 
     const roleNameRes = await query('SELECT name FROM roles WHERE id = $1', [roleId])
@@ -88,7 +92,7 @@ export async function login(req, res, next) {
     const { rows } = await query(
       `
       SELECT
-        u.id, u.name, u.email, u.phone, u.password,
+        u.id, u.name, u.email, u.phone, u.password, u.status,
         r.name AS role
       FROM users u
       LEFT JOIN roles r ON r.id = u.role_id
@@ -99,6 +103,7 @@ export async function login(req, res, next) {
 
     const row = rows[0]
     if (!row) throw unauthorized('Email không tồn tại')
+    if (String(row.status || 'ACTIVE').toUpperCase() === 'LOCKED') throw badRequest('Tài khoản bị khóa')
 
     const okPass = await bcrypt.compare(String(password), String(row.password))
     if (!okPass) throw unauthorized('Sai email hoặc mật khẩu')
@@ -109,6 +114,7 @@ export async function login(req, res, next) {
       email: row.email,
       phone: row.phone,
       role: row.role || 'CUSTOMER',
+      status: row.status || 'ACTIVE',
     }
 
     const token = signToken(user)
@@ -151,7 +157,7 @@ export async function forgotPassword(req, res, next) {
       await query(
         `
         INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
-        VALUES ($1, $2, NOW() + INTERVAL '30 minutes')
+        VALUES ($1, $2, NOW() + INTERVAL '10 minutes')
         `,
         [user.id, tokenHash],
       )
@@ -198,6 +204,66 @@ export async function resetPassword(req, res, next) {
     await query('DELETE FROM password_reset_tokens WHERE user_id = $1 AND id <> $2', [resetRow.user_id, resetRow.id])
 
     return ok(res, { message: 'Đặt lại mật khẩu thành công.' })
+  } catch (e) {
+    return next(e)
+  }
+}
+
+export async function verifyResetToken(req, res, next) {
+  try {
+    const { token } = req.query || {}
+    const tokenRaw = String(token || '').trim()
+    if (!tokenRaw) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã xác thực không hợp lệ hoặc đã hết hạn. Vui lòng gửi lại yêu cầu quên mật khẩu.',
+        expired: true,
+        showResetForm: false,
+        showForgotPasswordLink: true
+      })
+    }
+
+    const tokenHash = hashResetToken(tokenRaw)
+    const tokenRes = await query(
+      `
+      SELECT id, used_at, (expires_at <= NOW()) AS is_expired
+      FROM password_reset_tokens
+      WHERE token_hash = $1
+      LIMIT 1
+      `,
+      [tokenHash]
+    )
+
+    const resetRow = tokenRes.rows[0]
+    if (!resetRow) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã xác thực không hợp lệ hoặc đã hết hạn. Vui lòng gửi lại yêu cầu quên mật khẩu.',
+        expired: true,
+        showResetForm: false,
+        showForgotPasswordLink: true
+      })
+    }
+
+    const isExpired = resetRow.is_expired || resetRow.used_at !== null
+
+    if (isExpired) {
+      return res.status(400).json({
+        success: false,
+        message: 'Liên kết đặt lại mật khẩu đã hết hạn. Vui lòng gửi lại yêu cầu.',
+        expired: true,
+        showResetForm: false,
+        showForgotPasswordLink: true
+      })
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Mã xác thực hợp lệ.',
+      expired: false,
+      showResetForm: true,
+      showForgotPasswordLink: false
+    })
   } catch (e) {
     return next(e)
   }

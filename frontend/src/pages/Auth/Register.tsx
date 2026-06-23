@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
-import { requiredMessage } from '../../lib/validation'
+import { requiredMessage, validateEmail, validatePhone, normalizePhone, validatePassword } from '../../lib/validation'
 import PasswordField from '../../components/PasswordField'
 import { fetchPublicSettings } from '../../lib/settings'
 import './AuthPages.css'
@@ -13,7 +13,7 @@ export default function Register() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [fieldErr, setFieldErr] = useState<{ fullName?: string; email?: string; password?: string; confirmPassword?: string } | null>(null)
+  const [fieldErr, setFieldErr] = useState<{ fullName?: string; email?: string; phone?: string; password?: string; confirmPassword?: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [brand, setBrand] = useState('Luxeat')
   const [banner, setBanner] = useState<string | null>(null)
@@ -40,17 +40,18 @@ export default function Register() {
     setFieldErr(null)
 
     const nextFullName = fullName.trim()
-    const nextEmail = email.trim().toLowerCase()
     if (!nextFullName) {
       setFieldErr({ fullName: requiredMessage('Họ và tên') })
       return
     }
+    const nextEmail = email.trim()
     if (!nextEmail) {
       setFieldErr({ email: requiredMessage('Email') })
       return
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
-      setFieldErr({ email: 'Email không hợp lệ' })
+    const phoneRaw = phone.trim()
+    if (!phoneRaw) {
+      setFieldErr({ phone: requiredMessage('Số điện thoại') })
       return
     }
     if (!password) {
@@ -61,13 +62,23 @@ export default function Register() {
       setFieldErr({ confirmPassword: requiredMessage('Xác nhận mật khẩu') })
       return
     }
-
-    if (password !== confirmPassword) {
-      setFieldErr({ confirmPassword: 'Mật khẩu xác nhận không khớp.' })
+    const emailErr = validateEmail(nextEmail)
+    if (emailErr) {
+      setFieldErr({ email: emailErr })
       return
     }
-    if (password.length < 6) {
-      setFieldErr({ password: 'Mật khẩu tối thiểu 6 ký tự' })
+    const phoneErr = validatePhone(phoneRaw)
+    if (phoneErr) {
+      setFieldErr({ phone: phoneErr })
+      return
+    }
+    const passwordErr = validatePassword(password)
+    if (passwordErr) {
+      setFieldErr({ password: passwordErr })
+      return
+    }
+    if (password !== confirmPassword) {
+      setFieldErr({ confirmPassword: 'Mật khẩu xác nhận không khớp.' })
       return
     }
 
@@ -78,9 +89,9 @@ export default function Register() {
         body: JSON.stringify({
           name: nextFullName,
           fullName: nextFullName,
-          email: nextEmail,
+          email: nextEmail.toLowerCase(),
           password,
-          phone: phone.trim() || undefined,
+          phone: normalizePhone(phoneRaw),
         }),
       })
       setToken(data.token)
@@ -112,17 +123,17 @@ export default function Register() {
       <div className="authCard">
         <div className="authCard__head">
           <h2 className="authCard__title">Đăng ký</h2>
-          <p className="authCard__subtitle">Điền thông tin bên dưới. Bạn có thể bật/tắt hiển thị mật khẩu bằng biểu tượng mắt.</p>
+          <p className="authCard__subtitle">Điền thông tin bên dưới.</p>
         </div>
 
         <form className="authForm" onSubmit={onSubmit} noValidate>
           <div className="authField">
             <label htmlFor="reg-name" className="authField__label">
-              Họ và tên
+              Họ và tên <span className="required-asterisk">*</span>
             </label>
             <input
               id="reg-name"
-              className={`authField__input${fieldErr?.fullName ? ' authField__input--error' : ''}`}
+              className={`authField__input${fieldErr?.fullName ? ' authField__input--error input-error' : ''}`}
               type="text"
               autoComplete="name"
               required
@@ -140,11 +151,11 @@ export default function Register() {
 
           <div className="authField">
             <label htmlFor="reg-email" className="authField__label">
-              Email
+              Email <span className="required-asterisk">*</span>
             </label>
             <input
               id="reg-email"
-              className={`authField__input${fieldErr?.email ? ' authField__input--error' : ''}`}
+              className={`authField__input${fieldErr?.email ? ' authField__input--error input-error' : ''}`}
               type="email"
               autoComplete="email"
               required
@@ -152,6 +163,10 @@ export default function Register() {
               onChange={(e) => {
                 setFieldErr((prev) => ({ ...(prev || {}), email: undefined }))
                 setEmail(e.target.value)
+              }}
+              onBlur={() => {
+                const emailErr = validateEmail(email)
+                if (emailErr) setFieldErr((prev) => ({ ...(prev || {}), email: emailErr }))
               }}
               placeholder="tenban@email.com"
               disabled={loading}
@@ -162,18 +177,28 @@ export default function Register() {
 
           <div className="authField">
             <label htmlFor="reg-phone" className="authField__label">
-              Số điện thoại <span className="authField__optional">(tuỳ chọn)</span>
+              Số điện thoại <span className="required-asterisk">*</span>
             </label>
             <input
               id="reg-phone"
-              className="authField__input"
+              className={`authField__input${fieldErr?.phone ? ' authField__input--error input-error' : ''}`}
               type="tel"
               autoComplete="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setFieldErr((prev) => ({ ...(prev || {}), phone: undefined }))
+                setPhone(e.target.value)
+              }}
+              onBlur={() => {
+                const nextPhone = phone.trim()
+                const err = nextPhone ? validatePhone(nextPhone) : requiredMessage('Số điện thoại')
+                if (err) setFieldErr((prev) => ({ ...(prev || {}), phone: err }))
+              }}
               placeholder="0901 234 567"
               disabled={loading}
+              aria-invalid={Boolean(fieldErr?.phone) || undefined}
             />
+            {fieldErr?.phone ? <span className="authField__error">{fieldErr.phone}</span> : null}
           </div>
 
           <PasswordField
@@ -204,7 +229,7 @@ export default function Register() {
             error={fieldErr?.confirmPassword || null}
           />
 
-          <p className="authHint">Mật khẩu có thể hiện hoặc ẩn bằng nút bên phải ô nhập.</p>
+        
 
           {error ? <p className="authError">{error}</p> : null}
 

@@ -31,7 +31,12 @@ export function asTextArray(v) {
 
 export function pickDate(v) {
   if (v == null || v === '') return ''
-  if (v instanceof Date) return v.toISOString().slice(0, 10)
+  if (v instanceof Date) {
+    const y = v.getFullYear()
+    const m = String(v.getMonth() + 1).padStart(2, '0')
+    const d = String(v.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
   const s = String(v)
   return s.length >= 10 ? s.slice(0, 10) : s
 }

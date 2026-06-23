@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import PasswordField from '../../components/PasswordField'
-import { publicApiFetch } from '../../lib/api'
+import { API_BASE, publicApiFetch } from '../../lib/api'
 import { requiredMessage } from '../../lib/validation'
 import './AuthPages.css'
 
@@ -14,6 +14,41 @@ export default function ResetPassword() {
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [checking, setChecking] = useState(true)
+  const [showResetForm, setShowResetForm] = useState(false)
+  const [showForgotPasswordLink, setShowForgotPasswordLink] = useState(false)
+
+  useEffect(() => {
+    if (!token) {
+      setErr('Mã xác thực không hợp lệ hoặc đã hết hạn. Vui lòng gửi lại yêu cầu quên mật khẩu.')
+      setShowResetForm(false)
+      setShowForgotPasswordLink(true)
+      setChecking(false)
+      return
+    }
+
+    setChecking(true)
+    fetch(`${API_BASE}/auth/reset-password?token=${encodeURIComponent(token)}`)
+      .then(async (res) => {
+        const data = await res.json()
+        if (res.ok && data.success) {
+          setShowResetForm(true)
+          setShowForgotPasswordLink(false)
+        } else {
+          setErr(data.message || 'Mã xác thực không hợp lệ hoặc đã hết hạn. Vui lòng gửi lại yêu cầu quên mật khẩu.')
+          setShowResetForm(false)
+          setShowForgotPasswordLink(data.showForgotPasswordLink ?? true)
+        }
+      })
+      .catch(() => {
+        setErr('Không thể kết nối đến máy chủ. Vui lòng thử lại sau.')
+        setShowResetForm(false)
+        setShowForgotPasswordLink(true)
+      })
+      .finally(() => {
+        setChecking(false)
+      })
+  }, [token])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -69,49 +104,64 @@ export default function ResetPassword() {
       <div className="authCard">
         <div className="authCard__head">
           <h2 className="authCard__title">Mật khẩu mới</h2>
-          <p className="authCard__subtitle">Liên kết đặt lại mật khẩu có hiệu lực trong 30 phút.</p>
+          <p className="authCard__subtitle">Liên kết đặt lại mật khẩu có hiệu lực trong 10 phút.</p>
         </div>
 
-        <form className="authForm" onSubmit={onSubmit} noValidate>
-          <PasswordField
-            label="Mật khẩu mới"
-            value={password}
-            onChange={(value) => {
-              setFieldErr((prev) => ({ ...(prev || {}), password: undefined }))
-              setPassword(value)
-            }}
-            autoComplete="new-password"
-            required
-            disabled={loading || !token}
-            placeholder="Tối thiểu 6 ký tự"
-            error={fieldErr?.password || null}
-          />
+        {checking ? (
+          <p className="authLoading" style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)' }}>
+            Đang xác thực liên kết...
+          </p>
+        ) : showResetForm ? (
+          <form className="authForm" onSubmit={onSubmit} noValidate>
+            <PasswordField
+              label="Mật khẩu mới"
+              value={password}
+              onChange={(value) => {
+                setFieldErr((prev) => ({ ...(prev || {}), password: undefined }))
+                setPassword(value)
+              }}
+              autoComplete="new-password"
+              required
+              disabled={loading}
+              placeholder="Tối thiểu 6 ký tự"
+              error={fieldErr?.password || null}
+            />
 
-          <PasswordField
-            label="Xác nhận mật khẩu"
-            value={confirmPassword}
-            onChange={(value) => {
-              setFieldErr((prev) => ({ ...(prev || {}), confirmPassword: undefined }))
-              setConfirmPassword(value)
-            }}
-            autoComplete="new-password"
-            required
-            disabled={loading || !token}
-            placeholder="Nhập lại mật khẩu mới"
-            error={fieldErr?.confirmPassword || null}
-          />
+            <PasswordField
+              label="Xác nhận mật khẩu"
+              value={confirmPassword}
+              onChange={(value) => {
+                setFieldErr((prev) => ({ ...(prev || {}), confirmPassword: undefined }))
+                setConfirmPassword(value)
+              }}
+              autoComplete="new-password"
+              required
+              disabled={loading}
+              placeholder="Nhập lại mật khẩu mới"
+              error={fieldErr?.confirmPassword || null}
+            />
 
-          {err ? <p className="authError">{err}</p> : null}
-          {msg ? <p className="authSuccess">{msg}</p> : null}
+            {err ? <p className="authError">{err}</p> : null}
+            {msg ? <p className="authSuccess">{msg}</p> : null}
 
-          <button className="authSubmit" type="submit" disabled={loading || !token}>
-            {loading ? 'Đang cập nhật…' : 'Lưu mật khẩu mới'}
-          </button>
-        </form>
+            <button className="authSubmit" type="submit" disabled={loading}>
+              {loading ? 'Đang cập nhật…' : 'Lưu mật khẩu mới'}
+            </button>
+          </form>
+        ) : (
+          <div className="authErrorSection" style={{ textAlign: 'center', padding: '20px 0' }}>
+            {err ? <p className="authError" style={{ marginBottom: '20px', lineHeight: '1.5' }}>{err}</p> : null}
+            {msg ? <p className="authSuccess" style={{ marginBottom: '20px' }}>{msg}</p> : null}
+          </div>
+        )}
 
         <div className="authFooter">
           <p>
-            <Link to="/login">← Quay lại đăng nhập</Link>
+            {showForgotPasswordLink ? (
+              <Link to="/forgot-password">Quên mật khẩu</Link>
+            ) : (
+              <Link to="/login">← Quay lại đăng nhập</Link>
+            )}
           </p>
         </div>
       </div>
