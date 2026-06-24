@@ -4,3 +4,4 @@ node_modules/
 hdmail
 sequence
 database
+/backend/database

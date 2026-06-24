@@ -648,6 +648,22 @@ export async function cashierPay(req, res, next) {
         throw badRequest(`Chỉ cho phép thanh toán đơn ở trạng thái "Đã tiếp khách" (Trạng thái hiện tại: ${curStatus}).`)
       }
 
+      // Kiểm tra xem có món nào chưa lên (chưa có trạng thái SERVED)
+      const unservedRes = await client.query(
+        `
+        SELECT COUNT(*)::int AS count
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        WHERE o.booking_id = $1
+          AND o.status IN ('PENDING', 'SERVING')
+          AND COALESCE(oi.kitchen_status, 'PENDING') <> 'SERVED'
+        `,
+        [bookingId],
+      )
+      if (unservedRes.rows[0].count > 0) {
+        throw badRequest('Không thể thanh toán khi có món chưa được phục vụ xong.')
+      }
+
       // 2. Tìm hoặc tạo order cho booking
       let order = await client.query('SELECT * FROM orders WHERE booking_id = $1 ORDER BY id DESC LIMIT 1', [
         bookingId,
