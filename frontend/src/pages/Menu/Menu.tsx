@@ -176,10 +176,6 @@ export default function Menu() {
               <p className="menuSection__hint" style={{ margin: 0 }}>
                 {loading ? 'Đang tải...' : error ? `Lỗi: ${error}` : `${visible.length} món`}
               </p>
-              <button type="button" className="menuRefreshBtn" onClick={load} disabled={loading}>
-                <RefreshCw size={16} />
-                {loading ? 'Đang tải…' : 'Làm mới'}
-              </button>
             </div>
         </div>
 
