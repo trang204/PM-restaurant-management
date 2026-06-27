@@ -544,7 +544,7 @@ export default function RevenueReports() {
     <div className="rev-report">
       <header className="rev-report__header">
         <div>
-          <h1 className="rev-report__title">Báo Cáo Doanh Thu</h1>
+          <h1 className="rev-report__title">Báo cáo doanh thu</h1>
         </div>
         <button type="button" className="rev-report__exportBtn" onClick={exportExcel}>
           Xuất báo cáo Excel
