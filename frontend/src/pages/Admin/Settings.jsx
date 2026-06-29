@@ -566,7 +566,7 @@ export default function Settings() {
             <div className="settings-logo__row">
               <label className="settings-logo__upload">
                 <input type="file" accept="image/*" onChange={onLogoChange} />
-                <span>Tải logo lên server</span>
+                <span>Tải logo</span>
               </label>
               {logoUrl ? (
                 <div className="settings-logo__preview">

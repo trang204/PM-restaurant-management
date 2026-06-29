@@ -606,15 +606,6 @@ export default function TableOrder() {
             </div>
           </div>
           <div className="tableOrder__heroActions">
-            <button type="button" className="tableOrder__btn tableOrder__btn--ghost" onClick={() => load()} disabled={loading}>
-              {loading ? 'Đang tải…' : 'Làm mới'}
-            </button>
-            <button type="button" className="tableOrder__btn tableOrder__btn--accent" onClick={callStaff}>
-              Gọi nhân viên
-            </button>
-            <Link to="/" className="tableOrder__btn tableOrder__btn--ghost">
-              Trang chủ
-            </Link>
           </div>
         </div>
         {ctx?.restaurant?.address ? <p className="tableOrder__address">{ctx.restaurant.address}</p> : null}

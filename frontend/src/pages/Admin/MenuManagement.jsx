@@ -577,7 +577,7 @@ export default function MenuManagement() {
       ) : null}
 
       {!loading && !err && sections.length === 0 ? (
-        <p className="menu-mgmt__empty">Không tìm thấy món nào phù hợp. Thử đổi danh mục, trạng thái hoặc từ khóa.</p>
+        <p className="menu-mgmt__empty">Không tìm thấy món nào phù hợp.</p>
       ) : null}
 
       {!loading && !err && pagedItems.length > 0 ? (
