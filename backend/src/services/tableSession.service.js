@@ -13,12 +13,20 @@ export function publicOrderUrl(token) {
 /**
  * Đóng mọi phiên ACTIVE của bàn (trước khi mở phiên mới).
  */
-export async function closeActiveSessionsForTable(tableId) {
-  await query(
-    `UPDATE table_sessions SET status = 'CLOSED', closed_at = NOW()
-     WHERE table_id = $1 AND status = 'ACTIVE'`,
-    [tableId],
-  )
+export async function closeActiveSessionsForTable(tableId, excludeBookingId = null) {
+  if (excludeBookingId) {
+    await query(
+      `UPDATE table_sessions SET status = 'CLOSED', closed_at = NOW()
+       WHERE table_id = $1 AND status = 'ACTIVE' AND booking_id <> $2`,
+      [tableId, excludeBookingId],
+    )
+  } else {
+    await query(
+      `UPDATE table_sessions SET status = 'CLOSED', closed_at = NOW()
+       WHERE table_id = $1 AND status = 'ACTIVE'`,
+      [tableId],
+    )
+  }
 }
 
 /**
@@ -31,7 +39,8 @@ export async function ensureTableSessionForBooking(bookingId) {
     [bookingId],
   )
   if (!booking.rows.length) return null
-  if (String(booking.rows[0].status || '').toUpperCase() !== 'CHECKED_IN') return null
+  const bStatus = String(booking.rows[0].status || '').toUpperCase()
+  if (bStatus !== 'CHECKED_IN' && bStatus !== 'CONFIRMED') return null
 
   const bt = await query(
     `SELECT bt.table_id FROM booking_tables bt WHERE bt.booking_id = $1 LIMIT 1`,
@@ -40,6 +49,10 @@ export async function ensureTableSessionForBooking(bookingId) {
   if (!bt.rows.length) return null
 
   const tableId = bt.rows[0].table_id
+
+  if (bStatus === 'CHECKED_IN') {
+    await closeActiveSessionsForTable(tableId, bookingId)
+  }
 
   let sessionId, token;
 
@@ -52,7 +65,6 @@ export async function ensureTableSessionForBooking(bookingId) {
     sessionId = existingSess.rows[0].id
     token = existingSess.rows[0].qr_token
   } else {
-    await closeActiveSessionsForTable(tableId)
     token = generateQrToken()
     const ins = await query(
       `INSERT INTO table_sessions (table_id, booking_id, qr_token, status)
@@ -135,7 +147,8 @@ export async function loadActiveSessionByToken(token) {
   )
   if (!r.rows.length) return null
   const row = r.rows[0]
-  if (String(row.booking_status || '').toUpperCase() !== 'CHECKED_IN') return null
+  const bookingStatus = String(row.booking_status || '').toUpperCase()
+  if (bookingStatus !== 'CHECKED_IN' && bookingStatus !== 'CONFIRMED') return null
   return row
 }
 

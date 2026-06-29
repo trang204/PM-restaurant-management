@@ -29,6 +29,7 @@ export type ReservationRow = {
   /** Link gọi món tại bàn (chỉ có sau khi khách đã vào bàn và có phiên QR). */
   tableOrderUrl?: string | null
   tableOrderToken?: string | null
+  tableOrderQrSvg?: string | null
   createdAt?: string | null
   assignedTables?: AssignedTableInfo[]
   orderItems?: OrderedItemInfo[]
@@ -104,6 +105,7 @@ export function normalizeReservation(raw: unknown): ReservationRow | null {
   }
   if (typeof r.tableOrderUrl === 'string' && r.tableOrderUrl) out.tableOrderUrl = r.tableOrderUrl
   if (typeof r.tableOrderToken === 'string' && r.tableOrderToken) out.tableOrderToken = r.tableOrderToken
+  if (typeof r.tableOrderQrSvg === 'string' && r.tableOrderQrSvg) out.tableOrderQrSvg = r.tableOrderQrSvg
   if (Array.isArray(r.tables) && r.tables.length) {
     out.tables = r.tables.filter((x): x is string => typeof x === 'string' && Boolean(x))
   }
