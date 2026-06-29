@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { mediaUrl, publicApiFetch } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import fallbackImg from '../../assets/menu/comtam.svg?url'
@@ -329,14 +329,6 @@ export default function TableOrder() {
     }
   }
 
-  function callStaff() {
-    const phone = ctx?.restaurant?.phone?.replace(/\s/g, '') || ''
-    if (phone) {
-      window.location.href = `tel:${phone}`
-      return
-    }
-    toast('Nhà hàng chưa cập nhật số điện thoại')
-  }
 
   const statusKey = ctx ? String(ctx.order.status || '').toUpperCase() : ''
   const statusLabel = getStatusLabel(statusKey, 'kitchen')
