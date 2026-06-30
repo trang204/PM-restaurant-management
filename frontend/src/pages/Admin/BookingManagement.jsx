@@ -1292,7 +1292,7 @@ export default function BookingManagement({ staffMode = false }) {
                               title={tableClosed ? 'Bàn đang đóng — chuyển khách sang bàn khác hoặc mở lại bàn trước' : undefined}
                               onClick={() => checkIn(r.id)}
                             >
-                              Vào bàn
+                              Check-in khách
                             </button>
                           ) : null}
 
