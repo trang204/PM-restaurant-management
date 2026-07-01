@@ -691,8 +691,8 @@ export default function RevenueReports() {
                     <YAxis 
                       axisLine={false} 
                       tickLine={false} 
-                      tickFormatter={(v) => `${(v / 1000).toLocaleString('vi-VN')}k`}
-                      tick={{ fill: '#7A7069', fontSize: 12 }}
+                      tickFormatter={(v) => `${(v / 1).toLocaleString('vi-VN')}đ`}
+                      tick={{ fill: '#7A7069', fontSize: 11 }}
                       width={60}
                     />
                     <Tooltip content={<CustomTooltip groupBy={groupBy} />} cursor={{ fill: 'rgba(184,147,90,0.1)' }} />

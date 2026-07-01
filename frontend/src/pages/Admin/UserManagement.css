@@ -180,6 +180,10 @@
   filter: brightness(1.06);
 }
 .user-mgmt__btn--secondary { color: var(--um-text); }
+/* .user-mgmt__btn--secondary:hover{
+  color: red;
+} */
+
 .user-mgmt__btn--ghost { background: transparent; border-color: var(--um-border); color: var(--um-muted); }
 .user-mgmt__btn--ghost:hover { 
   color: var(--um-text); 

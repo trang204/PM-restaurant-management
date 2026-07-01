@@ -307,6 +307,7 @@ export default function Dashboard() {
                           className="dash__btn dash__btn--sm dash__btn--primary"
                           disabled={busy || !['PENDING', 'HOLD'].includes(String(r.status || '').toUpperCase())}
                           onClick={() => confirmBooking(r.id)}
+                          // style={{ display: ['PENDING', 'HOLD'].includes(String(r.status || '').toUpperCase()) ? 'inline-block' : 'none' }}
                         >
                           Xác nhận
                         </button>

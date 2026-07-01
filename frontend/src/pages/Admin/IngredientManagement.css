@@ -296,6 +296,7 @@
   font-size: 0.84rem;
   font-weight: 600;
   color: var(--ing-text);
+  white-space: nowrap;
 }
 
 .ing-mgmt__dialogField span {
@@ -303,6 +304,7 @@
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--ing-text);
+  white-space: nowrap;
 }
 
 .ing-mgmt__dialogField input,
