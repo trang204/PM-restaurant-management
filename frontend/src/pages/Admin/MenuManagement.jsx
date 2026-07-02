@@ -618,7 +618,6 @@ export default function MenuManagement() {
                     onClick={(e) => e.stopPropagation()}
                     onKeyDown={(e) => e.stopPropagation()}
                   >
-                    <span className="menu-card__stockTitle">Trạng thái</span>
                     <div className="menu-card__stockActions">
                       <span
                         className="menu-card__status menu-card__status--row"

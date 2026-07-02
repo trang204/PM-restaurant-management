@@ -276,7 +276,7 @@
 
 .menuGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(5, 1fr);
   gap: 18px;
 }
 
@@ -399,8 +399,4 @@
   .menuCats { flex-direction: row; flex-wrap: wrap; gap: 6px; }
   .menuCat { width: auto; }
   .menuHero { flex-direction: column; }
-}
-
-@media (max-width: 600px) {
-  .menuGrid { grid-template-columns: 1fr; }
 }
