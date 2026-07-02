@@ -162,10 +162,18 @@
   margin-bottom: 14px;
 }
 
-.booking-mgmt__walkInActions {
+.booking-mgmt__walkInBtnCell {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  justify-content: flex-end;
+  margin-left: 32px;
+}
+
+.booking-mgmt__walkInSubmit {
+  white-space: nowrap;
+  min-width: max-content;
+  justify-content: center;
+  padding: 10px 22px;
 }
 
 /* ─── Field ─── */

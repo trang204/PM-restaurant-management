@@ -451,7 +451,7 @@ export default function MenuManagement() {
             <div className="menu-mgmt__categoryLeft">
               <h2 className="menu-mgmt__categoryTitle">Danh mục</h2>
               <p className="menu-mgmt__categorySub">
-                Món không gán danh mục thuộc <strong>Chưa phân loại</strong>. Bấm vào danh mục để lọc món.
+                Món không gán danh mục thuộc <strong>Chưa phân loại</strong>.
               </p>
             </div>
 
@@ -652,7 +652,7 @@ export default function MenuManagement() {
                     </div>
                   </div>
                   <div className="menu-card__actions">
-                    <button
+                    {/* <button
                       type="button"
                       className="menu-card__btn menu-card__btn--secondary"
                       onClick={(e) => {
@@ -661,7 +661,7 @@ export default function MenuManagement() {
                       }}
                     >
                       Chi tiết
-                    </button>
+                    </button> */}
                     <button
                       type="button"
                       className="menu-card__btn menu-card__btn--secondary"
@@ -670,7 +670,7 @@ export default function MenuManagement() {
                         openEdit(it)
                       }}
                     >
-                      Sửa
+                      Chỉnh sửa
                     </button>
                     <button
                       type="button"
@@ -861,7 +861,7 @@ export default function MenuManagement() {
             <button type="button" className="menu-modal__cancel" onClick={closeDetail}>
               Đóng
             </button>
-            <button
+            {/* <button
               type="button"
               className="menu-modal__submit"
               onClick={() => {
@@ -870,7 +870,7 @@ export default function MenuManagement() {
               }}
             >
               Chỉnh sửa
-            </button>
+            </button> */}
           </>
         }>
           <DetailModal.Card>

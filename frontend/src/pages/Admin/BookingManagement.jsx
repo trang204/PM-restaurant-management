@@ -663,61 +663,61 @@ export default function BookingManagement({ staffMode = false }) {
                   placeholder="Nhập số khách"
                 />
             </label>
-          </div>
-          <div className="booking-mgmt__walkInActions">
-            <button
-              type="button"
-              className="booking-mgmt__btn booking-mgmt__btn--primary"
-              disabled={walkInBusy}
-              onClick={async () => {
-                const tid = Number(walkInTableId)
-                if (!Number.isFinite(tid) || tid <= 0) {
-                  toast('Chọn bàn trống.', { variant: 'info' })
-                  return
-                }
-                const guests = Number(walkInGuests)
-                if (!Number.isFinite(guests) || guests <= 0) {
-                  toast('Nhập số khách.', { variant: 'info' })
-                  return
-                }
-                setWalkInBusy(true)
-                try {
-                  const res = await apiFetch('/admin/reservations/walk-in', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                      tableId: tid,
-                      guestName: walkInName.trim() || undefined,
-                      guestPhone: walkInPhone.trim() || undefined,
-                      guests: guests,
-                      bookingDate: todayYmdLocal(),
-                      bookingTime: nowHmLocal(),
-                    }),
-                  })
-                  setWalkInTableId('')
-                  setWalkInName('')
-                  setWalkInPhone('')
-                  setWalkInGuests('')
-                  load()
-                  refreshTables()
-                  if (res?.tableSession?.qrSvg && res?.tableSession?.orderUrl) {
-                    setQrModal({
-                      title: 'Vãng lai — QR gọi món',
-                      svg: res.tableSession.qrSvg,
-                      url: res.tableSession.orderUrl,
-                      note: res.tableSessionNote,
-                    })
-                  } else if (res?.tableSessionNote) {
-                    toast(res.tableSessionNote, { variant: 'info' })
+            <div className="booking-mgmt__walkInBtnCell">
+              <button
+                type="button"
+                className="booking-mgmt__btn booking-mgmt__btn--primary booking-mgmt__walkInSubmit"
+                disabled={walkInBusy}
+                onClick={async () => {
+                  const tid = Number(walkInTableId)
+                  if (!Number.isFinite(tid) || tid <= 0) {
+                    toast('Chọn bàn trống.', { variant: 'info' })
+                    return
                   }
-                } catch (e) {
-                  toast(e.message, { variant: 'error' })
-                } finally {
-                  setWalkInBusy(false)
-                }
-              }}
-            >
-              {walkInBusy ? 'Đang mở bàn…' : 'Mở bàn & tạo QR'}
-            </button>
+                  const guests = Number(walkInGuests)
+                  if (!Number.isFinite(guests) || guests <= 0) {
+                    toast('Nhập số khách.', { variant: 'info' })
+                    return
+                  }
+                  setWalkInBusy(true)
+                  try {
+                    const res = await apiFetch('/admin/reservations/walk-in', {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        tableId: tid,
+                        guestName: walkInName.trim() || undefined,
+                        guestPhone: walkInPhone.trim() || undefined,
+                        guests: guests,
+                        bookingDate: todayYmdLocal(),
+                        bookingTime: nowHmLocal(),
+                      }),
+                    })
+                    setWalkInTableId('')
+                    setWalkInName('')
+                    setWalkInPhone('')
+                    setWalkInGuests('')
+                    load()
+                    refreshTables()
+                    if (res?.tableSession?.qrSvg && res?.tableSession?.orderUrl) {
+                      setQrModal({
+                        title: 'Vãng lai — QR gọi món',
+                        svg: res.tableSession.qrSvg,
+                        url: res.tableSession.orderUrl,
+                        note: res.tableSessionNote,
+                      })
+                    } else if (res?.tableSessionNote) {
+                      toast(res.tableSessionNote, { variant: 'info' })
+                    }
+                  } catch (e) {
+                    toast(e.message, { variant: 'error' })
+                  } finally {
+                    setWalkInBusy(false)
+                  }
+                }}
+              >
+                {walkInBusy ? 'Đang mở bàn…' : 'Mở bàn & tạo QR'}
+              </button>
+            </div>
           </div>
         </section>
       ) : null}
