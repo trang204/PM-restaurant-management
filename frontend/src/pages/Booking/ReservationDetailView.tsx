@@ -174,11 +174,45 @@ export default function ReservationDetailView({ bookingId, variant, onClose, onC
           </DetailModal.Card>
 
           {data.tableOrderToken ? (
-            <p style={{ margin: 0 }}>
-              <Link to={`/order/table/${encodeURIComponent(data.tableOrderToken)}`} style={{ color: '#b8935a', fontWeight: 600, textDecoration: 'none' }}>
-                → Gọi món tại bàn
-              </Link>
-            </p>
+            <DetailModal.Card title="Gọi món tại bàn">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '12px 0' }}>
+                <p style={{ margin: 0, textAlign: 'center', color: '#555', fontSize: '0.95rem' }}>
+                  Quét mã QR hoặc bấm vào link dưới đây để gọi món trực tiếp từ điện thoại tại bàn:
+                </p>
+                {data.tableOrderQrSvg ? (
+                  <div 
+                    style={{ 
+                      background: '#fff', 
+                      padding: '12px', 
+                      borderRadius: '12px', 
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                      border: '1px solid #eae5de',
+                      display: 'inline-flex',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}
+                    dangerouslySetInnerHTML={{ __html: data.tableOrderQrSvg }}
+                  />
+                ) : null}
+                <Link 
+                  to={`/order/table/${encodeURIComponent(data.tableOrderToken)}`} 
+                  className="nav__link nav__cta"
+                  style={{ 
+                    display: 'inline-flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    gap: 8, 
+                    height: 40, 
+                    padding: '0 24px',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    borderRadius: '8px'
+                  }}
+                >
+                  Bắt đầu gọi món →
+                </Link>
+              </div>
+            </DetailModal.Card>
           ) : null}
         </div>
       ) : null}

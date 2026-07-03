@@ -12,16 +12,16 @@ export type ApiResponse<T> =
   | { success: true; data: T; meta?: unknown }
   | { success: false; error: ApiError }
 
-export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api'
 
 /** Origin API (no /api suffix) — for static uploads if backend serves them. */
 export function getApiOrigin(): string {
   const raw = String(API_BASE).replace(/\/$/, '')
-  const origin = raw.replace(/\/api$/, '') || 'http://localhost:5000'
+  const origin = raw.replace(/\/api$/, '') || 'http://localhost:5001'
   try {
     const u = new URL(origin)
     if (u.port === '5173' || u.port === '4173') {
-      return 'http://localhost:5000'
+      return 'http://localhost:5001'
     }
   } catch {
     /* ignore */

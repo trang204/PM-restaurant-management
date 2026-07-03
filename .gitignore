@@ -1,6 +1,22 @@
+# Environment
 backend/.env
+
+# Logs
 backend/*.log
+*.log
+
+# Node modules
 node_modules/
-hdmail
-sequence
-database
+frontend/node_modules/
+backend/node_modules/
+
+# Upload files
+backend/uploads/
+
+# Database
+database/
+/backend/database
+
+# Other folders
+hdmail/
+sequence/

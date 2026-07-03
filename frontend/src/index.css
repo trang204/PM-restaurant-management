@@ -96,6 +96,6 @@ code {
   margin: 0;
 }
 
-.required-asterisk { color: red; margin-left: 4px; }
+.required-asterisk { color: red; margin-left: 4px; white-space: nowrap;  }
 .input-error { border-color: red !important; }
 

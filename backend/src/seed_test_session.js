@@ -33,10 +33,20 @@ async function run() {
     }
 
     // 3. Clear existing active sessions on this table
+    const token = 'testtoken123';
+    const existingSess = await pool.query("SELECT id FROM table_sessions WHERE qr_token = $1", [token]);
+    if (existingSess.rows.length > 0) {
+      const sessId = existingSess.rows[0].id;
+      await pool.query(
+        `DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE table_session_id = $1)`,
+        [sessId]
+      );
+      await pool.query("DELETE FROM orders WHERE table_session_id = $1", [sessId]);
+      await pool.query("DELETE FROM table_sessions WHERE id = $1", [sessId]);
+    }
     await pool.query("UPDATE table_sessions SET status = 'CLOSED' WHERE table_id = $1", [tableId]);
 
     // 4. Create active table session
-    const token = 'testtoken123';
     const sessRes = await pool.query(
       `INSERT INTO table_sessions (table_id, qr_token, status)
        VALUES ($1, $2, 'ACTIVE') RETURNING id`,

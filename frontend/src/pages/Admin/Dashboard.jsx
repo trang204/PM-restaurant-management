@@ -227,9 +227,6 @@ export default function Dashboard() {
                 <RefreshCw size={16} />
                 Làm mới
               </button>
-              <Link to="/admin/bookings" className="dash__btn dash__btn--primary">
-                Xem tất cả
-              </Link>
             </div>
           </div>
 
@@ -310,6 +307,7 @@ export default function Dashboard() {
                           className="dash__btn dash__btn--sm dash__btn--primary"
                           disabled={busy || !['PENDING', 'HOLD'].includes(String(r.status || '').toUpperCase())}
                           onClick={() => confirmBooking(r.id)}
+                          // style={{ display: ['PENDING', 'HOLD'].includes(String(r.status || '').toUpperCase()) ? 'inline-block' : 'none' }}
                         >
                           Xác nhận
                         </button>
@@ -338,9 +336,6 @@ export default function Dashboard() {
               Lịch sử nhập kho gần nhất
             </h2>
             <div className="dash__sectionActions">
-              <Link to="/admin/ingredients" className="dash__btn dash__btn--primary">
-                Quản lý nguyên liệu
-              </Link>
             </div>
           </div>
 
@@ -377,31 +372,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Quick links */}
-      <div className="dash__section" style={{ marginTop: 20 }}>
-        <h2 className="dash__section-title">
-          <ClipboardList size={16} />
-          Truy cập nhanh
-        </h2>
-        <div className="dash__links">
-          <Link to="/admin/bookings" className="dash__link">
-            <PlusCircle size={22} />
-            Tạo đặt bàn
-          </Link>
-          <Link to="/admin/kitchen" className="dash__link">
-            <ChefHat size={22} />
-            Thêm món
-          </Link>
-          <Link to="/admin/bookings" className="dash__link">
-            <LogIn size={22} />
-            Check-in khách
-          </Link>
-          <Link to="/admin/tables" className="dash__link">
-            <TableProperties size={22} />
-            Xem bàn trống
-          </Link>
-        </div>
-      </div>
 
       {infoModal && (
         <div className="dash__modal-backdrop" onClick={() => setInfoModal(null)}>
@@ -483,16 +453,6 @@ export default function Dashboard() {
             <div className="dash__modal-footer">
               <button className="dash__btn dash__btn--ghost" onClick={() => setInfoModal(null)}>
                 Đóng
-              </button>
-              <button 
-                className="dash__btn dash__btn--primary" 
-                style={{ marginLeft: 10 }}
-                onClick={() => {
-                  setInfoModal(null);
-                  navigate(`/admin/bookings?date=${infoModal.booking.date}&q=${infoModal.booking.id}`);
-                }}
-              >
-                Tới trang Đặt bàn
               </button>
             </div>
           </div>

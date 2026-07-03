@@ -189,9 +189,6 @@ export default function Home() {
             <h2 className="home-strip__title">{homeContent.ctaTitle}</h2>
             <p className="home-strip__text">{homeContent.ctaText}</p>
           </div>
-          <Link to="/book" className="home-btn home-btn--light">
-            Bắt đầu đặt chỗ
-          </Link>
         </div>
       </section>
     </main>

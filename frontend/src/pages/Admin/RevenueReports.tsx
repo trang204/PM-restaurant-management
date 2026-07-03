@@ -544,7 +544,7 @@ export default function RevenueReports() {
     <div className="rev-report">
       <header className="rev-report__header">
         <div>
-          <h1 className="rev-report__title">Báo Cáo Doanh Thu</h1>
+          <h1 className="rev-report__title">Báo cáo doanh thu</h1>
         </div>
         <button type="button" className="rev-report__exportBtn" onClick={exportExcel}>
           Xuất báo cáo Excel
@@ -691,8 +691,8 @@ export default function RevenueReports() {
                     <YAxis 
                       axisLine={false} 
                       tickLine={false} 
-                      tickFormatter={(v) => `${(v / 1000).toLocaleString('vi-VN')}k`}
-                      tick={{ fill: '#7A7069', fontSize: 12 }}
+                      tickFormatter={(v) => `${(v / 1).toLocaleString('vi-VN')}đ`}
+                      tick={{ fill: '#7A7069', fontSize: 11 }}
                       width={60}
                     />
                     <Tooltip content={<CustomTooltip groupBy={groupBy} />} cursor={{ fill: 'rgba(184,147,90,0.1)' }} />

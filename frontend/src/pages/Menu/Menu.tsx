@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { RefreshCw } from 'lucide-react'
 import './Menu.css'
 import phoUrl from '../../assets/menu/pho.svg?url'
 import bunchaUrl from '../../assets/menu/buncha.svg?url'
@@ -88,20 +87,6 @@ export default function Menu() {
     }
   }, [])
 
-  // Explicit load so we can refresh on button click
-  const load = async () => {
-    setLoading(true)
-    try {
-      const [data, cats] = await Promise.all([apiFetch<ApiMenuItem[]>('/menu'), apiFetch<CategoryRow[]>('/menu/categories')])
-      setItems(Array.isArray(data) ? data : [])
-      setCategories(Array.isArray(cats) ? cats : [])
-      setError(null)
-    } catch (e) {
-      setError((e as Error)?.message || String(e))
-    } finally {
-      setLoading(false)
-    }
-  }
 
   useEffect(() => {
     const token = localStorage.getItem('luxeat_token')
@@ -176,10 +161,6 @@ export default function Menu() {
               <p className="menuSection__hint" style={{ margin: 0 }}>
                 {loading ? 'Đang tải...' : error ? `Lỗi: ${error}` : `${visible.length} món`}
               </p>
-              <button type="button" className="menuRefreshBtn" onClick={load} disabled={loading}>
-                <RefreshCw size={16} />
-                {loading ? 'Đang tải…' : 'Làm mới'}
-              </button>
             </div>
         </div>
 

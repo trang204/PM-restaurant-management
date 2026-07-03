@@ -15,6 +15,7 @@ export default function Register() {
   const [error, setError] = useState<string | null>(null)
   const [fieldErr, setFieldErr] = useState<{ fullName?: string; email?: string; phone?: string; password?: string; confirmPassword?: string } | null>(null)
   const [loading, setLoading] = useState(false)
+  const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [brand, setBrand] = useState('Luxeat')
   const [banner, setBanner] = useState<string | null>(null)
 
@@ -95,11 +96,14 @@ export default function Register() {
         }),
       })
       setToken(data.token)
-      if (data.user?.role === 'ADMIN') {
-        window.location.href = '/admin'
-        return
-      }
-      window.location.href = '/'
+      setSuccessMsg('Đăng ký tài khoản thành công!')
+      setTimeout(() => {
+        if (data.user?.role === 'ADMIN') {
+          window.location.href = '/admin'
+        } else {
+          window.location.href = '/'
+        }
+      }, 1000)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -108,6 +112,14 @@ export default function Register() {
   }
 
   return (
+    <>
+      {successMsg ? (
+        <div className="authToast authToast--success" role="alert">
+          <span className="authToast__icon">✓</span>
+          <span className="authToast__text">{successMsg}</span>
+          <button className="authToast__close" onClick={() => setSuccessMsg(null)} aria-label="Đóng">×</button>
+        </div>
+      ) : null}
     <main className="authPage">
       <div
         className={`authPage__aside${banner ? ' authPage__aside--banner' : ''}`}
@@ -245,5 +257,6 @@ export default function Register() {
         </div>
       </div>
     </main>
+    </>
   )
 }

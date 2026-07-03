@@ -451,7 +451,7 @@ export default function MenuManagement() {
             <div className="menu-mgmt__categoryLeft">
               <h2 className="menu-mgmt__categoryTitle">Danh mục</h2>
               <p className="menu-mgmt__categorySub">
-                Món không gán danh mục thuộc <strong>Chưa phân loại</strong>. Bấm vào danh mục để lọc món.
+                Món không gán danh mục thuộc <strong>Chưa phân loại</strong>.
               </p>
             </div>
 
@@ -577,7 +577,7 @@ export default function MenuManagement() {
       ) : null}
 
       {!loading && !err && sections.length === 0 ? (
-        <p className="menu-mgmt__empty">Không tìm thấy món nào phù hợp. Thử đổi danh mục, trạng thái hoặc từ khóa.</p>
+        <p className="menu-mgmt__empty">Không tìm thấy món nào phù hợp.</p>
       ) : null}
 
       {!loading && !err && pagedItems.length > 0 ? (
@@ -618,7 +618,6 @@ export default function MenuManagement() {
                     onClick={(e) => e.stopPropagation()}
                     onKeyDown={(e) => e.stopPropagation()}
                   >
-                    <span className="menu-card__stockTitle">Trạng thái</span>
                     <div className="menu-card__stockActions">
                       <span
                         className="menu-card__status menu-card__status--row"
@@ -652,7 +651,7 @@ export default function MenuManagement() {
                     </div>
                   </div>
                   <div className="menu-card__actions">
-                    <button
+                    {/* <button
                       type="button"
                       className="menu-card__btn menu-card__btn--secondary"
                       onClick={(e) => {
@@ -661,7 +660,7 @@ export default function MenuManagement() {
                       }}
                     >
                       Chi tiết
-                    </button>
+                    </button> */}
                     <button
                       type="button"
                       className="menu-card__btn menu-card__btn--secondary"
@@ -670,7 +669,7 @@ export default function MenuManagement() {
                         openEdit(it)
                       }}
                     >
-                      Sửa
+                      Chỉnh sửa
                     </button>
                     <button
                       type="button"
@@ -861,7 +860,7 @@ export default function MenuManagement() {
             <button type="button" className="menu-modal__cancel" onClick={closeDetail}>
               Đóng
             </button>
-            <button
+            {/* <button
               type="button"
               className="menu-modal__submit"
               onClick={() => {
@@ -870,7 +869,7 @@ export default function MenuManagement() {
               }}
             >
               Chỉnh sửa
-            </button>
+            </button> */}
           </>
         }>
           <DetailModal.Card>

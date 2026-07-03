@@ -194,7 +194,6 @@ export default function TableLayoutEditor() {
       <header className="layout-editor__head">
         <div>
           <h1 className="layout-editor__title">Chỉnh sơ đồ bàn</h1>
-          <p className="layout-editor__sub">Kéo thả tự do từng bàn. Khi ổn rồi, bấm Lưu sơ đồ để cập nhật.</p>
         </div>
         <div className="layout-editor__actions">
           <button type="button" className="layout-editor__btn layout-editor__btn--ghost" onClick={() => navigate('/admin/tables')}>

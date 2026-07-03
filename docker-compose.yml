@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: qlnhahang-backend
+    restart: always
+    ports:
+      - "5001:5000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - PORT=5000
+      - PGHOST=host.docker.internal # Kết nối tới database PostgreSQL trên máy host
+      - PGPORT=5432
+      - PGUSER=postgres
+      - PGPASSWORD=123456
+      - PGDATABASE=postgres
+      - JWT_EXPIRES_IN=7d
+      - JWT_SECRET=ee170b4ba742d7281b073beeabcf7477fbc141bc9baf5f367f0e8653863e18fc
+      - APP_SECRET=8d9804cb2384813faea24a03e431031533d5b1354250b112748f8ea4ef3823cd
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=465
+      - SMTP_SECURE=true
+      - SMTP_USER=luxeat.restaurant@gmail.com
+      - SMTP_PASS=zhnn gibj tniu hbmb
+      - MAIL_FROM=luxeat.restaurant@gmail.com
+      - FRONTEND_URL=http://localhost:5173
+    volumes:
+      - ./backend/uploads:/usr/src/app/uploads

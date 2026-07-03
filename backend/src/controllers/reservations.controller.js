@@ -1,8 +1,9 @@
+import QRCode from 'qrcode'
 import { ok, created } from '../utils/response.js'
 import { badRequest, notFound } from '../utils/httpError.js'
 import { query, withTransaction } from '../config/db.js'
 import { mapBookingForClient } from '../utils/bookingMapper.js'
-import { closeSessionsForBooking, publicOrderUrl } from '../services/tableSession.service.js'
+import { closeSessionsForBooking, publicOrderUrl, ensureTableSessionForBooking } from '../services/tableSession.service.js'
 
 function toInt(v) {
   const n = Number(v)
@@ -287,18 +288,25 @@ export async function getReservationDetail(req, res, next) {
       mapped.orderItems = []
     }
 
+    const bookingStatus = String(booking.status || '').toUpperCase()
     if (
       Number.isFinite(userId) &&
       booking.user_id === userId &&
-      String(booking.status || '').toUpperCase() === 'CHECKED_IN'
+      (bookingStatus === 'CHECKED_IN' || bookingStatus === 'CONFIRMED')
     ) {
-      const sess = await query(
-        `SELECT qr_token FROM table_sessions WHERE booking_id = $1 AND status = 'ACTIVE' LIMIT 1`,
-        [id],
-      )
-      if (sess.rows[0]?.qr_token) {
-        mapped.tableOrderToken = sess.rows[0].qr_token
-        mapped.tableOrderUrl = publicOrderUrl(sess.rows[0].qr_token)
+      const sessionPayload = await ensureTableSessionForBooking(id)
+      if (sessionPayload?.qrToken) {
+        mapped.tableOrderToken = sessionPayload.qrToken
+        mapped.tableOrderUrl = sessionPayload.orderUrl
+        try {
+          mapped.tableOrderQrSvg = await QRCode.toString(sessionPayload.orderUrl, {
+            type: 'svg',
+            width: 200,
+            margin: 1,
+          })
+        } catch (e) {
+          console.error('Failed to generate QR code SVG:', e)
+        }
       }
     }
 
