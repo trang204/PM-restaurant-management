@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { apiFetch, mediaUrl, storagePathFromMediaUrl } from '../../lib/api'
+import { apiFetch, mediaUrl, storagePathFromMediaUrl, API_BASE } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import { requiredMessage } from '../../lib/validation'
 import './Settings.css'
@@ -412,7 +412,7 @@ export default function Settings() {
     setErr(null)
     try {
       const token = localStorage.getItem('luxeat_token')
-      const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+      const base = API_BASE
       const fd = new FormData()
       fd.append('logo', file)
       const res = await fetch(`${base.replace(/\/$/, '')}/settings/logo`, {
@@ -438,7 +438,7 @@ export default function Settings() {
     setErr(null)
     try {
       const token = localStorage.getItem('luxeat_token')
-      const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+      const base = API_BASE
       const fd = new FormData()
       for (const f of files) fd.append('banners', f)
       const res = await fetch(`${base.replace(/\/$/, '')}/settings/banners`, {
@@ -464,7 +464,7 @@ export default function Settings() {
     setErr(null)
     try {
       const token = localStorage.getItem('luxeat_token')
-      const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+      const base = API_BASE
       const res = await fetch(`${base.replace(/\/$/, '')}/settings/banners`, {
         method: 'DELETE',
         headers: {
