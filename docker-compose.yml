@@ -1,6 +1,20 @@
 version: '3.8'
 
 services:
+  db:
+    image: postgres:15-alpine
+    container_name: qlnhahang-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./data.sql:/docker-entrypoint-initdb.d/init.sql
+
   backend:
     build:
       context: ./backend
@@ -9,11 +23,11 @@ services:
     restart: always
     ports:
       - "5001:5000"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    depends_on:
+      - db
     environment:
       - PORT=5000
-      - PGHOST=host.docker.internal # Kết nối tới database PostgreSQL trên máy host
+      - PGHOST=db
       - PGPORT=5432
       - PGUSER=postgres
       - PGPASSWORD=123456
@@ -30,3 +44,6 @@ services:
       - FRONTEND_URL=http://localhost:5173
     volumes:
       - ./backend/uploads:/usr/src/app/uploads
+
+volumes:
+  pgdata:
