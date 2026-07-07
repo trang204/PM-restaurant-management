@@ -1,5 +1,6 @@
 import { createServer } from './app.js'
 import { ensureDbSchema, query } from './config/db.js'
+import { syncUploads } from './utils/syncUploads.js'
 
 // ─── Kiểm tra biến môi trường bắt buộc ───────────────────────────────────────
 function validateEnv() {
@@ -90,6 +91,7 @@ function onListening() {
 async function start() {
   try {
     await ensureDbSchema()
+    await syncUploads()
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error('ensureDbSchema failed:', e)
