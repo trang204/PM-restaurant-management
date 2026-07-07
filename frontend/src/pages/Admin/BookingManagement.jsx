@@ -1263,12 +1263,14 @@ export default function BookingManagement({ staffMode = false }) {
                         </div>
                       </td>
                       <td data-label="Trạng thái">
-                        <span className={badgeClass(r.status)}>{statusLabel(r.status)}</span>
-                        {isOverdue && (
-                          <span className="book-badge book-badge--red" style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }} title="Khách quá giờ nhận bàn nhưng chưa check-in">
-                            ⚠️ Quá giờ
-                          </span>
-                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+                          <span className={badgeClass(r.status)}>{statusLabel(r.status)}</span>
+                          {isOverdue && (
+                            <span className="book-badge book-badge--red" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} title="Khách quá giờ nhận bàn nhưng chưa check-in">
+                              ⚠️ Quá giờ
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td data-label="Thao tác">
                         <div className="booking-mgmt__actions">
