@@ -1,6 +1,7 @@
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
+import { saveFileWithBackup } from '../utils/fileHelper.js'
 
 import { ok, created } from '../utils/response.js'
 import { badRequest, notFound } from '../utils/httpError.js'
@@ -191,10 +192,9 @@ export async function uploadImage(req, res, next) {
     if (!cur.rows.length) throw notFound('Không tìm thấy bàn')
     const prevUrl = cur.rows[0].image_url
 
-    await fs.mkdir(UPLOAD_DIR, { recursive: true })
     const ext = mime === 'image/jpeg' ? 'jpg' : mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'gif'
     const safeName = `table_${id}_${Date.now()}_${Math.random().toString(16).slice(2)}.${ext}`
-    await fs.writeFile(path.join(UPLOAD_DIR, safeName), file.buffer)
+    await saveFileWithBackup(safeName, file.buffer)
 
     const publicUrl = `/uploads/${safeName}`
     const r = await query(`UPDATE tables SET image_url = $1 WHERE id = $2 AND is_deleted = false RETURNING id, image_url`, [publicUrl, id])

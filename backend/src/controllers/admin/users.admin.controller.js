@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt'
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
+import { saveFileWithBackup } from '../../utils/fileHelper.js'
 import { ok, created } from '../../utils/response.js'
 import { badRequest, notFound } from '../../utils/httpError.js'
 import { query } from '../../config/db.js'
@@ -215,10 +216,9 @@ export async function uploadAvatar(req, res, next) {
     if (!cur.rows.length) throw notFound('Không tìm thấy người dùng')
     const prevUrl = cur.rows[0].avatar_url
 
-    await fs.mkdir(UPLOAD_DIR, { recursive: true })
     const ext = mime === 'image/jpeg' ? 'jpg' : mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'gif'
     const safeName = `user_${id}_${Date.now()}_${Math.random().toString(16).slice(2)}.${ext}`
-    await fs.writeFile(path.join(UPLOAD_DIR, safeName), file.buffer)
+    await saveFileWithBackup(safeName, file.buffer)
 
     const publicUrl = `/uploads/${safeName}`
     const r = await query(

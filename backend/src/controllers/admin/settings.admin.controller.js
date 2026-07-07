@@ -1,6 +1,8 @@
 import path from 'node:path'
 import fs from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { saveFileWithBackup } from '../../utils/fileHelper.js'
 
 import { ok } from '../../utils/response.js'
 import { badRequest } from '../../utils/httpError.js'
@@ -177,12 +179,10 @@ export async function uploadBanners(req, res, next) {
     const files = Array.isArray(req.files) ? req.files : []
     if (!files.length) throw badRequest('banner là bắt buộc')
 
-    await fs.mkdir(UPLOAD_DIR, { recursive: true })
     const urls = []
     for (const f of files) {
       const safeName = `${Date.now()}_${Math.random().toString(16).slice(2)}_${f.originalname}`.replaceAll('..', '')
-      const fullPath = path.join(UPLOAD_DIR, safeName)
-      await fs.writeFile(fullPath, f.buffer)
+      await saveFileWithBackup(safeName, f.buffer)
       urls.push(`/uploads/${safeName}`)
     }
 
@@ -239,10 +239,8 @@ export async function uploadLogo(req, res, next) {
     const file = req.file
     if (!file) throw badRequest('logo là bắt buộc')
 
-    await fs.mkdir(UPLOAD_DIR, { recursive: true })
     const safeName = `${Date.now()}_${file.originalname}`.replaceAll('..', '')
-    const fullPath = path.join(UPLOAD_DIR, safeName)
-    await fs.writeFile(fullPath, file.buffer)
+    await saveFileWithBackup(safeName, file.buffer)
 
     const logoUrl = `/uploads/${safeName}`
 
@@ -258,6 +256,158 @@ export async function uploadLogo(req, res, next) {
     )
 
     return ok(res, r.rows[0])
+  } catch (e) {
+    return next(e)
+  }
+}
+
+export async function getUploadsManager(req, res, next) {
+  try {
+    // Read database references
+    const [foodsRes, tablesRes, usersRes, settingsRes] = await Promise.all([
+      query("SELECT id, name, image_url FROM foods WHERE image_url IS NOT NULL AND image_url != ''"),
+      query("SELECT id, name, image_url FROM tables WHERE is_deleted = false AND image_url IS NOT NULL AND image_url != ''"),
+      query("SELECT id, name, avatar_url FROM users WHERE avatar_url IS NOT NULL AND avatar_url != ''"),
+      query("SELECT logo_url, banner_urls FROM settings LIMIT 1")
+    ])
+
+    // Maps for direct lookup
+    const foodMap = new Map()
+    foodsRes.rows.forEach(r => {
+      const fn = String(r.image_url).replace(/^\/uploads\//, '')
+      foodMap.set(fn, { id: r.id, name: r.name })
+    })
+
+    const tableMap = new Map()
+    tablesRes.rows.forEach(r => {
+      const fn = String(r.image_url).replace(/^\/uploads\//, '')
+      tableMap.set(fn, { id: r.id, name: r.name })
+    })
+
+    const userMap = new Map()
+    usersRes.rows.forEach(r => {
+      const fn = String(r.avatar_url).replace(/^\/uploads\//, '')
+      userMap.set(fn, { id: r.id, name: r.name })
+    })
+
+    const settingsRow = settingsRes.rows[0] || {}
+    const logoFilename = settingsRow.logo_url ? String(settingsRow.logo_url).replace(/^\/uploads\//, '') : null
+    const bannerFilenames = new Set(
+      (Array.isArray(settingsRow.banner_urls) ? settingsRow.banner_urls : [])
+        .map(url => String(url).replace(/^\/uploads\//, ''))
+        .filter(Boolean)
+    )
+
+    // Read local directories
+    const uploadsDir = path.resolve(__dirname, '../../../uploads')
+    const backupDir = path.resolve(__dirname, '../../../uploads_backup')
+
+    let uploadsFiles = []
+    try {
+      uploadsFiles = await fs.readdir(uploadsDir)
+    } catch (e) {
+      // ignore
+    }
+
+    let backupFiles = []
+    try {
+      backupFiles = await fs.readdir(backupDir)
+    } catch (e) {
+      // ignore
+    }
+
+    const backupSet = new Set(backupFiles)
+    const uploadSet = new Set(uploadsFiles)
+
+    // Combine all filenames from both directories
+    const allFilenames = new Set([...uploadsFiles, ...backupFiles])
+
+    const categorized = {
+      foods: [],
+      tables: [],
+      users: [],
+      settings: [],
+      others: []
+    }
+
+    for (const filename of allFilenames) {
+      if (filename.startsWith('.') || filename === 'Thumbs.db') continue
+
+      const inUploads = uploadSet.has(filename)
+      const inBackup = backupSet.has(filename)
+
+      const fileData = {
+        filename,
+        url: `/uploads/${filename}`,
+        inUploads,
+        inBackup
+      }
+
+      if (foodMap.has(filename)) {
+        const ref = foodMap.get(filename)
+        fileData.refName = ref.name
+        fileData.refId = ref.id
+        categorized.foods.push(fileData)
+      } else if (filename.startsWith('food_')) {
+        categorized.foods.push(fileData)
+      } else if (tableMap.has(filename)) {
+        const ref = tableMap.get(filename)
+        fileData.refName = ref.name
+        fileData.refId = ref.id
+        categorized.tables.push(fileData)
+      } else if (filename.startsWith('table_')) {
+        categorized.tables.push(fileData)
+      } else if (userMap.has(filename)) {
+        const ref = userMap.get(filename)
+        fileData.refName = ref.name
+        fileData.refId = ref.id
+        categorized.users.push(fileData)
+      } else if (filename.startsWith('user_')) {
+        categorized.users.push(fileData)
+      } else if (filename === logoFilename || bannerFilenames.has(filename)) {
+        fileData.isLogo = filename === logoFilename
+        fileData.isBanner = bannerFilenames.has(filename)
+        categorized.settings.push(fileData)
+      } else if (filename.toLowerCase().includes('logo') || filename.toLowerCase().includes('banner')) {
+        categorized.settings.push(fileData)
+      } else {
+        categorized.others.push(fileData)
+      }
+    }
+
+    return ok(res, categorized)
+  } catch (e) {
+    return next(e)
+  }
+}
+
+export async function syncFile(req, res, next) {
+  try {
+    const { filename, action } = req.body || {}
+    if (!filename || !action) throw badRequest('filename và action là bắt buộc')
+    if (filename.includes('..') || filename.startsWith('/') || filename.startsWith('\\')) {
+      throw badRequest('filename không hợp lệ')
+    }
+
+    const uploadsDir = path.resolve(__dirname, '../../../uploads')
+    const backupDir = path.resolve(__dirname, '../../../uploads_backup')
+
+    const uploadPath = path.join(uploadsDir, filename)
+    const backupPath = path.join(backupDir, filename)
+
+    if (action === 'restore') {
+      if (!existsSync(backupPath)) throw badRequest('Không tìm thấy file trong thư mục backup')
+      await fs.mkdir(uploadsDir, { recursive: true })
+      await fs.copyFile(backupPath, uploadPath)
+      return ok(res, { message: `Đã khôi phục file ${filename} thành công.` })
+    } else if (action === 'backup') {
+      if (!existsSync(uploadPath)) throw badRequest('Không tìm thấy file trong thư mục uploads')
+      await fs.mkdir(backupDir, { recursive: true })
+      await fs.copyFile(uploadPath, backupPath)
+      return ok(res, { message: `Đã sao lưu file ${filename} thành công.` })
+    } else {
+      throw badRequest('action không hợp lệ (chỉ chấp nhận restore hoặc backup)')
+    }
   } catch (e) {
     return next(e)
   }

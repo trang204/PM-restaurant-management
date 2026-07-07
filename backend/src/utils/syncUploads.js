@@ -3,13 +3,17 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { query } from '../config/db.js'
+import { saveFileWithBackup, syncLocalBackup } from './fileHelper.js'
 
 export async function syncUploads() {
+  // Khôi phục từ uploads_backup sang uploads trước
+  await syncLocalBackup()
+
   const sourceUrl = (process.env.UPLOAD_SOURCE_URL || process.env.IMAGE_SOURCE_URL || '').trim()
   if (!sourceUrl) {
     // eslint-disable-next-line no-console
     console.log(
-      '[Sync Uploads] Bỏ qua đồng bộ ảnh uploads do chưa cấu hình UPLOAD_SOURCE_URL trong .env.'
+      '[Sync Uploads] Bỏ qua tải ảnh từ remote do chưa cấu hình UPLOAD_SOURCE_URL trong .env.'
     )
     return
   }
@@ -88,14 +92,12 @@ export async function syncUploads() {
     // Download missing files
     for (const filename of missingFiles) {
       const remoteUrl = `${cleanSourceUrl}/uploads/${filename}`
-      const localFilePath = path.join(uploadsDir, filename)
-
       try {
         const res = await fetch(remoteUrl)
         if (res.ok) {
           const arrayBuffer = await res.arrayBuffer()
           const buffer = Buffer.from(arrayBuffer)
-          await fs.writeFile(localFilePath, buffer)
+          await saveFileWithBackup(filename, buffer)
           successCount++
           // eslint-disable-next-line no-console
           console.log(`[Sync Uploads] [${successCount}/${missingFiles.length}] Đã tải: ${filename}`)
