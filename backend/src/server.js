@@ -100,7 +100,7 @@ function onListening() {
         FROM bookings
         WHERE status IN ('PENDING', 'CONFIRMED')
           AND overdue_notified = FALSE
-          AND (booking_date + booking_time) < (NOW() - $1 * INTERVAL '1 minute')
+          AND (booking_date + booking_time) < ((NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') - $1 * INTERVAL '1 minute')
         LIMIT 100
         `,
         [duration]
