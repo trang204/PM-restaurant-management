@@ -207,6 +207,7 @@ export default function BookingManagement({ staffMode = false }) {
           bankCode: String(d.payment_bank_code ?? '').trim(),
           transferContent: String(d.payment_transfer_content ?? '').trim(),
           qrTemplate: String(d.payment_qr_template ?? '').trim(),
+          holdDuration: Number(d.reservation_hold_duration || 15),
         })
       })
       .catch(() => {})
@@ -1203,6 +1204,16 @@ export default function BookingManagement({ staffMode = false }) {
                   const tableClosed = assignedTableIsClosed(tables, r)
                   const takenByOthers = tableIdsTakenByOtherBookings(rows, r)
                   const actionType = rowActionType(r)
+                  const isOverdue = (r.status === 'PENDING' || r.status === 'CONFIRMED' || r.status === 'HOLD') && (() => {
+                    if (!r.date || !r.time) return false
+                    const bDate = normDate(r.date)
+                    const bTime = normTime(r.time)
+                    const bookingDateTime = new Date(`${bDate}T${bTime}:00`)
+                    if (isNaN(bookingDateTime.getTime())) return false
+                    const now = new Date()
+                    const limit = (paymentSettings?.holdDuration || 15) * 60 * 1000
+                    return (now.getTime() - bookingDateTime.getTime()) > limit
+                  })()
                   return (
                     <tr key={r.id}>
                       <td data-label="Khách">{r.fullName}</td>
@@ -1253,6 +1264,11 @@ export default function BookingManagement({ staffMode = false }) {
                       </td>
                       <td data-label="Trạng thái">
                         <span className={badgeClass(r.status)}>{statusLabel(r.status)}</span>
+                        {isOverdue && (
+                          <span className="book-badge book-badge--red" style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }} title="Khách quá giờ nhận bàn nhưng chưa check-in">
+                            ⚠️ Quá giờ
+                          </span>
+                        )}
                       </td>
                       <td data-label="Thao tác">
                         <div className="booking-mgmt__actions">
@@ -1285,15 +1301,24 @@ export default function BookingManagement({ staffMode = false }) {
                           ) : null}
 
                           {actionType === 'CONFIRMED' ? (
-                            <button
-                              type="button"
-                              className="booking-mgmt__btn booking-mgmt__btn--secondary"
-                              disabled={tableClosed}
-                              title={tableClosed ? 'Bàn đang đóng — chuyển khách sang bàn khác hoặc mở lại bàn trước' : undefined}
-                              onClick={() => checkIn(r.id)}
-                            >
-                              Check-in khách
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                className="booking-mgmt__btn booking-mgmt__btn--secondary"
+                                disabled={tableClosed}
+                                title={tableClosed ? 'Bàn đang đóng — chuyển khách sang bàn khác hoặc mở lại bàn trước' : undefined}
+                                onClick={() => checkIn(r.id)}
+                              >
+                                Check-in khách
+                              </button>
+                              <button
+                                type="button"
+                                className="booking-mgmt__btn booking-mgmt__btn--danger"
+                                onClick={() => cancelBooking(r.id)}
+                              >
+                                Hủy
+                              </button>
+                            </>
                           ) : null}
 
                           {actionType === 'CHECKED_IN' ? (
