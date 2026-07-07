@@ -42,6 +42,7 @@ services:
       - SMTP_PASS=zhnn gibj tniu hbmb
       - MAIL_FROM=luxeat.restaurant@gmail.com
       - FRONTEND_URL=http://localhost:5173
+      - UPLOAD_SOURCE_URL=${UPLOAD_SOURCE_URL:-}
     volumes:
       - ./backend/uploads:/usr/src/app/uploads
 

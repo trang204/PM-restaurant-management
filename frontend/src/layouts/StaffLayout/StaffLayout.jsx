@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { LayoutGrid, ChefHat, BarChart3, LogOut, Menu as MenuIcon, X } from 'lucide-react'
-import { apiFetch, setToken } from '../../lib/api'
+import { apiFetch, setToken, mediaUrl } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
 import { fetchPublicSettings } from '../../lib/settings'
 import NotificationBell from '../../components/NotificationBell.jsx'
@@ -13,14 +13,19 @@ export default function StaffLayout() {
   const { confirm } = useNotifications()
   const [me, setMe] = useState(null)
   const [navOpen, setNavOpen] = useState(false)
-  const [brandName, setBrandName] = useState('Nhà hàng')
+  const [brand, setBrand] = useState({ name: 'Nhà hàng', logoUrl: null })
 
   useEffect(() => { setNavOpen(false) }, [pathname])
 
   useEffect(() => {
     fetchPublicSettings()
-      .then((s) => setBrandName(s.restaurantName?.trim() || 'Nhà hàng'))
-      .catch(() => {})
+      .then((s) =>
+        setBrand({
+          name: s.restaurantName?.trim() || 'Nhà hàng',
+          logoUrl: s.logoUrl,
+        }),
+      )
+      .catch(() => setBrand({ name: 'Nhà hàng', logoUrl: null }))
   }, [])
 
   useEffect(() => {
@@ -63,8 +68,16 @@ export default function StaffLayout() {
       <header className="staff-topbar">
         <div className="staff-topbar__left">
           <Link to="/staff" className="staff-topbar__brand">
-            <span className="staff-topbar__mark" aria-hidden />
-            <span>{brandName}</span>
+            {brand.logoUrl ? (
+              <img
+                src={mediaUrl(brand.logoUrl)}
+                alt=""
+                className="staff-topbar__logo"
+              />
+            ) : (
+              <span className="staff-topbar__mark" aria-hidden />
+            )}
+            <span>{brand.name}</span>
             <span className="staff-topbar__badge">Nhân viên</span>
           </Link>
           <nav className={`staff-topbar__nav${navOpen ? ' staff-topbar__nav--open' : ''}`} aria-label="Menu nhân viên">

@@ -1,6 +1,7 @@
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
+import { saveFileWithBackup } from '../../utils/fileHelper.js'
 
 import { ok, created } from '../../utils/response.js'
 import { badRequest, notFound } from '../../utils/httpError.js'
@@ -248,10 +249,9 @@ export async function uploadImage(req, res, next) {
     if (!cur.rows.length) throw notFound('Không tìm thấy món')
     const prevUrl = cur.rows[0].image_url
 
-    await fs.mkdir(UPLOAD_DIR, { recursive: true })
     const ext = mime === 'image/jpeg' ? 'jpg' : mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'gif'
     const safeName = `food_${id}_${Date.now()}_${Math.random().toString(16).slice(2)}.${ext}`
-    await fs.writeFile(path.join(UPLOAD_DIR, safeName), file.buffer)
+    await saveFileWithBackup(safeName, file.buffer)
 
     const publicUrl = `/uploads/${safeName}`
     const r = await query(`UPDATE foods SET image_url = $1 WHERE id = $2 RETURNING id, image_url`, [publicUrl, id])

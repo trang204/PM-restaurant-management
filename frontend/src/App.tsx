@@ -24,6 +24,7 @@ import Settings from './pages/Admin/Settings.jsx'
 import RevenueReports from './pages/Admin/RevenueReports'
 import IngredientManagement from './pages/Admin/IngredientManagement.jsx'
 import TableOrder from './pages/TableOrder/TableOrder'
+import BackendManager from './pages/Admin/BackendManager.jsx'
 
 export default function App() {
   return (
@@ -61,6 +62,8 @@ export default function App() {
         <Route path="reports" element={<RevenueReports />} />
         <Route path="kitchen" element={<KitchenOrders />} />
       </Route>
+
+      <Route path="/backend" element={<BackendManager />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

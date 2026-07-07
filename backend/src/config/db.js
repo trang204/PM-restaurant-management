@@ -547,4 +547,20 @@ export async function ensureDbSchema() {
         FOREIGN KEY (food_id) REFERENCES foods(id) ON DELETE SET NULL`)
     }
   }
+
+  // Ensure overdue_notified column exists in bookings table
+  const ob = await query(
+    `
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'bookings'
+      AND column_name = 'overdue_notified'
+    LIMIT 1
+    `,
+  )
+  if (!ob.rows.length) {
+    await query(`ALTER TABLE bookings ADD COLUMN overdue_notified BOOLEAN DEFAULT FALSE`)
+    await query(`UPDATE bookings SET overdue_notified = FALSE WHERE overdue_notified IS NULL`)
+  }
 }

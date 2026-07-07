@@ -1,5 +1,7 @@
 import { createServer } from './app.js'
 import { ensureDbSchema, query } from './config/db.js'
+import { syncUploads } from './utils/syncUploads.js'
+import { notifyStaffAdmins } from './utils/notifyStaff.js'
 
 // ─── Kiểm tra biến môi trường bắt buộc ───────────────────────────────────────
 function validateEnv() {
@@ -85,11 +87,47 @@ function onListening() {
       // ignore in background job
     }
   }, 60_000)
+
+  // Auto-notify staff for overdue bookings
+  setInterval(async () => {
+    try {
+      const sRes = await query(`SELECT COALESCE(reservation_hold_duration, 15) AS duration FROM settings LIMIT 1`)
+      const duration = sRes.rows[0]?.duration || 15
+
+      const overdue = await query(
+        `
+        SELECT id, guest_name, to_char(booking_time, 'HH24:MI') AS time_str
+        FROM bookings
+        WHERE status IN ('PENDING', 'CONFIRMED')
+          AND overdue_notified = FALSE
+          AND (booking_date + booking_time) < ((NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') - $1 * INTERVAL '1 minute')
+        LIMIT 100
+        `,
+        [duration]
+      )
+
+      if (overdue.rows.length > 0) {
+        const ids = overdue.rows.map(r => r.id)
+        
+        await query(`UPDATE bookings SET overdue_notified = TRUE WHERE id = ANY($1::int[])`, [ids])
+
+        for (const row of overdue.rows) {
+          const guest = row.guest_name || 'Khách hàng'
+          const msg = `Đơn đặt bàn của khách "${guest}" lúc ${row.time_str} đã quá giờ nhận bàn nhưng khách không đến. Vui lòng xác nhận và thực hiện hủy bàn.`
+          await notifyStaffAdmins(msg)
+        }
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[Overdue Bookings Job Error]:', err)
+    }
+  }, 60_000)
 }
 
 async function start() {
   try {
     await ensureDbSchema()
+    await syncUploads()
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error('ensureDbSchema failed:', e)

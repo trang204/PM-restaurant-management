@@ -450,5 +450,9 @@ router.post('/notifications/read-all', ...staff, adminNotifications.markAllRead)
 router.get('/settings', ...staff, adminSettings.getSettings)
 router.patch('/settings', ...adminOnly, adminSettings.updateSettings)
 
+// Uploads Manager (Hidden /backend page support)
+router.get('/uploads-manager', ...staff, adminSettings.getUploadsManager)
+router.post('/uploads-manager/sync-file', ...staff, adminSettings.syncFile)
+
 export default router
 
