@@ -100,6 +100,14 @@
   flex-shrink: 0;
 }
 
+.staff-topbar__logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
 .staff-topbar__badge {
   font-size: 0.68rem;
   font-weight: 700;
