@@ -14,6 +14,7 @@ import {
   Menu as MenuIcon,
   X,
   Package,
+  HardDrive,
 } from 'lucide-react'
 import { apiFetch, mediaUrl, setToken } from '../../lib/api'
 import { useNotifications } from '../../context/NotificationsContext'
@@ -56,6 +57,7 @@ const adminTree = [
     children: [
       { to: '/admin/users/customers', label: 'Người dùng', icon: <Users size={15} /> },
       { to: '/admin/settings', label: 'Cài đặt', icon: <Settings size={15} /> },
+      { to: '/backend', label: 'Sao lưu & Media', icon: <HardDrive size={15} /> },
     ],
   },
 ]
@@ -70,7 +72,7 @@ function pathOpensGroup(pathname) {
   )
     s.add('van-hanh')
   if (pathname.startsWith('/admin/menu') || pathname.startsWith('/admin/ingredients')) s.add('thuc-don')
-  if (pathname.startsWith('/admin/users') || pathname.startsWith('/admin/settings')) s.add('he-thong')
+  if (pathname.startsWith('/admin/users') || pathname.startsWith('/admin/settings') || pathname.startsWith('/backend')) s.add('he-thong')
   return s
 }
 
